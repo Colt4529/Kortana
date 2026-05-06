@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { supabase, insertGameLog } from "./supabaseClient";
 
 const C = {
   bg:      "#0e0e10",
@@ -52,53 +53,71 @@ function StripeBar({ height=3, style }) {
   );
 }
 
-const INIT_GAMES = [
-  { id:1, title:"Elden Ring",    year:2022, genre:"RPG",         publisher:"Bandai Namco", developer:"FromSoftware",    rating:5, status:"played",       goty:true,  liked:true,  review:"Every corner hides something incredible.", playtime:120, date:"2024-03-10",
-    cover:"https://media.rawg.io/media/games/b29/b294fad93cd20b4f4c33b9a35d89c84e.jpg",
-    hero:"https://media.rawg.io/media/screenshots/1ac/1ac19f31974314855ad7be4bea5e503e.jpg",
-    tagline:"THE LANDS BETWEEN AWAIT",
-    desc:"A vast open-world action RPG co-written with George R.R. Martin. Forge your legend through a shattered realm ruled by demigods, where every encounter holds mystery and death." },
-  { id:2, title:"Hades",         year:2020, genre:"Roguelike",   publisher:"Supergiant",   developer:"Supergiant Games", rating:5, status:"played",       goty:false, liked:true,  review:"One more run. Always one more run.", playtime:80, date:"2024-02-20",
-    cover:"https://media.rawg.io/media/games/1f4/1f47a270b8f241f1b9716a9f5cdc4869.jpg",
-    hero:"https://media.rawg.io/media/screenshots/f36/f36f1773a2e73e4f37e93b11cb4e0a3d.jpg",
-    tagline:"DEATH IS ONLY THE BEGINNING",
-    desc:"Battle out of the Underworld in this rogue-like dungeon crawler. Each escape attempt tells a deeper story about gods, family, and fate." },
-  { id:3, title:"Hollow Knight",  year:2017, genre:"Metroidvania",publisher:"Team Cherry",  developer:"Team Cherry",     rating:4, status:"playing",      goty:false, liked:false, review:"Lost in Hallownest, loving every second.", playtime:45, date:"2024-04-01",
-    cover:"https://media.rawg.io/media/games/4cf/4cfc6b7f1850590a4634b08bfab308ab.jpg",
-    hero:"https://media.rawg.io/media/screenshots/6a0/6a08afca72024e3f8a042fc5c0a71596.jpg",
-    tagline:"FORGE YOUR OWN PATH",
-    desc:"Explore a vast underground kingdom of insects and heroes. Beautiful, haunting, and deeply atmospheric." },
-  { id:4, title:"Disco Elysium",  year:2019, genre:"RPG",         publisher:"ZA/UM",        developer:"ZA/UM",           rating:5, status:"played",       goty:true,  liked:true,  review:"Changed how I think about games.", playtime:60, date:"2024-01-15",
-    cover:"https://media.rawg.io/media/games/f46/f466571d536f2753c02c7200d03a1826.jpg",
-    hero:"https://media.rawg.io/media/screenshots/1a6/1a6a956f1c9bfb7d96a35cd1c609a73e.jpg",
-    tagline:"WHO ARE YOU AGAIN?",
-    desc:"A groundbreaking RPG with no combat — only dialogue. Play as a disgraced detective piecing together your identity in a city full of ideology and regret." },
-  { id:5, title:"Celeste",        year:2018, genre:"Platformer",  publisher:"Extremely OK", developer:"Maddy Thorson",   rating:4, status:"played",       goty:false, liked:true,  review:"Story hit different. Hard but fair.", playtime:12, date:"2023-12-05",
-    cover:"https://media.rawg.io/media/games/594/59487800889ebac294c7c2c070d02356.jpg",
-    hero:"https://media.rawg.io/media/screenshots/73e/73e18e94cc51b41a58dd06d8bbc58124.jpg",
-    tagline:"CLIMB THE MOUNTAIN",
-    desc:"Help Madeline survive her inner demons on her journey to the top of Celeste Mountain. Mental health wrapped in precision platforming." },
-  { id:6, title:"Sekiro",         year:2019, genre:"Action",      publisher:"Activision",   developer:"FromSoftware",    rating:5, status:"played",       goty:false, liked:false, review:"Perfected the art of the parry.", playtime:55, date:"2023-10-18",
-    cover:"https://media.rawg.io/media/games/67f/67f62d1f062a6164f57575e0604ee9f6.jpg",
-    hero:"https://media.rawg.io/media/screenshots/166/166a7e5e79e73f4416f486e45e2b82b3.jpg",
-    tagline:"DEFY DEATH",
-    desc:"Carve your own path to vengeance as the one-armed wolf in Sengoku-era Japan. Posture, patience, and perfect timing." },
-  { id:7, title:"Dead Cells",     year:2018, genre:"Roguelike",   publisher:"Motion Twin",  developer:"Motion Twin",     rating:0, status:"want to play", goty:false, liked:false, review:"", playtime:0, date:"2024-04-10",
-    cover:"https://media.rawg.io/media/games/8d6/8d69eb6c32ed6acfd75f82d532144993.jpg",
-    hero:"https://media.rawg.io/media/screenshots/b26/b265cd0c6c07eb8e4040be17b1ab5eca.jpg",
-    tagline:"DEATH IS NOT THE END",
-    desc:"A rogue-lite metroidvania where no two runs are the same. Fast, fluid combat with hundreds of weapons." },
-  { id:8, title:"Outer Wilds",    year:2019, genre:"Adventure",   publisher:"Annapurna",    developer:"Mobius Digital",  rating:5, status:"played",       goty:true,  liked:true,  review:"The best mystery I've ever experienced.", playtime:22, date:"2023-09-14",
-    cover:"https://media.rawg.io/media/games/b7d/b7d3e6a92d8db04c0a96a9cf6c8ab879.jpg",
-    hero:"https://media.rawg.io/media/screenshots/eac/eacf1d2049f87ee8f3d98eacdad9cdca.jpg",
-    tagline:"SOME THINGS AREN'T MEANT TO BE UNDERSTOOD",
-    desc:"A solar system stuck in a 22-minute time loop. Every answer leads to a deeper question. One of the most profound experiences in games." },
-];
+function AuthScreen() {
+  const [mode, setMode] = useState("sign-in");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
-const INIT_LISTS = [
-  { id:1, name:"All-Time Favorites", desc:"Games I'll never forget",    gameIds:[1,2,4,8] },
-  { id:2, name:"Indie Gems",          desc:"Small teams, massive impact", gameIds:[3,5,7] },
-];
+  const submit = async () => {
+    setLoading(true);
+    setMessage("");
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password) {
+      setMessage("Enter both email and password.");
+      setLoading(false);
+      return;
+    }
+
+    if (mode === "sign-in") {
+      const { error } = await supabase.auth.signInWithPassword({ email: trimmedEmail, password });
+      if (error) setMessage(error.message);
+    } else {
+      const { error } = await supabase.auth.signUp({ email: trimmedEmail, password });
+      if (error) setMessage(error.message);
+      else setMessage("Signup successful — check your email to confirm.");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ minHeight:"100vh", background:C.bg, color:C.text, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+      <div style={{ width:"100%", maxWidth:420, padding:28, borderRadius:18, background:C.surface, border:`1px solid ${C.border}`, boxShadow:"0 20px 60px rgba(0,0,0,.35)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:22 }}>
+          <div>
+            <div style={{ fontSize:26, fontWeight:900 }}>kortana</div>
+            <div style={{ fontSize:12, color:C.muted, marginTop:6 }}>Sign in or create an account to unlock your library.</div>
+          </div>
+          <div style={{ display:"flex", gap:6 }}>
+            <button onClick={()=>setMode("sign-in")} style={{ padding:"8px 16px", borderRadius:999, border:"none", cursor:"pointer", background:mode==="sign-in"?C.yellow:C.faint, color:mode==="sign-in"?"#000":C.text, fontWeight:800 }}>Sign In</button>
+            <button onClick={()=>setMode("sign-up")} style={{ padding:"8px 16px", borderRadius:999, border:"none", cursor:"pointer", background:mode==="sign-up"?C.yellow:C.faint, color:mode==="sign-up"?"#000":C.text, fontWeight:800 }}>Sign Up</button>
+          </div>
+        </div>
+
+        <div style={{ display:"grid", gap:14 }}>
+          <div>
+            <div style={{ fontSize:11, fontWeight:800, letterSpacing:"0.18em", textTransform:"uppercase", color:C.muted, marginBottom:8 }}>{mode==="sign-in"?"Login":"Create account"}</div>
+            <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email" style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, borderRadius:6, padding:"14px 16px", color:C.text, fontSize:14, outline:"none", boxSizing:"border-box" }} />
+          </div>
+          <div>
+            <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password" style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, borderRadius:6, padding:"14px 16px", color:C.text, fontSize:14, outline:"none", boxSizing:"border-box" }} />
+          </div>
+          {message && <div style={{ color: message.startsWith("Signup successful") ? C.green : C.red, fontSize:13, minHeight:18 }}>{message}</div>}
+          <button onClick={submit} disabled={loading} style={{ width:"100%", padding:14, borderRadius:8, border:"none", background:C.yellow, color:"#000", fontWeight:900, cursor:"pointer", fontSize:14, textTransform:"uppercase", letterSpacing:"0.08em" }}>
+            {loading ? "Working…" : mode === "sign-in" ? "Sign In" : "Create Account"}
+          </button>
+          <div style={{ textAlign:"center", fontSize:12, color:C.muted }}>
+            By continuing you agree to use your email and password for Kortana authentication.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const INIT_GAMES = [];
+const INIT_LISTS = [];
 
 // ── SHARED COMPONENTS ─────────────────────────────────────────────────────────
 
@@ -211,7 +230,7 @@ function Empty({ label, icon="🎮" }) {
 }
 
 // ── ACTION SHEET (shared log/edit modal) ──────────────────────────────────────
-function LogSheet({ game, onClose, onSave }) {
+function LogSheet({ game, onClose, onSave, user }) {
   const [form, setForm] = useState({
     rating: game.rating, status: game.status,
     review: game.review||"", liked: game.liked||false, goty: game.goty||false
@@ -293,7 +312,7 @@ function LogSheet({ game, onClose, onSave }) {
           <button onClick={()=>onSave({...game,...form})} style={{
             width:"100%", padding:16, borderRadius:3, border:"none",
             background:C.yellow, color:"#000", fontSize:16, fontWeight:900, cursor:"pointer", letterSpacing:"0.06em", textTransform:"uppercase"
-          }}>Save</button>
+          }}>{user ? "Save & Sync" : "Save"}</button>
         </div>
       </div>
     </div>
@@ -301,8 +320,29 @@ function LogSheet({ game, onClose, onSave }) {
 }
 
 // ── GAME DETAIL ───────────────────────────────────────────────────────────────
-function GameDetail({ game, onBack, onUpdate }) {
+function GameDetail({ game, onBack, onUpdate, user }) {
   const [sheet, setSheet] = useState(false);
+
+  const saveAndSyncLog = async (g) => {
+    onUpdate(g);
+    if (!user) return;
+    try {
+      await insertGameLog({
+        user_id: user.id,
+        game_id: g.id,
+        title: g.title,
+        cover: g.cover,
+        developer: g.developer,
+        publisher: g.publisher,
+        year: g.year,
+        status: g.status,
+        rating: g.rating,
+        review: g.review,
+      });
+    } catch (err) {
+      console.error("Failed to save game log to Supabase:", err);
+    }
+  };
 
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"system-ui,sans-serif" }}>
@@ -392,32 +432,40 @@ function GameDetail({ game, onBack, onUpdate }) {
       </div>
 
       {sheet && (
-        <LogSheet game={game} onClose={()=>setSheet(false)} onSave={g=>{onUpdate(g);setSheet(false);}} />
+        <LogSheet game={game} user={user} onClose={()=>setSheet(false)} onSave={g=>{saveAndSyncLog(g);setSheet(false);}} />
       )}
     </div>
   );
 }
 
 // ── HOME ──────────────────────────────────────────────────────────────────────
-function HomeScreen({ games, onGameClick }) {
-  const played  = games.filter(g=>g.status==="played");
-  const playing = games.filter(g=>g.status==="playing");
-  const goty    = games.filter(g=>g.goty);
+function HomeScreen({ games, logs, onGameClick }) {
+  const hasLogs = logs.length > 0;
+  const played  = hasLogs ? logs.filter(g=>g.status==="played") : [];
+  const playing = hasLogs ? logs.filter(g=>g.status==="playing") : [];
+  const goty    = hasLogs ? logs.filter(g=>g.goty) : [];
   const avgR    = played.filter(g=>g.rating>0).length
     ? (played.filter(g=>g.rating>0).reduce((a,g)=>a+g.rating,0)/played.filter(g=>g.rating>0).length).toFixed(1) : "—";
+  const heroGame = hasLogs ? logs[0] : null;
 
   return (
     <div style={{ paddingBottom:90, color:C.text, fontFamily:"system-ui,sans-serif" }}>
-      {/* featured hero */}
-      {games[0] && (
-        <div onClick={()=>onGameClick(games[0])} style={{ position:"relative", height:280, overflow:"hidden", cursor:"pointer" }}>
-          <Img src={games[0].hero} style={{ width:"100%", height:"100%", filter:"brightness(.36) saturate(.7)" }} />
-          <div style={{ position:"absolute", inset:0, background:`linear-gradient(to bottom, transparent 20%, ${C.bg} 100%)` }} />
-          <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"0 18px 22px" }}>
-            <div style={{ fontSize:10, letterSpacing:"0.22em", color:C.muted, marginBottom:8, textTransform:"uppercase", fontWeight:800 }}>Featured</div>
-            <div style={{ fontSize:30, fontWeight:900, lineHeight:1.05, letterSpacing:"-.4px" }}>{games[0].title}</div>
-            <div style={{ fontSize:12, color:C.muted, marginTop:5 }}>{games[0].year} · {games[0].developer}</div>
+      {hasLogs ? (
+        heroGame && (
+          <div onClick={()=>onGameClick(heroGame)} style={{ position:"relative", height:280, overflow:"hidden", cursor:"pointer" }}>
+            <Img src={heroGame.hero || heroGame.cover} style={{ width:"100%", height:"100%", filter:"brightness(.36) saturate(.7)" }} />
+            <div style={{ position:"absolute", inset:0, background:`linear-gradient(to bottom, transparent 20%, ${C.bg} 100%)` }} />
+            <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"0 18px 22px" }}>
+              <div style={{ fontSize:10, letterSpacing:"0.22em", color:C.muted, marginBottom:8, textTransform:"uppercase", fontWeight:800 }}>Featured</div>
+              <div style={{ fontSize:30, fontWeight:900, lineHeight:1.05, letterSpacing:"-.4px" }}>{heroGame.title}</div>
+              <div style={{ fontSize:12, color:C.muted, marginTop:5 }}>{heroGame.year} · {heroGame.developer}</div>
+            </div>
           </div>
+        )
+      ) : (
+        <div style={{ padding:"24px 18px", marginBottom:16, borderRadius:12, background:C.surface, border:`1px solid ${C.border}` }}>
+          <div style={{ fontSize:22, fontWeight:900, marginBottom:10 }}>Welcome to Kortana</div>
+          <div style={{ fontSize:14, color:C.muted, lineHeight:1.6 }}>This account has played 0 games so far. Start browsing games and save your first log to build your library.</div>
         </div>
       )}
 
@@ -432,13 +480,17 @@ function HomeScreen({ games, onGameClick }) {
       </div>
 
       <Section label="Recently Logged">
-        <div style={{ display:"flex", gap:10, overflowX:"auto", paddingBottom:4, scrollSnapType:"x mandatory" }}>
-          {[...games].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,8).map(g=>(
-            <div key={g.id} style={{ width:112, flexShrink:0, scrollSnapAlign:"start" }}>
-              <PosterCard game={g} onClick={onGameClick} />
-            </div>
-          ))}
-        </div>
+        {hasLogs ? (
+          <div style={{ display:"flex", gap:10, overflowX:"auto", paddingBottom:4, scrollSnapType:"x mandatory" }}>
+            {[...logs].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).slice(0,8).map(g=>(
+              <div key={g.id} style={{ width:112, flexShrink:0, scrollSnapAlign:"start" }}>
+                <PosterCard game={g} onClick={onGameClick} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <Empty label="No games logged yet" icon="📝" />
+        )}
       </Section>
 
       {playing.length>0 && (
@@ -463,9 +515,9 @@ function HomeScreen({ games, onGameClick }) {
 }
 
 // ── DIARY ─────────────────────────────────────────────────────────────────────
-function DiaryScreen({ games, onGameClick }) {
+function DiaryScreen({ logs, onGameClick }) {
   const [filter, setFilter] = useState("all");
-  const list = games.filter(g=>filter==="all"||g.status===filter).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const list = logs.filter(g=>filter==="all"||g.status===filter).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   return (
     <div style={{ paddingBottom:90, color:C.text, fontFamily:"system-ui,sans-serif" }}>
       <div style={{ padding:"52px 18px 14px", position:"sticky", top:0, background:C.bg, zIndex:10, borderBottom:`1px solid ${C.border}` }}>
@@ -474,7 +526,7 @@ function DiaryScreen({ games, onGameClick }) {
       </div>
       <div style={{ padding:"6px 18px 0" }}>
         {list.map((g,i)=><DiaryRow key={g.id} game={g} index={i} onClick={onGameClick} />)}
-        {list.length===0 && <Empty label="Nothing here yet" />}
+        {list.length===0 && <Empty label="No diary entries yet" />}
       </div>
     </div>
   );
@@ -591,6 +643,45 @@ function BrowseScreen({ games, onGameClick }) {
           <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
             {displayed.map(g=><PosterCard key={g.id} game={g} onClick={onGameClick} />)}
             {displayed.length===0 && <div style={{ gridColumn:"1/-1" }}><Empty label="No games found" /></div>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LogsScreen({ logs, loading }) {
+  return (
+    <div style={{ paddingBottom:90, color:C.text, fontFamily:"system-ui,sans-serif" }}>
+      <div style={{ padding:"52px 18px 14px", position:"sticky", top:0, background:C.bg, zIndex:10, borderBottom:`1px solid ${C.border}` }}>
+        <div style={{ fontSize:22, fontWeight:900, marginBottom:8 }}>Saved Logs</div>
+        <div style={{ fontSize:13, color:C.muted }}>Your saved game log entries from Supabase.</div>
+      </div>
+      <div style={{ padding:"14px 18px 0" }}>
+        {loading ? (
+          <Empty label="Loading saved logs…" icon="⏳" />
+        ) : logs.length === 0 ? (
+          <Empty label="No saved logs yet" />
+        ) : (
+          <div style={{ display:"grid", gap:12 }}>
+            {logs.map(log => (
+              <div key={log.id} style={{ display:"flex", gap:12, padding:14, borderRadius:8, background:C.surface, border:`1px solid ${C.border}` }}>
+                <div style={{ width:68, height:88, borderRadius:6, overflow:"hidden", flexShrink:0, background:C.bg }}>
+                  <Img src={log.cover} style={{ width:"100%", height:"100%" }} />
+                </div>
+                <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", justifyContent:"space-between" }}>
+                  <div>
+                    <div style={{ fontSize:15, fontWeight:900, color:C.text, marginBottom:4 }}>{log.title}</div>
+                    <div style={{ fontSize:11, color:C.muted, marginBottom:8 }}>{log.year || '—'} · {log.developer || 'Unknown'}</div>
+                    <div style={{ fontSize:12, color:C.muted, lineHeight:1.5, overflow:"hidden", textOverflow:"ellipsis", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{log.review || 'No review yet.'}</div>
+                  </div>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginTop:12 }}>
+                    <span style={{ fontSize:10, fontWeight:800, color:SC[log.status]||C.muted, textTransform:"uppercase", letterSpacing:"0.08em" }}>{log.status || 'Unknown'}</span>
+                    <Stars value={log.rating || 0} size={14} />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -732,15 +823,83 @@ export default function Kortana() {
   const [lists,  setLists]  = useState(INIT_LISTS);
   const [tab,    setTab]    = useState("home");
   const [detail, setDetail] = useState(null);
+  const [user,   setUser]   = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [logs, setLogs] = useState([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    const initAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!mounted) return;
+      setUser(data.session?.user ?? null);
+      setAuthLoading(false);
+    };
+    initAuth();
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      mounted = false;
+      subscription?.subscription?.unsubscribe?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setLogs([]);
+      return;
+    }
+
+    const loadLogs = async () => {
+      setLogsLoading(true);
+      const { data, error } = await supabase
+        .from('game_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      if (error) {
+        console.error('Error loading saved logs:', error);
+        setLogs([]);
+      } else {
+        setLogs(data || []);
+      }
+      setLogsLoading(false);
+    };
+
+    loadLogs();
+  }, [user]);
 
   const updateGame = u => setGames(gs=>gs.map(g=>g.id===u.id?u:g));
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+  };
 
   const TABS = [
     { key:"home",   icon:"⌂",  label:"Home"   },
     { key:"diary",  icon:"📖", label:"Diary"  },
     { key:"browse", icon:"🔍", label:"Browse" },
+    { key:"logs",   icon:"📜", label:"Saved"  },
     { key:"lists",  icon:"📋", label:"Lists"  },
   ];
+
+  if (authLoading) {
+    return (
+      <div style={{ minHeight:"100vh", background:C.bg, color:C.text, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"system-ui,sans-serif" }}>
+        Loading auth…
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthScreen />;
+  }
 
   return (
     <div style={{ minHeight:"100vh", background:C.bg, maxWidth:430, margin:"0 auto", position:"relative", overflowX:"hidden" }}>
@@ -753,17 +912,26 @@ export default function Kortana() {
         input::placeholder,textarea::placeholder{color:rgba(240,237,232,0.22)!important}
       `}</style>
 
+      {!detail && (
+        <div style={{ position:"fixed", top:14, right:18, zIndex:210, display:"flex", alignItems:"center", gap:8 }}>
+          <span style={{ fontSize:11, color:C.muted, maxWidth:180, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.email}</span>
+          <button onClick={handleSignOut} style={{ padding:"8px 12px", borderRadius:999, border:"none", background:C.yellow, color:"#000", fontWeight:800, cursor:"pointer", fontSize:11, textTransform:"uppercase", letterSpacing:"0.08em" }}>Sign Out</button>
+        </div>
+      )}
+
       {detail ? (
         <GameDetail
           game={games.find(g=>g.id===detail.id)||detail}
+          user={user}
           onBack={()=>setDetail(null)}
           onUpdate={g=>{updateGame(g);setDetail(g);}}
         />
       ) : (
         <>
-          {tab==="home"   && <HomeScreen   games={games} onGameClick={setDetail} />}
-          {tab==="diary"  && <DiaryScreen  games={games} onGameClick={setDetail} />}
+          {tab==="home"   && <HomeScreen   games={games} logs={logs} onGameClick={setDetail} />}
+          {tab==="diary"  && <DiaryScreen  logs={logs} onGameClick={setDetail} />}
           {tab==="browse" && <BrowseScreen games={games} onGameClick={setDetail} />}
+          {tab==="logs"   && <LogsScreen   logs={logs} loading={logsLoading} />}
           {tab==="lists"  && <ListsScreen  lists={lists} games={games} setLists={setLists} onGameClick={setDetail} />}
         </>
       )}
@@ -772,7 +940,7 @@ export default function Kortana() {
       {!detail && (
         <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:430,
           background:`rgba(14,14,16,.97)`, backdropFilter:"blur(20px)", borderTop:`1px solid ${C.border}`,
-          display:"grid", gridTemplateColumns:"repeat(4,1fr)", zIndex:100, paddingBottom:16, overflow:"hidden" }}>
+          display:"grid", gridTemplateColumns:"repeat(5,1fr)", zIndex:100, paddingBottom:16, overflow:"hidden" }}>
           <StripeBar height={2} style={{ position:"absolute", top:0, left:0, right:0 }} />
           {TABS.map(t=>(
             <button key={t.key} onClick={()=>setTab(t.key)} style={{
