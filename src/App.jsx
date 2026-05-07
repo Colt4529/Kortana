@@ -994,7 +994,7 @@ function SettingsDropdown({ user, displayName, photoUrl, onAccount, onFriends, o
     <button onClick={onClick} style={{ width:"100%", padding:"12px 16px", background:"none", border:"none", cursor:"pointer", textAlign:"left", fontSize:13, fontWeight:500, color:color||C.text, display:"block", transition:"background .1s" }}>{label}</button>
   );
   return (
-    <div style={{ position:"absolute", top:"calc(100% + 10px)", left:0, zIndex:300, background:C.surface, border:`0.5px solid ${C.border}`, borderRadius:12, minWidth:230, overflow:"hidden", boxShadow:"0 20px 60px rgba(0,0,0,.7)", animation:"fadeUp .15s ease" }}>
+    <div style={{ position:"absolute", top:"calc(100% + 10px)", right:0, zIndex:300, background:C.surface, border:`0.5px solid ${C.border}`, borderRadius:12, minWidth:230, overflow:"hidden", boxShadow:"0 20px 60px rgba(0,0,0,.7)", animation:"fadeUp .15s ease" }}>
       <div style={{ padding:"14px 16px", borderBottom:`0.5px solid ${C.border}`, display:"flex", alignItems:"center", gap:12 }}>
         <UserAvatar initial={initial} photoUrl={photoUrl} size={38} />
         <div style={{ minWidth:0 }}>
@@ -1169,7 +1169,18 @@ export default function Kortana() {
             {settingsOpen && <div onClick={()=>setSettingsOpen(false)} style={{ position:"fixed", inset:0, zIndex:195 }} />}
             <div style={{ position:"fixed", top:0, left:0, right:0, zIndex:200, padding:"clamp(12px,2.5vw,20px) clamp(18px,5vw,48px)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
 
-              {/* Left: avatar / settings trigger */}
+              {/* Left: wordmark */}
+              <div style={{ display:"flex", alignItems:"center", gap:9, pointerEvents:"none" }}>
+                <svg width="22" height="22" viewBox="0 0 110 110" fill="none">
+                  <path d="M16 10 L16 100 L34 100 L34 62 L68 100 L92 100 L54 55 L90 10 L66 10 L34 46 L34 10 Z" fill="none" stroke="#2255CC" strokeWidth="4"/>
+                  <path d="M90 10 L54 55" stroke="#CC3377" strokeWidth="4" fill="none"/>
+                  <path d="M34 62 L68 100 L92 100" stroke="#FAC000" strokeWidth="4" fill="none"/>
+                  <path d="M54 55 L92 100" stroke="#00A850" strokeWidth="4" fill="none"/>
+                </svg>
+                <span style={{ fontSize:"clamp(16px,2.5vw,20px)", fontWeight:500, letterSpacing:"-0.5px", color:C.text }}>ortana</span>
+              </div>
+
+              {/* Right: avatar / settings trigger */}
               <div style={{ position:"relative" }}>
                 <button onClick={()=>setSettingsOpen(v=>!v)} style={{ background:"none", border:"none", cursor:"pointer", padding:0, display:"flex", alignItems:"center" }}>
                   <UserAvatar initial={initial} photoUrl={photoUrl} size={34} />
@@ -1182,17 +1193,6 @@ export default function Kortana() {
                     onSignOut={()=>{ setSettingsOpen(false); handleSignOut(); }}
                   />
                 )}
-              </div>
-
-              {/* Right: wordmark */}
-              <div style={{ display:"flex", alignItems:"center", gap:9, pointerEvents:"none" }}>
-                <svg width="22" height="22" viewBox="0 0 110 110" fill="none">
-                  <path d="M16 10 L16 100 L34 100 L34 62 L68 100 L92 100 L54 55 L90 10 L66 10 L34 46 L34 10 Z" fill="none" stroke="#2255CC" strokeWidth="4"/>
-                  <path d="M90 10 L54 55" stroke="#CC3377" strokeWidth="4" fill="none"/>
-                  <path d="M34 62 L68 100 L92 100" stroke="#FAC000" strokeWidth="4" fill="none"/>
-                  <path d="M54 55 L92 100" stroke="#00A850" strokeWidth="4" fill="none"/>
-                </svg>
-                <span style={{ fontSize:"clamp(16px,2.5vw,20px)", fontWeight:500, letterSpacing:"-0.5px", color:C.text }}>ortana</span>
               </div>
 
             </div>
@@ -1208,7 +1208,7 @@ export default function Kortana() {
             {tab==="diary"  && <DiaryScreen  logs={logs} onGameClick={setDetail} />}
             {tab==="browse" && <BrowseScreen games={games} onGameClick={setDetail} />}
             {tab==="logs"   && <LogsScreen   logs={logs} loading={logsLoading} />}
-            {tab==="lists"  && <ListsScreen  lists={lists} games={games} setLists={setLists} onGameClick={setDetail} />}
+            {tab==="lists"  && <ListsScreen  lists={lists} games={[...new Map(logs.map(l=>[l.game_id||l.id,{...l,id:l.game_id||l.id,hero:l.cover}])).values()]} setLists={setLists} onGameClick={setDetail} />}
           </>
         )}
 
