@@ -29,7 +29,7 @@ function rawgImg(url, { w, h } = {}) {
 }
 
 function normalizeRawgGame(raw) {
-  const cover = rawgImg(raw.background_image || raw.background_image_additional || raw.background || "", { w:600, h:900 });
+  const cover = rawgImg(raw.background_image || raw.background_image_additional || raw.background || "", { w:600 });
   const hero  = rawgImg(raw.background_image_additional || raw.background_image || raw.background || "", { w:1280 });
   return {
     id: raw.id,
@@ -225,19 +225,20 @@ function Section({ label, children }) {
 function PosterCard({ game, onClick }) {
   return (
     <div onClick={()=>onClick?.(game)} style={{
-      position:"relative", aspectRatio:"2/3", borderRadius:8, overflow:"hidden", cursor:"pointer",
+      position:"relative", aspectRatio:"16/9", borderRadius:8, overflow:"hidden", cursor:"pointer",
       boxShadow:"0 4px 20px rgba(0,0,0,.6)", transition:"transform 0.2s ease",
     }}>
       <Img src={game.cover} style={{ width:"100%", height:"100%" }} />
-      <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(10,10,10,.95) 0%, transparent 55%)" }} />
+      <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(10,10,10,.92) 0%, transparent 60%)" }} />
       <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"clamp(8px,2vw,12px)" }}>
-        <div style={{ fontSize:"clamp(10px,1.5vw,12px)", fontWeight:500, color:C.text, lineHeight:1.3, marginBottom:4 }}>{game.title}</div>
-        <Stars value={game.rating} size={10} />
+        <div style={{ fontSize:"clamp(10px,1.5vw,12px)", fontWeight:500, color:C.text, lineHeight:1.3, marginBottom:2 }}>{game.title}</div>
+        <div style={{ fontSize:9, color:"#555", marginBottom:3 }}>{game.year}{game.developer&&game.developer!=="Unknown"?` · ${game.developer}`:""}</div>
+        <Stars value={game.rating} size={9} />
       </div>
       {game.goty && (
         <div style={{ position:"absolute", top:8, right:8, background:C.yellow, borderRadius:4, padding:"2px 6px", fontSize:8, fontWeight:500, color:"#000", letterSpacing:"1px", textTransform:"uppercase" }}>GOTY</div>
       )}
-      <div style={{ position:"absolute", top:10, left:10, width:6, height:6, borderRadius:"50%", background:SC[game.status]||C.muted }} />
+      <div style={{ position:"absolute", top:8, left:8, width:6, height:6, borderRadius:"50%", background:SC[game.status]||C.muted }} />
     </div>
   );
 }
@@ -245,20 +246,22 @@ function PosterCard({ game, onClick }) {
 function DiaryRow({ game, onClick, index=0 }) {
   return (
     <div onClick={()=>onClick?.(game)}
-      style={{ display:"flex", gap:"clamp(12px,2vw,16px)", padding:"clamp(14px,2vh,18px) 0", borderBottom:`0.5px solid ${C.border}`, cursor:"pointer", animation:`fadeUp .3s ${Math.min(index,8)*.04}s both` }}>
-      <div style={{ width:"clamp(42px,8vw,52px)", height:"clamp(56px,11vw,70px)", borderRadius:6, overflow:"hidden", flexShrink:0, boxShadow:"0 4px 14px rgba(0,0,0,.5)" }}>
+      style={{ display:"flex", gap:"clamp(10px,2vw,14px)", padding:"clamp(12px,2vh,16px) 0", borderBottom:`0.5px solid ${C.border}`, cursor:"pointer", animation:`fadeUp .3s ${Math.min(index,8)*.04}s both` }}>
+      <div style={{ width:44, height:44, borderRadius:6, overflow:"hidden", flexShrink:0, boxShadow:"0 2px 10px rgba(0,0,0,.5)" }}>
         <Img src={game.cover} style={{ width:"100%", height:"100%" }} />
       </div>
-      <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", justifyContent:"center", gap:4 }}>
+      <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", justifyContent:"center", gap:3 }}>
         <div style={{ display:"flex", alignItems:"center", gap:7, flexWrap:"wrap" }}>
           <span style={{ fontSize:"clamp(13px,2.5vw,15px)", fontWeight:500, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{game.title}</span>
           {game.goty && <span style={{ background:"rgba(250,192,0,.09)", border:`0.5px solid rgba(250,192,0,.25)`, borderRadius:4, padding:"1px 6px", fontSize:8, fontWeight:500, color:C.yellow, flexShrink:0, letterSpacing:"1px", textTransform:"uppercase" }}>GOTY</span>}
         </div>
-        <Stars value={game.rating} size={12} />
-        {game.review ? <div style={{ fontSize:12, fontStyle:"italic", color:C.muted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{game.review}</div> : null}
+        <div style={{ fontSize:10, color:"#444" }}>
+          {game.year}{game.developer&&game.developer!=="Unknown"?` · ${game.developer}`:""}
+        </div>
+        <Stars value={game.rating} size={11} />
+        {game.review ? <div style={{ fontSize:11, fontStyle:"italic", color:C.muted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{game.review}</div> : null}
       </div>
-      <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", justifyContent:"space-between", flexShrink:0 }}>
-        <span style={{ fontSize:10, color:"#444" }}>{game.year}</span>
+      <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", justifyContent:"center", flexShrink:0 }}>
         <span style={{ fontSize:10, fontWeight:500, color:SC[game.status]||C.muted, letterSpacing:"1px", textTransform:"uppercase" }}>{game.status}</span>
       </div>
     </div>
@@ -482,7 +485,7 @@ function GotyRace({ onGameClick }) {
             const r = await fetch(`${RAWG_API_URL}/games?key=${RAWG_API_KEY}&search=${encodeURIComponent(game.title)}&page_size=3&exclude_additions=true`);
             const d = await r.json();
             const hit = (d.results||[]).find(g => g.background_image) || null;
-            return { ...game, cover: rawgImg(hit?.background_image||"", {w:600,h:900}), mc: hit?.metacritic||0 };
+            return { ...game, cover: rawgImg(hit?.background_image||"", {w:600}), mc: hit?.metacritic||0 };
           } catch { return { ...game, cover:"", mc:0 }; }
         })
       );
@@ -518,6 +521,87 @@ function GotyRace({ onGameClick }) {
             {game.mc > 0
               ? <><div style={{ fontSize:13, fontWeight:500, color:mcColor(game.mc), lineHeight:1 }}>{game.mc}</div><div style={{ fontSize:8, color:"#333", letterSpacing:"0.5px", textTransform:"uppercase", marginTop:2 }}>MC</div></>
               : <div style={{ fontSize:11, color:"#333" }}>—</div>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── NEW & HOT ─────────────────────────────────────────────────────────────────
+function NewAndHot({ onGameClick }) {
+  const [games, setGames] = useState([]);
+  useEffect(() => {
+    const yr = new Date().getFullYear();
+    fetch(`${RAWG_API_URL}/games?key=${RAWG_API_KEY}&ordering=-added&dates=${yr-1}-01-01,${yr}-12-31&metacritic=75,100&parent_platforms=1,2,3,7&exclude_additions=true&page_size=12`)
+      .then(r=>r.json())
+      .then(d=>setGames((d.results||[]).filter(g=>g.background_image).map(normalizeRawgGame)))
+      .catch(()=>{});
+  }, []);
+  if (!games.length) return null;
+  return (
+    <div style={{ display:"flex", gap:"clamp(10px,2vw,14px)", overflowX:"auto", paddingBottom:4, scrollSnapType:"x mandatory", marginLeft:"-clamp(18px,5vw,48px)", marginRight:"-clamp(18px,5vw,48px)", paddingLeft:"clamp(18px,5vw,48px)", paddingRight:"clamp(18px,5vw,48px)" }}>
+      {games.map(g=>(
+        <div key={g.id} style={{ width:"clamp(180px,32vw,260px)", flexShrink:0, scrollSnapAlign:"start" }}>
+          <PosterCard game={g} onClick={onGameClick} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── TGA GOTY HISTORY ─────────────────────────────────────────────────────────
+const TGA_WINNERS = [
+  { year:2024, title:"Astro Bot",                    developer:"Team Asobi"         },
+  { year:2023, title:"Baldur's Gate 3",              developer:"Larian Studios"     },
+  { year:2022, title:"Elden Ring",                   developer:"FromSoftware"       },
+  { year:2021, title:"It Takes Two",                 developer:"Hazelight Studios"  },
+  { year:2020, title:"The Last of Us Part II",       developer:"Naughty Dog"        },
+  { year:2019, title:"Death Stranding",              developer:"Kojima Productions" },
+  { year:2018, title:"God of War",                   developer:"Santa Monica Studio"},
+  { year:2017, title:"The Legend of Zelda: Breath of the Wild", developer:"Nintendo"},
+  { year:2016, title:"Overwatch",                    developer:"Blizzard"           },
+  { year:2015, title:"The Witcher 3: Wild Hunt",     developer:"CD Projekt Red"     },
+  { year:2014, title:"Dragon Age: Inquisition",      developer:"BioWare"            },
+  { year:2013, title:"The Last of Us",               developer:"Naughty Dog"        },
+];
+
+function GotyHistory({ onGameClick }) {
+  const [covers, setCovers] = useState({});
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const results = await Promise.all(
+        TGA_WINNERS.map(async w => {
+          try {
+            const r = await fetch(`${RAWG_API_URL}/games?key=${RAWG_API_KEY}&search=${encodeURIComponent(w.title)}&page_size=2&exclude_additions=true`);
+            const d = await r.json();
+            const hit = (d.results||[]).find(g=>g.background_image)||null;
+            return [w.year, rawgImg(hit?.background_image||"",{w:300})];
+          } catch { return [w.year,""]; }
+        })
+      );
+      if (mounted) setCovers(Object.fromEntries(results));
+    })();
+    return () => { mounted=false; };
+  }, []);
+
+  return (
+    <div>
+      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16 }}>
+        <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2px", color:"#444", textTransform:"uppercase", flexShrink:0 }}>TGA Winners</span>
+        <div style={{ flex:1, height:"0.5px", background:C.border }} />
+      </div>
+      {TGA_WINNERS.map(w=>(
+        <div key={w.year} onClick={()=>onGameClick({ id:`tga-${w.year}`, title:w.title, developer:w.developer, cover:covers[w.year]||"", hero:covers[w.year]||"", year:w.year, rating:0, status:"", goty:true, desc:"", review:"", publisher:"", genre:"", playtime:0 })}
+          style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 0", borderBottom:`0.5px solid ${C.border}`, cursor:"pointer" }}>
+          <div style={{ width:28, fontSize:10, fontWeight:500, color:C.yellow, textAlign:"right", flexShrink:0 }}>{w.year}</div>
+          <div style={{ width:36, height:24, borderRadius:3, overflow:"hidden", flexShrink:0, background:C.faint }}>
+            <Img src={covers[w.year]||""} style={{ width:"100%", height:"100%" }} />
+          </div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontSize:11, fontWeight:500, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{w.title}</div>
+            <div style={{ fontSize:9, color:"#444", marginTop:1 }}>{w.developer}</div>
           </div>
         </div>
       ))}
@@ -589,7 +673,7 @@ function HomeScreen({ games, logs, onGameClick }) {
             {hasLogs ? (
               <div style={{ display:"flex", gap:"clamp(10px,2vw,14px)", overflowX:"auto", paddingBottom:4, scrollSnapType:"x mandatory", marginLeft:"-clamp(18px,5vw,48px)", marginRight:"-clamp(18px,5vw,48px)", paddingLeft:"clamp(18px,5vw,48px)", paddingRight:"clamp(18px,5vw,48px)" }}>
                 {[...logs].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).slice(0,8).map(g=>(
-                  <div key={g.id} style={{ width:"clamp(100px,20vw,150px)", flexShrink:0, scrollSnapAlign:"start" }}>
+                  <div key={g.id} style={{ width:"clamp(180px,32vw,260px)", flexShrink:0, scrollSnapAlign:"start" }}>
                     <PosterCard game={g} onClick={onGameClick} />
                   </div>
                 ))}
@@ -603,6 +687,11 @@ function HomeScreen({ games, logs, onGameClick }) {
               {playing.map((g,i)=><DiaryRow key={g.id} game={g} index={i} onClick={onGameClick} />)}
             </div>
           )}
+
+          <div style={{ paddingTop:32 }}>
+            <SectionHead label="New & Hot" />
+            <NewAndHot onGameClick={onGameClick} />
+          </div>
         </div>
 
         {/* GOTY Race sidebar */}
@@ -913,6 +1002,7 @@ function ListsScreen({ lists, games, setLists, onGameClick }) {
     );
   }
 
+  const wide = useWindowWidth() >= 860;
   return (
     <div style={{ paddingBottom:90, color:C.text }}>
       <div style={{ padding:"clamp(52px,12vh,72px) clamp(18px,5vw,48px) clamp(20px,4vh,28px)" }}>
@@ -931,29 +1021,34 @@ function ListsScreen({ lists, games, setLists, onGameClick }) {
           </div>
         )}
       </div>
-      <div style={{ padding:"0 clamp(18px,5vw,48px)", maxWidth:"1200px", margin:"0 auto", width:"100%" }}>
-        {lists.length===0&&!adding && <Empty label="Create your first list" />}
-        {lists.map(list=>{
-          const covers = games.filter(g=>list.gameIds.slice(0,3).includes(g.id));
-          return (
-            <div key={list.id} onClick={()=>{setOpen(list);setEditing(false);setAdding(false);}}
-              style={{ display:"flex", alignItems:"center", gap:"clamp(12px,2vw,18px)", padding:"clamp(14px,2vh,18px) 0", borderBottom:`0.5px solid ${C.border}`, cursor:"pointer" }}>
-              <div style={{ display:"flex", gap:"clamp(3px,0.5vw,5px)", flexShrink:0 }}>
-                {[0,1,2].map(i=>(
-                  <div key={i} style={{ width:"clamp(36px,7vw,52px)", height:"clamp(48px,10vw,70px)", borderRadius:6, overflow:"hidden", background:C.surface, border:`0.5px solid ${C.border}` }}>
-                    {covers[i] && <Img src={covers[i].cover} style={{ width:"100%", height:"100%" }} />}
-                  </div>
-                ))}
+      <div style={{ display: wide?"grid":"block", gridTemplateColumns: wide?"1fr 240px":"1fr", gap: wide?40:0, padding:"0 clamp(18px,5vw,48px)", alignItems:"start", maxWidth:"1200px", margin:"0 auto", width:"100%" }}>
+        <div>
+          {lists.length===0&&!adding && <Empty label="Create your first list" />}
+          {lists.map(list=>{
+            const covers = games.filter(g=>list.gameIds.slice(0,3).includes(g.id));
+            return (
+              <div key={list.id} onClick={()=>{setOpen(list);setEditing(false);setAdding(false);}}
+                style={{ display:"flex", alignItems:"center", gap:"clamp(12px,2vw,18px)", padding:"clamp(14px,2vh,18px) 0", borderBottom:`0.5px solid ${C.border}`, cursor:"pointer" }}>
+                <div style={{ display:"flex", gap:"clamp(3px,0.5vw,5px)", flexShrink:0 }}>
+                  {[0,1,2].map(i=>(
+                    <div key={i} style={{ width:"clamp(36px,7vw,52px)", height:"clamp(36px,7vw,52px)", borderRadius:6, overflow:"hidden", background:C.surface, border:`0.5px solid ${C.border}` }}>
+                      {covers[i] && <Img src={covers[i].cover} style={{ width:"100%", height:"100%" }} />}
+                    </div>
+                  ))}
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:"clamp(14px,2.5vw,16px)", fontWeight:500 }}>{list.name}</div>
+                  {list.desc && <div style={{ fontSize:12, color:C.muted, marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{list.desc}</div>}
+                  <div style={{ fontSize:11, color:"#444", marginTop:4, letterSpacing:"1px" }}>{list.gameIds.length} game{list.gameIds.length!==1?"s":""}</div>
+                </div>
+                <div style={{ color:C.blue, fontSize:18 }}>›</div>
               </div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:"clamp(14px,2.5vw,16px)", fontWeight:500 }}>{list.name}</div>
-                {list.desc && <div style={{ fontSize:12, color:C.muted, marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{list.desc}</div>}
-                <div style={{ fontSize:11, color:"#444", marginTop:4, letterSpacing:"1px" }}>{list.gameIds.length} game{list.gameIds.length!==1?"s":""}</div>
-              </div>
-              <div style={{ color:C.blue, fontSize:18 }}>›</div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+        <div style={{ position: wide?"sticky":"static", top:80, paddingTop: wide?0:32 }}>
+          <GotyHistory onGameClick={onGameClick} />
+        </div>
       </div>
     </div>
   );
@@ -1063,7 +1158,13 @@ function FriendsModal({ onClose }) {
 export default function Kortana() {
   const [games,    setGames]    = useState(INIT_GAMES);
   const [lists,    setLists]    = useState(() => {
-    try { const s = localStorage.getItem("kortana_lists"); return s ? JSON.parse(s) : []; } catch { return []; }
+    try {
+      const s = localStorage.getItem("kortana_lists");
+      const stored = s ? JSON.parse(s) : [];
+      if (!stored.some(l=>l.id==="goty-pick"))
+        return [{ id:"goty-pick", name:"Your Game of the Year", desc:"Your personal GOTY pick for 2026", gameIds:[] }, ...stored];
+      return stored;
+    } catch { return [{ id:"goty-pick", name:"Your Game of the Year", desc:"Your personal GOTY pick for 2026", gameIds:[] }]; }
   });
   const [tab,    setTab]    = useState("home");
   const [detail, setDetail] = useState(null);
