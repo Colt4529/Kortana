@@ -33,10 +33,19 @@ function normalizeRawgGame(raw) {
     publisher: raw.publishers?.[0]?.name || raw.publisher || "Unknown",
     desc: raw.description_raw || raw.short_description || raw.description || "No description available.",
     rating: raw.rating ? Math.round(raw.rating) : 0,
+    metacritic: raw.metacritic || 0,
     genre: raw.genres?.[0]?.name || "Unknown",
     status: "", goty: false, tagline: raw.tagline || "", playtime: 0, review: "",
   };
 }
+
+const YEAR_OPTS = [
+  { label:"All Time", value:null  },
+  { label:"2020+",    value:2020  },
+  { label:"2015+",    value:2015  },
+  { label:"2010+",    value:2010  },
+  { label:"2000+",    value:2000  },
+];
 
 function StripeBar({ height=3, style }) {
   return (
@@ -642,42 +651,64 @@ function DiaryScreen({ logs, onGameClick }) {
 
 // ── BROWSE ────────────────────────────────────────────────────────────────────
 function BrowseScreen({ games, onGameClick }) {
-  const [search, setSearch] = useState("");
-  const [genre,  setGenre]  = useState("All");
-  const [pub,    setPub]    = useState("All");
-  const [sort,   setSort]   = useState("recent");
+  const [search,  setSearch]  = useState("");
+  const [genre,   setGenre]   = useState("All");
+  const [pub,     setPub]     = useState("All");
+  const [sort,    setSort]    = useState("recent");
+  const [minYear, setMinYear] = useState(null);
   const [remoteResults, setRemoteResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError]   = useState(null);
+  const [error,   setError]   = useState(null);
 
   const searchingOnline = search.trim().length > 0;
 
   useEffect(() => {
     const query = search.trim();
-    const controller = new AbortController();
-    let active = true;
-    if (!query) { setRemoteResults([]); setError(null); setLoading(false); return () => controller.abort(); }
+    if (!query) { setRemoteResults([]); setError(null); setLoading(false); return; }
     setLoading(true); setError(null);
-    const timer = setTimeout(() => {
-      fetch(`${RAWG_API_URL}/games?key=${RAWG_API_KEY}&search=${encodeURIComponent(query)}&page_size=8`, { signal: controller.signal })
-        .then(res => { if (!res.ok) throw new Error("RAWG search failed"); return res.json(); })
-        .then(async data => {
-          if (!active) return;
-          const results = data.results || [];
-          const details = await Promise.all(results.map(async item => {
+    let active = true;
+    const ctrl = new AbortController();
+
+    const timer = setTimeout(async () => {
+      try {
+        const yearParam = minYear
+          ? `&dates=${minYear}-01-01,${new Date().getFullYear()}-12-31`
+          : "";
+        const r = await fetch(
+          `${RAWG_API_URL}/games?key=${RAWG_API_KEY}&search=${encodeURIComponent(query)}&page_size=20&exclude_additions=true&ordering=-added${yearParam}`,
+          { signal: ctrl.signal }
+        );
+        if (!r.ok) throw new Error("Search failed");
+        const data = await r.json();
+        if (!active) return;
+
+        // quality gate: must have a cover, a release date, and some traction
+        const qualified = (data.results || [])
+          .filter(g =>
+            g.background_image &&
+            g.released &&
+            (g.added >= 15 || g.metacritic > 0 || g.ratings_count >= 3)
+          )
+          .slice(0, 8);
+
+        const details = await Promise.all(
+          qualified.map(async item => {
             try {
-              const dr = await fetch(`${RAWG_API_URL}/games/${item.id}?key=${RAWG_API_KEY}`, { signal: controller.signal });
-              if (!dr.ok) return normalizeRawgGame(item);
-              return normalizeRawgGame(await dr.json());
+              const dr = await fetch(`${RAWG_API_URL}/games/${item.id}?key=${RAWG_API_KEY}`, { signal: ctrl.signal });
+              return normalizeRawgGame(dr.ok ? await dr.json() : item);
             } catch { return normalizeRawgGame(item); }
-          }));
-          if (active) setRemoteResults(details.filter(Boolean));
-        })
-        .catch(err => { if (err.name !== "AbortError" && active) setError(err.message || "Unable to load results"); })
-        .finally(() => { if (active) setLoading(false); });
-    }, 450);
-    return () => { active = false; clearTimeout(timer); controller.abort(); };
-  }, [search]);
+          })
+        );
+        if (active) setRemoteResults(details.filter(Boolean));
+      } catch (err) {
+        if (active && err.name !== "AbortError") setError(err.message || "Unable to load results");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }, 480);
+
+    return () => { active = false; clearTimeout(timer); ctrl.abort(); };
+  }, [search, minYear]);
 
   let list = games
     .filter(g=>!search||g.title.toLowerCase().includes(search.toLowerCase()))
@@ -687,6 +718,8 @@ function BrowseScreen({ games, onGameClick }) {
   if (sort==="year")   list=[...list].sort((a,b)=>b.year-a.year);
   const displayed = searchingOnline ? remoteResults : list;
 
+  const mcColor = mc => mc >= 90 ? C.yellow : mc >= 75 ? C.green : C.blue;
+
   return (
     <div style={{ paddingBottom:90, color:C.text }}>
       <div style={{ padding:"clamp(52px,12vh,72px) clamp(18px,5vw,48px) clamp(14px,3vh,20px)", position:"sticky", top:0, background:C.bg, zIndex:10, borderBottom:`0.5px solid ${C.border}` }}>
@@ -694,37 +727,77 @@ function BrowseScreen({ games, onGameClick }) {
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search games…"
             style={{ width:"100%", background:C.surface, border:`0.5px solid ${C.border}`, borderRadius:8, padding:"clamp(10px,2vh,13px) 14px", color:C.text, fontSize:14, outline:"none", boxSizing:"border-box" }} />
         </div>
-        <div style={{ display:"flex", flexDirection:"column", gap:"clamp(8px,1.5vh,12px)" }}>
-          <Pills items={GENRES}     active={genre} onSelect={setGenre} />
-          <Pills items={PUBLISHERS} active={pub}   onSelect={setPub} />
-          {searchingOnline && (
-            <div style={{ fontSize:11, color:"#444", letterSpacing:"1px" }}>
-              {loading ? "Searching…" : error ? `Error: ${error}` : `${remoteResults.length} result${remoteResults.length===1?"":"s"}`}
+
+        {searchingOnline ? (
+          <div style={{ display:"flex", flexDirection:"column", gap:"clamp(8px,1.5vh,10px)" }}>
+            {/* Year filter for online search */}
+            <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:2 }}>
+              {YEAR_OPTS.map(opt => {
+                const active = minYear === opt.value;
+                return (
+                  <button key={opt.label} onClick={()=>setMinYear(opt.value)} style={{
+                    flexShrink:0, padding:"6px 14px", borderRadius:20,
+                    border:`0.5px solid ${active ? C.pink : C.border}`,
+                    cursor:"pointer", fontSize:11, fontWeight:500, letterSpacing:"1px", textTransform:"uppercase",
+                    background: active ? C.pink : "transparent",
+                    color: active ? "#fff" : C.muted, transition:"all .15s",
+                  }}>{opt.label}</button>
+                );
+              })}
             </div>
-          )}
-          <div style={{ display:"flex", gap:6 }}>
-            {[["recent","Recent"],["rating","Top Rated"],["year","Newest"]].map(([v,l])=>(
-              <button key={v} onClick={()=>setSort(v)} style={{ padding:"5px 14px", borderRadius:20, border:`0.5px solid ${sort===v?C.border:"transparent"}`, cursor:"pointer", fontSize:11, fontWeight:500, letterSpacing:"1px", textTransform:"uppercase", background:sort===v?C.faint:"transparent", color:sort===v?C.text:C.muted, transition:"all 0.15s" }}>{l}</button>
-            ))}
+            <div style={{ fontSize:11, color:"#444", letterSpacing:"1px" }}>
+              {loading ? "Searching…" : error ? `Error: ${error}` : !remoteResults.length ? "" : `${remoteResults.length} result${remoteResults.length===1?"":"s"} · sorted by popularity`}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column", gap:"clamp(8px,1.5vh,12px)" }}>
+            <Pills items={GENRES}     active={genre} onSelect={setGenre} />
+            <Pills items={PUBLISHERS} active={pub}   onSelect={setPub} />
+            <div style={{ display:"flex", gap:6 }}>
+              {[["recent","Recent"],["rating","Top Rated"],["year","Newest"]].map(([v,l])=>(
+                <button key={v} onClick={()=>setSort(v)} style={{ padding:"5px 14px", borderRadius:20, border:`0.5px solid ${sort===v?C.border:"transparent"}`, cursor:"pointer", fontSize:11, fontWeight:500, letterSpacing:"1px", textTransform:"uppercase", background:sort===v?C.faint:"transparent", color:sort===v?C.text:C.muted, transition:"all 0.15s" }}>{l}</button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
+
       <div style={{ padding:"clamp(14px,3vh,20px) clamp(18px,5vw,48px) 0" }}>
         {searchingOnline ? (
           <div style={{ display:"flex", flexDirection:"column", gap:"clamp(10px,2vw,12px)" }}>
+            {loading && remoteResults.length === 0 && (
+              <div style={{ padding:"40px 0", textAlign:"center" }}>
+                <div style={{ fontSize:11, color:"#444", letterSpacing:"2px", textTransform:"uppercase" }}>Searching…</div>
+              </div>
+            )}
             {displayed.map(g=>(
-              <div key={g.id} onClick={()=>onGameClick(g)} style={{ display:"flex", gap:"clamp(12px,2vw,16px)", padding:"clamp(12px,2vh,16px)", background:C.surface, borderRadius:12, border:`0.5px solid ${C.border}`, cursor:"pointer", transition:"border-color 0.2s" }}>
-                <div style={{ width:"clamp(56px,12vw,88px)", height:"clamp(74px,16vw,116px)", borderRadius:6, overflow:"hidden", flexShrink:0 }}>
+              <div key={g.id} onClick={()=>onGameClick(g)} style={{ display:"flex", gap:"clamp(12px,2vw,16px)", padding:"clamp(12px,2vh,16px)", background:C.surface, borderRadius:12, border:`0.5px solid ${C.border}`, cursor:"pointer" }}>
+                <div style={{ width:"clamp(56px,12vw,84px)", height:"clamp(74px,16vw,112px)", borderRadius:6, overflow:"hidden", flexShrink:0, background:C.faint }}>
                   <Img src={g.cover} style={{ width:"100%", height:"100%" }} />
                 </div>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:"clamp(14px,2.5vw,16px)", fontWeight:500, marginBottom:5 }}>{g.title}</div>
-                  <div style={{ fontSize:12, color:C.muted, marginBottom:6 }}>{g.year} · {g.developer}</div>
-                  <div style={{ fontSize:13, color:C.muted, lineHeight:1.6, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{g.desc}</div>
+                <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", justifyContent:"space-between" }}>
+                  <div>
+                    <div style={{ fontSize:"clamp(14px,2.5vw,16px)", fontWeight:500, marginBottom:4, lineHeight:1.3 }}>{g.title}</div>
+                    <div style={{ fontSize:12, color:C.muted, marginBottom:6 }}>
+                      {g.year || "—"}{g.developer !== "Unknown" ? ` · ${g.developer}` : ""}
+                    </div>
+                    <div style={{ fontSize:13, color:C.muted, lineHeight:1.6, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{g.desc}</div>
+                  </div>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:10, flexWrap:"wrap" }}>
+                    {g.metacritic > 0 && (
+                      <div style={{ display:"flex", alignItems:"center", gap:4, background:"rgba(0,0,0,.3)", border:`0.5px solid ${mcColor(g.metacritic)}33`, borderRadius:6, padding:"3px 8px" }}>
+                        <span style={{ fontSize:12, fontWeight:500, color:mcColor(g.metacritic) }}>{g.metacritic}</span>
+                        <span style={{ fontSize:9, color:"#444", textTransform:"uppercase", letterSpacing:"0.5px" }}>MC</span>
+                      </div>
+                    )}
+                    {g.genre !== "Unknown" && (
+                      <div style={{ fontSize:10, color:"#444", background:C.faint, borderRadius:4, padding:"3px 8px", letterSpacing:"0.5px" }}>{g.genre}</div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
-            {displayed.length===0 && <Empty label="No search results" />}
+            {!loading && displayed.length === 0 && !error && <Empty label="No results — try a different search or year filter" />}
           </div>
         ) : (
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(clamp(100px,20vw,150px),1fr))", gap:"clamp(10px,2vw,14px)" }}>
