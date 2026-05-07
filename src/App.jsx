@@ -389,7 +389,7 @@ function GameDetail({ game, onBack, onUpdate, user }) {
         <button onClick={onBack} style={{ position:"absolute", top:"clamp(54px,10vh,84px)", left:"clamp(16px,3vw,32px)", background:"rgba(10,10,10,.75)", border:`0.5px solid ${C.border}`, color:C.text, width:34, height:34, borderRadius:8, fontSize:18, cursor:"pointer", backdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"center" }}>‹</button>
       </div>
 
-      <div style={{ display:"flex", gap:"clamp(16px,3vw,24px)", padding:"0 clamp(18px,5vw,48px)", marginTop:"-clamp(60px,12vh,100px)", position:"relative", zIndex:2, maxWidth:"1200px", margin:"0 auto" }}>
+      <div style={{ display:"flex", gap:"clamp(16px,3vw,24px)", padding:"0 clamp(18px,5vw,48px)", marginTop:"-clamp(60px,12vh,100px)", position:"relative", zIndex:2, maxWidth:"1600px", margin:"0 auto" }}>
         <div style={{ width:"clamp(80px,15vw,130px)", height:"clamp(105px,22vw,175px)", borderRadius:8, overflow:"hidden", flexShrink:0, boxShadow:"0 14px 44px rgba(0,0,0,.9)" }}>
           <Img src={game.cover} style={{ width:"100%", height:"100%" }} />
         </div>
@@ -400,7 +400,7 @@ function GameDetail({ game, onBack, onUpdate, user }) {
         </div>
       </div>
 
-      <div style={{ padding:"clamp(26px,5vh,40px) clamp(18px,5vw,48px) 0", maxWidth:"1200px", margin:"0 auto", width:"100%" }}>
+      <div style={{ padding:"clamp(26px,5vh,40px) clamp(18px,5vw,48px) 0", maxWidth:"1600px", margin:"0 auto", width:"100%" }}>
         {game.tagline && <div style={{ fontSize:10, fontWeight:500, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:"clamp(22px,4vh,32px)" }}>{game.tagline}</div>}
 
         <div style={{ marginBottom:"clamp(24px,4vh,36px)" }}>
@@ -449,7 +449,7 @@ function GameDetail({ game, onBack, onUpdate, user }) {
         <div style={{ height:100 }} />
       </div>
 
-      <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:"calc(1200px + 24px)", padding:"12px clamp(18px,5vw,48px) clamp(24px,4vh,40px)", background:`linear-gradient(to top, ${C.bg} 65%, transparent)`, zIndex:50 }}>
+      <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:"calc(1600px + 24px)", padding:"12px clamp(18px,5vw,48px) clamp(24px,4vh,40px)", background:`linear-gradient(to top, ${C.bg} 65%, transparent)`, zIndex:50 }}>
         <button onClick={()=>setSheet(true)} style={{
           width:"100%", padding:"clamp(14px,2vh,17px)", borderRadius:8,
           border: game.status==="want to play"?`0.5px solid ${C.border}`:"none", cursor:"pointer",
@@ -876,7 +876,7 @@ function ListsScreen({ lists, games, setLists, onGameClick }) {
             </div>
           )}
         </div>
-        <div style={{ padding:"clamp(8px,1.5vh,12px) clamp(18px,5vw,48px) 0", maxWidth:"1200px", margin:"0 auto", width:"100%" }}>
+        <div style={{ padding:"clamp(8px,1.5vh,12px) clamp(18px,5vw,48px) 0", maxWidth:"1600px", margin:"0 auto", width:"100%" }}>
           {listGames.map((g,i)=>(
             <div key={g.id} style={{ display:"flex", alignItems:"center" }}>
               <div style={{ flex:1 }}><DiaryRow game={g} index={i} onClick={onGameClick} /></div>
@@ -885,7 +885,7 @@ function ListsScreen({ lists, games, setLists, onGameClick }) {
           ))}
           {listGames.length===0 && <Empty label="No games in this list" />}
         </div>
-        <div style={{ padding:"0 clamp(18px,5vw,48px)", maxWidth:"1200px", margin:"16px auto 0" }}>
+        <div style={{ padding:"0 clamp(18px,5vw,48px)", maxWidth:"1600px", margin:"16px auto 0" }}>
           {!adding ? (
             <button onClick={()=>setAdding(true)} style={{ width:"100%", padding:"clamp(12px,2vh,15px)", borderRadius:8, border:`0.5px dashed ${C.border}`, background:"transparent", color:C.muted, fontSize:13, fontWeight:500, cursor:"pointer", letterSpacing:"1px", textTransform:"uppercase" }}>+ Add a Game</button>
           ) : (
@@ -931,7 +931,7 @@ function ListsScreen({ lists, games, setLists, onGameClick }) {
           </div>
         )}
       </div>
-      <div style={{ padding:"0 clamp(18px,5vw,48px)", maxWidth:"1200px", margin:"0 auto", width:"100%" }}>
+      <div style={{ padding:"0 clamp(18px,5vw,48px)", maxWidth:"1600px", margin:"0 auto", width:"100%" }}>
         {lists.length===0&&!adding && <Empty label="Create your first list" />}
         {lists.map(list=>{
           const covers = games.filter(g=>list.gameIds.slice(0,3).includes(g.id));
@@ -1146,7 +1146,7 @@ export default function Kortana() {
         @media(min-width:768px){body{padding:0 12px}}
       `}</style>
 
-      <div style={{ maxWidth:"1200px", margin:"0 auto", width:"100%", padding:"0 12px" }}>
+      <div style={{ maxWidth:"1600px", margin:"0 auto", width:"100%", padding:"0 12px" }}>
 
         {/* ── Top bar ── */}
         {!detail && (
