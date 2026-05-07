@@ -864,6 +864,106 @@ function ListsScreen({ lists, games, setLists, onGameClick }) {
   );
 }
 
+// ── SETTINGS ─────────────────────────────────────────────────────────────────
+function UserAvatar({ initial, photoUrl, size=34 }) {
+  const [err, setErr] = useState(false);
+  return photoUrl && !err
+    ? <img src={photoUrl} onError={()=>setErr(true)} style={{ width:size, height:size, borderRadius:"50%", objectFit:"cover", border:`0.5px solid ${C.border}`, flexShrink:0, display:"block" }} alt="" />
+    : <div style={{ width:size, height:size, borderRadius:"50%", background:C.blue, display:"flex", alignItems:"center", justifyContent:"center", fontSize:Math.round(size*.38), fontWeight:500, color:"#fff", flexShrink:0 }}>{initial}</div>;
+}
+
+function SettingsDropdown({ user, displayName, photoUrl, onAccount, onFriends, onSignOut }) {
+  const initial = (displayName || user.email)[0].toUpperCase();
+  const Item = ({ label, onClick, color }) => (
+    <button onClick={onClick} style={{ width:"100%", padding:"12px 16px", background:"none", border:"none", cursor:"pointer", textAlign:"left", fontSize:13, fontWeight:500, color:color||C.text, display:"block", transition:"background .1s" }}>{label}</button>
+  );
+  return (
+    <div style={{ position:"absolute", top:"calc(100% + 10px)", left:0, zIndex:300, background:C.surface, border:`0.5px solid ${C.border}`, borderRadius:12, minWidth:230, overflow:"hidden", boxShadow:"0 20px 60px rgba(0,0,0,.7)", animation:"fadeUp .15s ease" }}>
+      <div style={{ padding:"14px 16px", borderBottom:`0.5px solid ${C.border}`, display:"flex", alignItems:"center", gap:12 }}>
+        <UserAvatar initial={initial} photoUrl={photoUrl} size={38} />
+        <div style={{ minWidth:0 }}>
+          <div style={{ fontSize:13, fontWeight:500, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{displayName || "Set a username"}</div>
+          <div style={{ fontSize:11, color:"#444", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.email}</div>
+        </div>
+      </div>
+      <div style={{ padding:"6px 0" }}>
+        <Item label="Account" onClick={onAccount} />
+        <Item label="Friends" onClick={onFriends} />
+      </div>
+      <div style={{ borderTop:`0.5px solid ${C.border}`, padding:"6px 0" }}>
+        <Item label="Sign Out" onClick={onSignOut} color={C.pink} />
+      </div>
+    </div>
+  );
+}
+
+function AccountModal({ user, displayName, photoUrl, setDisplayName, setPhotoUrl, onClose }) {
+  const [name, setName]     = useState(displayName);
+  const [url,  setUrl]      = useState(photoUrl);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg]       = useState("");
+  const initial = (name || user.email)[0].toUpperCase();
+
+  const save = async () => {
+    setSaving(true); setMsg("");
+    const { error } = await supabase.auth.updateUser({ data: { display_name: name.trim(), avatar_url: url.trim() } });
+    if (error) setMsg(error.message);
+    else { setDisplayName(name.trim()); setPhotoUrl(url.trim()); setMsg("Saved."); }
+    setSaving(false);
+  };
+
+  const inp = { width:"100%", background:C.faint, border:`0.5px solid ${C.border}`, borderRadius:8, padding:"12px 14px", color:C.text, fontSize:14, outline:"none", boxSizing:"border-box" };
+
+  return (
+    <div onClick={e=>e.target===e.currentTarget&&onClose()} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.82)", zIndex:400, display:"flex", alignItems:"flex-end", justifyContent:"center", backdropFilter:"blur(12px)" }}>
+      <div style={{ background:C.surface, borderRadius:"16px 16px 0 0", width:"100%", maxWidth:440, paddingBottom:40, border:`0.5px solid ${C.border}`, borderBottom:"none", animation:"slideUp .22s ease", overflow:"hidden" }}>
+        <StripeBar height={3} />
+        <div style={{ display:"flex", justifyContent:"center", padding:"14px 0 6px" }}>
+          <div style={{ width:36, height:3, borderRadius:2, background:C.border }} />
+        </div>
+        <div style={{ padding:"4px 24px 0" }}>
+          <div style={{ fontSize:17, fontWeight:500, letterSpacing:"-0.3px", marginBottom:28 }}>Account</div>
+          <div style={{ display:"flex", justifyContent:"center", marginBottom:28 }}>
+            <UserAvatar initial={initial} photoUrl={url} size={72} />
+          </div>
+          <div style={{ display:"grid", gap:16 }}>
+            <div>
+              <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:8 }}>Display Name</div>
+              <input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name" style={inp} />
+            </div>
+            <div>
+              <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:8 }}>Profile Photo URL</div>
+              <input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://…" style={inp} />
+            </div>
+            {msg && <div style={{ fontSize:13, color: msg==="Saved." ? C.green : C.pink }}>{msg}</div>}
+            <button onClick={save} disabled={saving} style={{ width:"100%", padding:14, borderRadius:8, border:"none", background:C.pink, color:"#fff", fontWeight:500, fontSize:14, cursor:"pointer", textTransform:"uppercase", letterSpacing:"1.5px" }}>
+              {saving ? "Saving…" : "Save Changes"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FriendsModal({ onClose }) {
+  return (
+    <div onClick={e=>e.target===e.currentTarget&&onClose()} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.82)", zIndex:400, display:"flex", alignItems:"flex-end", justifyContent:"center", backdropFilter:"blur(12px)" }}>
+      <div style={{ background:C.surface, borderRadius:"16px 16px 0 0", width:"100%", maxWidth:440, paddingBottom:40, border:`0.5px solid ${C.border}`, borderBottom:"none", animation:"slideUp .22s ease", overflow:"hidden" }}>
+        <StripeBar height={3} />
+        <div style={{ display:"flex", justifyContent:"center", padding:"14px 0 6px" }}>
+          <div style={{ width:36, height:3, borderRadius:2, background:C.border }} />
+        </div>
+        <div style={{ padding:"4px 24px 0" }}>
+          <div style={{ fontSize:17, fontWeight:500, letterSpacing:"-0.3px", marginBottom:8 }}>Friends</div>
+          <div style={{ fontSize:13, color:C.muted, marginBottom:40, lineHeight:1.6 }}>See what your friends are playing. Coming soon.</div>
+          <Empty label="No friends yet" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── ROOT ──────────────────────────────────────────────────────────────────────
 export default function Kortana() {
   const [games,  setGames]  = useState(INIT_GAMES);
@@ -872,21 +972,29 @@ export default function Kortana() {
   const [detail, setDetail] = useState(null);
   const [user,   setUser]   = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [logs, setLogs]     = useState([]);
+  const [logs, setLogs]         = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [settingsOpen, setSettingsOpen]   = useState(false);
+  const [settingsModal, setSettingsModal] = useState(null);
+  const [displayName, setDisplayName]     = useState("");
+  const [photoUrl, setPhotoUrl]           = useState("");
 
   useEffect(() => {
     let mounted = true;
     const initAuth = async () => {
       const { data } = await supabase.auth.getSession();
       if (!mounted) return;
-      setUser(data.session?.user ?? null);
+      const u = data.session?.user ?? null;
+      setUser(u);
+      if (u) { setDisplayName(u.user_metadata?.display_name || ""); setPhotoUrl(u.user_metadata?.avatar_url || ""); }
       setAuthLoading(false);
     };
     initAuth();
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
-      setUser(session?.user ?? null);
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) { setDisplayName(u.user_metadata?.display_name || ""); setPhotoUrl(u.user_metadata?.avatar_url || ""); }
     });
     return () => { mounted = false; subscription?.subscription?.unsubscribe?.(); };
   }, []);
@@ -904,7 +1012,7 @@ export default function Kortana() {
   }, [user]);
 
   const updateGame = u => setGames(gs=>gs.map(g=>g.id===u.id?u:g));
-  const handleSignOut = async () => { await supabase.auth.signOut(); setUser(null); };
+  const handleSignOut = async () => { await supabase.auth.signOut(); setUser(null); setDisplayName(""); setPhotoUrl(""); };
 
   const TABS = [
     { key:"home",   label:"Home"   },
@@ -922,11 +1030,13 @@ export default function Kortana() {
 
   if (!user) return <AuthScreen />;
 
+  const initial = (displayName || user.email)[0].toUpperCase();
+
   return (
     <div style={{ minHeight:"100vh", background:C.bg, position:"relative", overflowX:"hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&display=swap');
-        @keyframes fadeUp  { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes fadeUp  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
         @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
         *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:'Poppins',sans-serif}
         ::-webkit-scrollbar{display:none}
@@ -937,13 +1047,43 @@ export default function Kortana() {
 
       <div style={{ maxWidth:"1200px", margin:"0 auto", width:"100%", padding:"0 12px" }}>
 
+        {/* ── Top bar ── */}
         {!detail && (
-          <div style={{ position:"fixed", top:14, right:"clamp(18px,5vw,48px)", zIndex:210, display:"flex", alignItems:"center", gap:10 }}>
-            <span style={{ fontSize:11, color:"#444", maxWidth:180, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.email}</span>
-            <button onClick={handleSignOut} style={{ padding:"7px 14px", borderRadius:20, border:"none", background:C.pink, color:"#fff", fontWeight:500, cursor:"pointer", fontSize:11, textTransform:"uppercase", letterSpacing:"1px" }}>Sign Out</button>
-          </div>
+          <>
+            {settingsOpen && <div onClick={()=>setSettingsOpen(false)} style={{ position:"fixed", inset:0, zIndex:195 }} />}
+            <div style={{ position:"fixed", top:0, left:0, right:0, zIndex:200, padding:"clamp(12px,2.5vw,20px) clamp(18px,5vw,48px)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+
+              {/* Left: avatar / settings trigger */}
+              <div style={{ position:"relative" }}>
+                <button onClick={()=>setSettingsOpen(v=>!v)} style={{ background:"none", border:"none", cursor:"pointer", padding:0, display:"flex", alignItems:"center" }}>
+                  <UserAvatar initial={initial} photoUrl={photoUrl} size={34} />
+                </button>
+                {settingsOpen && (
+                  <SettingsDropdown
+                    user={user} displayName={displayName} photoUrl={photoUrl}
+                    onAccount={()=>{ setSettingsOpen(false); setSettingsModal("account"); }}
+                    onFriends={()=>{ setSettingsOpen(false); setSettingsModal("friends"); }}
+                    onSignOut={()=>{ setSettingsOpen(false); handleSignOut(); }}
+                  />
+                )}
+              </div>
+
+              {/* Right: wordmark */}
+              <div style={{ display:"flex", alignItems:"center", gap:9, pointerEvents:"none" }}>
+                <svg width="22" height="22" viewBox="0 0 110 110" fill="none">
+                  <path d="M16 10 L16 100 L34 100 L34 62 L68 100 L92 100 L54 55 L90 10 L66 10 L34 46 L34 10 Z" fill="none" stroke="#2255CC" strokeWidth="4"/>
+                  <path d="M90 10 L54 55" stroke="#CC3377" strokeWidth="4" fill="none"/>
+                  <path d="M34 62 L68 100 L92 100" stroke="#FAC000" strokeWidth="4" fill="none"/>
+                  <path d="M54 55 L92 100" stroke="#00A850" strokeWidth="4" fill="none"/>
+                </svg>
+                <span style={{ fontSize:"clamp(16px,2.5vw,20px)", fontWeight:500, letterSpacing:"-0.5px", color:C.text }}>ortana</span>
+              </div>
+
+            </div>
+          </>
         )}
 
+        {/* ── Screens ── */}
         {detail ? (
           <GameDetail game={games.find(g=>g.id===detail.id)||detail} user={user} onBack={()=>setDetail(null)} onUpdate={g=>{updateGame(g);setDetail(g);}} />
         ) : (
@@ -956,6 +1096,7 @@ export default function Kortana() {
           </>
         )}
 
+        {/* ── Bottom tab bar ── */}
         {!detail && (
           <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"rgba(10,10,10,.97)", backdropFilter:"blur(20px)", borderTop:`0.5px solid ${C.border}`, display:"grid", gridTemplateColumns:"repeat(5,1fr)", zIndex:100, paddingBottom:12, overflow:"hidden" }}>
             <StripeBar height={2} style={{ position:"absolute", top:0, left:0, right:0 }} />
@@ -967,18 +1108,12 @@ export default function Kortana() {
           </div>
         )}
 
-        {!detail && (
-          <div style={{ position:"fixed", top:0, left:0, right:0, padding:"clamp(14px,3vw,24px) clamp(18px,5vw,48px)", pointerEvents:"none", zIndex:200 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-              <svg width="26" height="26" viewBox="0 0 110 110" fill="none">
-                <path d="M16 10 L16 100 L34 100 L34 62 L68 100 L92 100 L54 55 L90 10 L66 10 L34 46 L34 10 Z" fill="none" stroke="#2255CC" strokeWidth="4"/>
-                <path d="M90 10 L54 55" stroke="#CC3377" strokeWidth="4" fill="none"/>
-                <path d="M34 62 L68 100 L92 100" stroke="#FAC000" strokeWidth="4" fill="none"/>
-                <path d="M54 55 L92 100" stroke="#00A850" strokeWidth="4" fill="none"/>
-              </svg>
-              <span style={{ fontSize:"clamp(17px,3vw,22px)", fontWeight:500, letterSpacing:"-0.5px", color:C.text }}>ortana</span>
-            </div>
-          </div>
+        {/* ── Modals ── */}
+        {settingsModal === "account" && (
+          <AccountModal user={user} displayName={displayName} photoUrl={photoUrl} setDisplayName={setDisplayName} setPhotoUrl={setPhotoUrl} onClose={()=>setSettingsModal(null)} />
+        )}
+        {settingsModal === "friends" && (
+          <FriendsModal onClose={()=>setSettingsModal(null)} />
         )}
 
       </div>
