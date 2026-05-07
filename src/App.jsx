@@ -822,6 +822,62 @@ function GenreRow({ genre, onGameClick, onBrowseGenre }) {
   );
 }
 
+const CHEAPSHARK_STORES = { "1":"Steam", "7":"GOG", "11":"Humble", "13":"Fanatical", "25":"Epic" };
+
+function DealCard({ deal }) {
+  const pct = Math.round(Number(deal.savings));
+  const store = CHEAPSHARK_STORES[deal.storeID] || "Store";
+  return (
+    <a href={`https://www.cheapshark.com/redirect?dealID=${deal.dealID}`} target="_blank" rel="noopener noreferrer"
+      style={{ display:"block", position:"relative", borderRadius:8, overflow:"hidden", textDecoration:"none", boxShadow:"0 4px 20px rgba(0,0,0,.6)", flexShrink:0 }}>
+      <div style={{ aspectRatio:"2/3", position:"relative", background:C.faint }}>
+        <Img src={`https://cdn.akamai.steamstatic.com/steam/apps/${deal.steamAppID}/library_600x900.jpg`} style={{ width:"100%", height:"100%" }} />
+        <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(10,10,10,.96) 0%, rgba(10,10,10,.2) 55%, transparent 100%)" }} />
+      </div>
+      <div style={{ position:"absolute", top:8, left:8, background:C.green, borderRadius:5, padding:"3px 7px", fontSize:10, fontWeight:700, color:"#000", letterSpacing:"0.5px" }}>-{pct}%</div>
+      <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"clamp(8px,2vw,11px)" }}>
+        <div style={{ fontSize:"clamp(10px,1.5vw,12px)", fontWeight:500, color:C.text, lineHeight:1.3, marginBottom:5, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{deal.title}</div>
+        <div style={{ display:"flex", alignItems:"baseline", gap:6 }}>
+          <span style={{ fontSize:14, fontWeight:700, color:C.green }}>${deal.salePrice}</span>
+          <span style={{ fontSize:10, color:"#555", textDecoration:"line-through" }}>${deal.normalPrice}</span>
+        </div>
+        <div style={{ fontSize:9, color:"#444", marginTop:3, letterSpacing:"0.5px" }}>{store}</div>
+      </div>
+    </a>
+  );
+}
+
+function DealsRow() {
+  const [deals, setDeals] = useState([]);
+  useEffect(() => {
+    fetch("https://www.cheapshark.com/api/1.0/deals?upperPrice=60&sortBy=Savings&pageSize=40&metacritic=70&onSale=1")
+      .then(r => r.json())
+      .then(data => {
+        setDeals((data || [])
+          .filter(d => d.steamAppID && Number(d.savings) >= 50 && Number(d.metacriticScore) >= 70)
+          .slice(0, 16));
+      })
+      .catch(() => {});
+  }, []);
+  if (!deals.length) return null;
+  const maxSavings = Math.max(...deals.map(d => Math.round(Number(d.savings))));
+  return (
+    <div style={{ marginBottom:"clamp(24px,5vh,36px)" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"clamp(10px,2vh,14px)" }}>
+        <span style={{ fontSize:"clamp(15px,2.5vw,19px)", fontWeight:500, letterSpacing:"-0.2px" }}>Hot Deals</span>
+        <span style={{ fontSize:11, color:C.green, fontWeight:500 }}>Up to {maxSavings}% off</span>
+      </div>
+      <div style={{ display:"flex", gap:"clamp(10px,2vw,14px)", overflowX:"auto", paddingBottom:8, scrollSnapType:"x mandatory", marginLeft:"-clamp(18px,5vw,48px)", marginRight:"-clamp(18px,5vw,48px)", paddingLeft:"clamp(18px,5vw,48px)", paddingRight:"clamp(18px,5vw,48px)" }}>
+        {deals.map(d => (
+          <div key={d.dealID} style={{ width:"clamp(130px,20vw,170px)", flexShrink:0, scrollSnapAlign:"start" }}>
+            <DealCard deal={d} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function RecommendFlow({ onClose, onGameClick }) {
   const [step, setStep] = useState(1);
   const [rateGames, setRateGames] = useState([]);
@@ -1150,6 +1206,7 @@ function BrowseScreen({ games, onGameClick }) {
               <div style={{ fontSize:"clamp(20px,4vw,28px)", fontWeight:500, letterSpacing:"-0.3px" }}>Browse</div>
               <button onClick={() => setShowRecommend(true)} style={{ background:C.pink, border:"none", color:"#fff", padding:"8px 18px", borderRadius:20, fontSize:11, fontWeight:500, cursor:"pointer", letterSpacing:"1px", textTransform:"uppercase" }}>For You</button>
             </div>
+            <DealsRow />
             {/* Developer pills */}
             <div style={{ marginBottom:"clamp(20px,4vh,32px)" }}>
               <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:10 }}>Developers</div>
