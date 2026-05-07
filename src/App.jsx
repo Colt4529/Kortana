@@ -449,45 +449,82 @@ function GameDetail({ game, onBack, onUpdate, user }) {
 }
 
 // ── GOTY RACE SIDEBAR ─────────────────────────────────────────────────────────
+const GOTY_2025 = [
+  { id:"ce33",   title:"Clair Obscur: Expedition 33", developer:"Sandfall Interactive",  mc:92 },
+  { id:"sf",     title:"Split Fiction",               developer:"Hazelight Studios",     mc:88 },
+  { id:"mhw",    title:"Monster Hunter Wilds",        developer:"Capcom",                mc:86 },
+  { id:"ds2",    title:"Death Stranding 2",           developer:"Kojima Productions",    mc:85 },
+  { id:"doom",   title:"Doom: The Dark Ages",         developer:"id Software",           mc:84 },
+  { id:"lad",    title:"Like a Dragon: Pirate Yakuza in Hawaii", developer:"RGG Studio", mc:83 },
+  { id:"ern",    title:"Elden Ring: Nightreign",      developer:"FromSoftware",          mc:82 },
+  { id:"avow",   title:"Avowed",                      developer:"Obsidian Entertainment",mc:80 },
+  { id:"acs",    title:"Assassin's Creed Shadows",    developer:"Ubisoft",               mc:79 },
+  { id:"som",    title:"South of Midnight",           developer:"Compulsion Games",      mc:77 },
+];
+
 function GotyRace({ onGameClick }) {
-  const year = new Date().getFullYear();
-  const [list, setList]       = useState([]);
+  const [list, setList]       = useState(GOTY_2025.map(g=>({ ...g, cover:"" })));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const ctrl = new AbortController();
-    fetch(
-      `${RAWG_API_URL}/games?key=${RAWG_API_KEY}&dates=${year}-01-01,${year}-12-31&ordering=-metacritic&page_size=10`,
-      { signal: ctrl.signal }
-    )
-      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-      .then(d => { setList((d.results || []).map(normalizeRawgGame)); setLoading(false); })
-      .catch(() => setLoading(false));
-    return () => ctrl.abort();
-  }, [year]);
+    let mounted = true;
+    (async () => {
+      try {
+        const fetched = await Promise.all(
+          GOTY_2025.map(async game => {
+            try {
+              const r = await fetch(
+                `${RAWG_API_URL}/games?key=${RAWG_API_KEY}&search=${encodeURIComponent(game.title)}&page_size=1`,
+                { signal: ctrl.signal }
+              );
+              if (!r.ok) return { ...game, cover:"" };
+              const d = await r.json();
+              const hit = d.results?.[0];
+              return { ...game, cover: hit?.background_image||"", mc: hit?.metacritic||game.mc };
+            } catch { return { ...game, cover:"" }; }
+          })
+        );
+        if (mounted) { setList(fetched); setLoading(false); }
+      } catch { if (mounted) setLoading(false); }
+    })();
+    return () => { mounted = false; ctrl.abort(); };
+  }, []);
 
   const rankColor = i => i === 0 ? C.yellow : i <= 2 ? C.muted : "#444";
+  const mcColor   = mc => mc >= 90 ? C.yellow : mc >= 80 ? C.green : C.blue;
+
+  const handleClick = game => {
+    onGameClick({
+      id: game.id, title: game.title, developer: game.developer,
+      cover: game.cover, hero: game.cover,
+      year: 2025, rating: 0, status:"", goty:false, desc:"", review:"",
+      publisher:"", genre:"", playtime:0,
+    });
+  };
 
   return (
     <div>
-      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
-        <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2px", color:"#444", textTransform:"uppercase", flexShrink:0 }}>GOTY Race {year}</span>
+      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:8 }}>
+        <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2px", color:"#444", textTransform:"uppercase", flexShrink:0 }}>GOTY Race 2025</span>
         <div style={{ flex:1, height:"0.5px", background:C.border }} />
       </div>
-      {loading ? (
-        <div style={{ fontSize:11, color:"#444", letterSpacing:"1px" }}>Loading…</div>
-      ) : list.length === 0 ? (
-        <div style={{ fontSize:11, color:"#444" }}>No data yet</div>
-      ) : list.map((game, i) => (
-        <div key={game.id} onClick={()=>onGameClick(game)}
+      <div style={{ fontSize:10, color:"#333", letterSpacing:"0.5px", marginBottom:16 }}>Metacritic · critic + community consensus</div>
+      {loading && <div style={{ fontSize:11, color:"#444", letterSpacing:"1px", marginBottom:12 }}>Fetching covers…</div>}
+      {list.map((game, i) => (
+        <div key={game.id} onClick={()=>handleClick(game)}
           style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0", borderBottom:`0.5px solid ${C.border}`, cursor:"pointer" }}>
-          <div style={{ width:18, fontSize:11, fontWeight:500, color:rankColor(i), textAlign:"right", flexShrink:0, letterSpacing:"0.5px" }}>{i+1}</div>
-          <div style={{ width:32, height:44, borderRadius:4, overflow:"hidden", flexShrink:0 }}>
+          <div style={{ width:18, fontSize:11, fontWeight:500, color:rankColor(i), textAlign:"right", flexShrink:0 }}>{i+1}</div>
+          <div style={{ width:32, height:44, borderRadius:4, overflow:"hidden", flexShrink:0, background:C.faint }}>
             <Img src={game.cover} style={{ width:"100%", height:"100%" }} />
           </div>
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ fontSize:12, fontWeight:500, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", lineHeight:1.3 }}>{game.title}</div>
             <div style={{ fontSize:10, color:"#444", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{game.developer}</div>
+          </div>
+          <div style={{ flexShrink:0, textAlign:"center", minWidth:28 }}>
+            <div style={{ fontSize:13, fontWeight:500, color:mcColor(game.mc), lineHeight:1 }}>{game.mc}</div>
+            <div style={{ fontSize:8, color:"#333", letterSpacing:"0.5px", textTransform:"uppercase", marginTop:2 }}>MC</div>
           </div>
         </div>
       ))}
