@@ -723,15 +723,180 @@ function DiaryScreen({ logs, onGameClick }) {
 }
 
 // ── BROWSE ────────────────────────────────────────────────────────────────────
+const REAL_PLATFORMS = new Set([1, 2, 3, 7, 8]); // PC, PlayStation, Xbox, Nintendo, Mac
+
+const BROWSE_GENRES = [
+  { name:"Action",     slug:"action"                 },
+  { name:"RPG",        slug:"role-playing-games-rpg" },
+  { name:"Adventure",  slug:"adventure"              },
+  { name:"Strategy",   slug:"strategy"               },
+  { name:"Indie",      slug:"indie"                  },
+  { name:"Platformer", slug:"platformer"             },
+  { name:"Shooter",    slug:"shooter"                },
+  { name:"Fighting",   slug:"fighting"               },
+  { name:"Sports",     slug:"sports"                 },
+  { name:"Puzzle",     slug:"puzzle"                 },
+];
+
+function GenreRow({ genre, onGameClick, onBrowseGenre }) {
+  const [games, setGames] = useState([]);
+  useEffect(() => {
+    fetch(`${RAWG_API_URL}/games?key=${RAWG_API_KEY}&genres=${genre.slug}&ordering=-rating&metacritic=70,100&parent_platforms=1,2,3,7&exclude_additions=true&page_size=10`)
+      .then(r => r.json())
+      .then(d => setGames((d.results || []).filter(g => g.background_image).map(normalizeRawgGame)))
+      .catch(() => {});
+  }, [genre.slug]);
+  if (!games.length) return null;
+  return (
+    <div style={{ marginBottom:"clamp(24px,5vh,36px)" }}>
+      <div onClick={() => onBrowseGenre(genre)} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"clamp(10px,2vh,14px)", cursor:"pointer" }}>
+        <span style={{ fontSize:"clamp(15px,2.5vw,19px)", fontWeight:500, letterSpacing:"-0.2px" }}>{genre.name}</span>
+        <span style={{ fontSize:11, color:C.muted, letterSpacing:"1px" }}>See all ›</span>
+      </div>
+      <div style={{ display:"flex", gap:"clamp(10px,2vw,14px)", overflowX:"auto", paddingBottom:8, scrollSnapType:"x mandatory", marginLeft:"-clamp(18px,5vw,48px)", marginRight:"-clamp(18px,5vw,48px)", paddingLeft:"clamp(18px,5vw,48px)", paddingRight:"clamp(18px,5vw,48px)" }}>
+        {games.map(g => (
+          <div key={g.id} style={{ width:"clamp(150px,26vw,200px)", flexShrink:0, scrollSnapAlign:"start" }}>
+            <PosterCard game={g} onClick={onGameClick} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RecommendFlow({ onClose, onGameClick }) {
+  const [step, setStep] = useState(1);
+  const [rateGames, setRateGames] = useState([]);
+  const [ratings, setRatings] = useState({});
+  const [pickedGenres, setPickedGenres] = useState([]);
+  const [recGames, setRecGames] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (step !== 1) return;
+    setLoading(true);
+    fetch(`${RAWG_API_URL}/games?key=${RAWG_API_KEY}&ordering=-rating&metacritic=88,100&parent_platforms=1,2,3,7&exclude_additions=true&page_size=12`)
+      .then(r => r.json())
+      .then(d => { setRateGames((d.results || []).filter(g => g.background_image).map(normalizeRawgGame)); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [step]);
+
+  useEffect(() => {
+    if (step !== 3 || !pickedGenres.length) return;
+    setLoading(true);
+    const slugs = pickedGenres.map(g => g.slug).join(",");
+    fetch(`${RAWG_API_URL}/games?key=${RAWG_API_KEY}&genres=${slugs}&ordering=-rating&metacritic=75,100&parent_platforms=1,2,3,7&exclude_additions=true&page_size=20`)
+      .then(r => r.json())
+      .then(d => { setRecGames((d.results || []).filter(g => g.background_image).map(normalizeRawgGame)); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [step, pickedGenres]);
+
+  const ratedCount = Object.values(ratings).filter(v => v !== "skip").length;
+
+  const RateCard = ({ game }) => {
+    const r = ratings[game.id];
+    return (
+      <div style={{ display:"flex", gap:"clamp(12px,2vw,16px)", padding:"clamp(12px,2vh,14px)", background:r === "like" ? `${C.green}18` : r === "dislike" ? `${C.pink}18` : C.surface, borderRadius:12, border:`0.5px solid ${r === "like" ? C.green : r === "dislike" ? C.pink : C.border}`, transition:"all .15s", alignItems:"center" }}>
+        <div style={{ width:48, height:48, borderRadius:8, overflow:"hidden", flexShrink:0 }}>
+          <Img src={game.cover} style={{ width:"100%", height:"100%" }} />
+        </div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontSize:14, fontWeight:500, marginBottom:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{game.title}</div>
+          <div style={{ fontSize:11, color:C.muted }}>{game.year}</div>
+        </div>
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={() => setRatings(p => ({ ...p, [game.id]:"like" }))} style={{ background:r==="like"?C.green:"transparent", border:`0.5px solid ${r==="like"?C.green:C.border}`, borderRadius:8, width:36, height:36, fontSize:15, cursor:"pointer", transition:"all .15s" }}>👍</button>
+          <button onClick={() => setRatings(p => ({ ...p, [game.id]:"dislike" }))} style={{ background:r==="dislike"?C.pink:"transparent", border:`0.5px solid ${r==="dislike"?C.pink:C.border}`, borderRadius:8, width:36, height:36, fontSize:15, cursor:"pointer", transition:"all .15s" }}>👎</button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.95)", zIndex:400, overflowY:"auto", backdropFilter:"blur(16px)" }}>
+      <div style={{ maxWidth:500, margin:"0 auto", padding:"clamp(24px,5vw,48px) clamp(18px,5vw,24px)", minHeight:"100vh" }}>
+        <button onClick={onClose} style={{ background:"none", border:"none", color:C.muted, fontSize:11, cursor:"pointer", padding:0, fontWeight:500, letterSpacing:"2px", textTransform:"uppercase", marginBottom:28 }}>✕ Close</button>
+
+        {step === 1 && (
+          <>
+            <div style={{ fontSize:"clamp(18px,4vw,24px)", fontWeight:500, marginBottom:6, letterSpacing:"-0.3px" }}>Rate some games</div>
+            <div style={{ fontSize:13, color:C.muted, marginBottom:"clamp(16px,3vh,24px)" }}>Help us find your taste. Rate at least 3 to continue.</div>
+            {loading
+              ? <div style={{ textAlign:"center", padding:40, fontSize:11, color:"#444", letterSpacing:"2px" }}>Loading…</div>
+              : <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:24 }}>
+                  {rateGames.map(g => <RateCard key={g.id} game={g} />)}
+                </div>
+            }
+            <button onClick={() => setStep(2)} disabled={ratedCount < 3} style={{ width:"100%", padding:"clamp(12px,2vh,15px)", borderRadius:10, border:"none", background:ratedCount >= 3 ? C.pink : "#222", color:ratedCount >= 3 ? "#fff" : C.muted, fontWeight:500, fontSize:14, cursor:ratedCount >= 3 ? "pointer" : "default", textTransform:"uppercase", letterSpacing:"1.5px", transition:"all .2s" }}>
+              Next ({ratedCount} rated) ›
+            </button>
+          </>
+        )}
+
+        {step === 2 && (
+          <>
+            <div style={{ fontSize:"clamp(18px,4vw,24px)", fontWeight:500, marginBottom:6, letterSpacing:"-0.3px" }}>Pick your genres</div>
+            <div style={{ fontSize:13, color:C.muted, marginBottom:"clamp(16px,3vh,24px)" }}>Choose up to 5 genres you enjoy.</div>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginBottom:28 }}>
+              {BROWSE_GENRES.map(g => {
+                const on = pickedGenres.some(p => p.slug === g.slug);
+                return (
+                  <button key={g.slug} onClick={() => { if (on) setPickedGenres(p => p.filter(x => x.slug !== g.slug)); else if (pickedGenres.length < 5) setPickedGenres(p => [...p, g]); }}
+                    style={{ padding:"10px 20px", borderRadius:24, border:`0.5px solid ${on ? C.blue : C.border}`, background:on ? C.blue : "transparent", color:on ? "#fff" : C.muted, fontSize:13, fontWeight:500, cursor:"pointer", transition:"all .15s" }}>
+                    {g.name}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={() => setStep(1)} style={{ padding:"clamp(12px,2vh,15px) 20px", borderRadius:10, border:`0.5px solid ${C.border}`, background:"transparent", color:C.muted, fontWeight:500, fontSize:14, cursor:"pointer" }}>‹ Back</button>
+              <button onClick={() => setStep(3)} disabled={!pickedGenres.length} style={{ flex:1, padding:"clamp(12px,2vh,15px)", borderRadius:10, border:"none", background:pickedGenres.length ? C.pink : "#222", color:pickedGenres.length ? "#fff" : C.muted, fontWeight:500, fontSize:14, cursor:pickedGenres.length ? "pointer" : "default", textTransform:"uppercase", letterSpacing:"1.5px", transition:"all .2s" }}>
+                Find Games ›
+              </button>
+            </div>
+          </>
+        )}
+
+        {step === 3 && (
+          <>
+            <div style={{ fontSize:"clamp(18px,4vw,24px)", fontWeight:500, marginBottom:6, letterSpacing:"-0.3px" }}>Recommended for you</div>
+            <div style={{ fontSize:13, color:C.muted, marginBottom:"clamp(16px,3vh,24px)" }}>Based on your taste: {pickedGenres.map(g => g.name).join(", ")}.</div>
+            {loading
+              ? <div style={{ textAlign:"center", padding:40, fontSize:11, color:"#444", letterSpacing:"2px" }}>Finding games…</div>
+              : <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:24 }}>
+                  {recGames.map(g => (
+                    <div key={g.id} onClick={() => onGameClick(g)} style={{ display:"flex", gap:"clamp(12px,2vw,16px)", padding:"clamp(12px,2vh,14px)", background:C.surface, borderRadius:12, border:`0.5px solid ${C.border}`, cursor:"pointer", alignItems:"center" }}>
+                      <div style={{ width:52, height:52, borderRadius:8, overflow:"hidden", flexShrink:0 }}>
+                        <Img src={g.cover} style={{ width:"100%", height:"100%" }} />
+                      </div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:14, fontWeight:500, marginBottom:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{g.title}</div>
+                        <div style={{ fontSize:11, color:C.muted, marginBottom:4 }}>{g.year} · {g.genre}</div>
+                        <Stars value={g.rating} size={11} />
+                      </div>
+                    </div>
+                  ))}
+                  {!recGames.length && <Empty label="No recommendations found" />}
+                </div>
+            }
+            <button onClick={() => { setStep(1); setRatings({}); setPickedGenres([]); setRecGames([]); }} style={{ width:"100%", padding:"clamp(12px,2vh,15px)", borderRadius:10, border:`0.5px solid ${C.border}`, background:"transparent", color:C.muted, fontWeight:500, fontSize:14, cursor:"pointer" }}>Start Over</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function BrowseScreen({ games, onGameClick }) {
   const [search,  setSearch]  = useState("");
-  const [genre,   setGenre]   = useState("All");
-  const [pub,     setPub]     = useState("All");
-  const [sort,    setSort]    = useState("recent");
   const [minYear, setMinYear] = useState(null);
   const [remoteResults, setRemoteResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState(null);
+  const [filterMode, setFilterMode] = useState(null); // { type:"genre"|"dev", name, slug? }
+  const [filterGames, setFilterGames] = useState([]);
+  const [filterLoading, setFilterLoading] = useState(false);
+  const [showRecommend, setShowRecommend] = useState(false);
 
   const searchingOnline = search.trim().length > 0;
 
@@ -741,30 +906,16 @@ function BrowseScreen({ games, onGameClick }) {
     setLoading(true); setError(null);
     let active = true;
     const ctrl = new AbortController();
-
     const timer = setTimeout(async () => {
       try {
-        const yearParam = minYear
-          ? `&dates=${minYear}-01-01,${new Date().getFullYear()}-12-31`
-          : "";
-        const r = await fetch(
-          `${RAWG_API_URL}/games?key=${RAWG_API_KEY}&search=${encodeURIComponent(query)}&page_size=20&exclude_additions=true${yearParam}`,
-          { signal: ctrl.signal }
-        );
+        const yearParam = minYear ? `&dates=${minYear}-01-01,${new Date().getFullYear()}-12-31` : "";
+        const r = await fetch(`${RAWG_API_URL}/games?key=${RAWG_API_KEY}&search=${encodeURIComponent(query)}&page_size=20&exclude_additions=true${yearParam}`, { signal: ctrl.signal });
         if (!r.ok) throw new Error("Search failed");
         const data = await r.json();
         if (!active) return;
-
-        // require a cover, release date, and at least one real platform (PC/console) — excludes mobile-only and fan games
-        const REAL_PLATFORMS = new Set([1, 2, 3, 7, 8]); // PC, PlayStation, Xbox, Nintendo, Mac
         const qualified = (data.results || [])
-          .filter(g =>
-            g.background_image &&
-            g.released &&
-            g.parent_platforms?.some(p => REAL_PLATFORMS.has(p.platform?.id))
-          )
+          .filter(g => g.background_image && g.released && g.parent_platforms?.some(p => REAL_PLATFORMS.has(p.platform?.id)))
           .slice(0, 8);
-
         const details = await Promise.all(
           qualified.map(async item => {
             try {
@@ -780,80 +931,105 @@ function BrowseScreen({ games, onGameClick }) {
         if (active) setLoading(false);
       }
     }, 480);
-
     return () => { active = false; clearTimeout(timer); ctrl.abort(); };
   }, [search, minYear]);
 
-  let list = games
-    .filter(g=>!search||g.title.toLowerCase().includes(search.toLowerCase()))
-    .filter(g=>genre==="All"||g.genre===genre)
-    .filter(g=>pub==="All"||g.publisher===pub);
-  if (sort==="rating") list=[...list].sort((a,b)=>b.rating-a.rating);
-  if (sort==="year")   list=[...list].sort((a,b)=>b.year-a.year);
-  const displayed = searchingOnline ? remoteResults : list;
+  useEffect(() => {
+    if (!filterMode) { setFilterGames([]); return; }
+    setFilterLoading(true); setFilterGames([]);
+    const ctrl = new AbortController();
+    const run = async () => {
+      try {
+        let url;
+        if (filterMode.type === "genre") {
+          url = `${RAWG_API_URL}/games?key=${RAWG_API_KEY}&genres=${filterMode.slug}&ordering=-rating&metacritic=70,100&parent_platforms=1,2,3,7&exclude_additions=true&page_size=20`;
+        } else {
+          const devRes = await fetch(`${RAWG_API_URL}/developers?key=${RAWG_API_KEY}&search=${encodeURIComponent(filterMode.name)}&page_size=3`, { signal: ctrl.signal });
+          const devData = devRes.ok ? await devRes.json() : { results:[] };
+          const dev = devData.results?.[0];
+          url = dev?.slug
+            ? `${RAWG_API_URL}/games?key=${RAWG_API_KEY}&developers=${dev.slug}&ordering=-rating&page_size=20`
+            : `${RAWG_API_URL}/games?key=${RAWG_API_KEY}&search=${encodeURIComponent(filterMode.name)}&ordering=-rating&page_size=20`;
+        }
+        const r = await fetch(url, { signal: ctrl.signal });
+        const data = r.ok ? await r.json() : { results:[] };
+        setFilterGames((data.results || []).filter(g => g.background_image).slice(0, 20).map(normalizeRawgGame));
+      } catch {}
+      finally { setFilterLoading(false); }
+    };
+    run();
+    return () => ctrl.abort();
+  }, [filterMode]);
 
   const mcColor = mc => mc >= 90 ? C.yellow : mc >= 75 ? C.green : C.blue;
+  const openGenre = genre => setFilterMode({ type:"genre", ...genre });
+  const openDev   = name  => setFilterMode({ type:"dev", name });
+  const clearFilter = () => setFilterMode(null);
 
   return (
     <div style={{ paddingBottom:90, color:C.text }}>
       <div style={{ padding:"clamp(52px,12vh,72px) clamp(18px,5vw,48px) clamp(14px,3vh,20px)", position:"sticky", top:0, background:C.bg, zIndex:10, borderBottom:`0.5px solid ${C.border}` }}>
-        <div style={{ position:"relative", marginBottom:"clamp(12px,2vh,18px)" }}>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search games…"
-            style={{ width:"100%", background:C.surface, border:`0.5px solid ${C.border}`, borderRadius:8, padding:"clamp(10px,2vh,13px) 14px", color:C.text, fontSize:14, outline:"none", boxSizing:"border-box" }} />
-        </div>
-
-        {searchingOnline ? (
-          <div style={{ display:"flex", flexDirection:"column", gap:"clamp(8px,1.5vh,10px)" }}>
-            {/* Year filter for online search */}
-            <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:2 }}>
-              {YEAR_OPTS.map(opt => {
-                const active = minYear === opt.value;
-                return (
-                  <button key={opt.label} onClick={()=>setMinYear(opt.value)} style={{
-                    flexShrink:0, padding:"6px 14px", borderRadius:20,
-                    border:`0.5px solid ${active ? C.pink : C.border}`,
-                    cursor:"pointer", fontSize:11, fontWeight:500, letterSpacing:"1px", textTransform:"uppercase",
-                    background: active ? C.pink : "transparent",
-                    color: active ? "#fff" : C.muted, transition:"all .15s",
-                  }}>{opt.label}</button>
-                );
-              })}
-            </div>
-            <div style={{ fontSize:11, color:"#444", letterSpacing:"1px" }}>
-              {loading ? "Searching…" : error ? `Error: ${error}` : !remoteResults.length ? "" : `${remoteResults.length} result${remoteResults.length===1?"":"s"} · sorted by popularity`}
+        {filterMode ? (
+          <div>
+            <button onClick={clearFilter} style={{ background:"none", border:"none", color:C.muted, fontSize:11, cursor:"pointer", padding:0, fontWeight:500, letterSpacing:"2px", textTransform:"uppercase", marginBottom:"clamp(10px,2vh,16px)" }}>‹ Browse</button>
+            <div style={{ fontSize:"clamp(20px,4vw,28px)", fontWeight:500, letterSpacing:"-0.3px" }}>
+              {filterMode.type === "genre" ? filterMode.name : `Games by ${filterMode.name}`}
             </div>
           </div>
         ) : (
-          <div style={{ display:"flex", flexDirection:"column", gap:"clamp(8px,1.5vh,12px)" }}>
-            <Pills items={GENRES}     active={genre} onSelect={setGenre} />
-            <Pills items={PUBLISHERS} active={pub}   onSelect={setPub} />
-            <div style={{ display:"flex", gap:6 }}>
-              {[["recent","Recent"],["rating","Top Rated"],["year","Newest"]].map(([v,l])=>(
-                <button key={v} onClick={()=>setSort(v)} style={{ padding:"5px 14px", borderRadius:20, border:`0.5px solid ${sort===v?C.border:"transparent"}`, cursor:"pointer", fontSize:11, fontWeight:500, letterSpacing:"1px", textTransform:"uppercase", background:sort===v?C.faint:"transparent", color:sort===v?C.text:C.muted, transition:"all 0.15s" }}>{l}</button>
-              ))}
+          <div>
+            <div style={{ position:"relative", marginBottom:"clamp(12px,2vh,18px)" }}>
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search games…"
+                style={{ width:"100%", background:C.surface, border:`0.5px solid ${C.border}`, borderRadius:8, padding:"clamp(10px,2vh,13px) 14px", color:C.text, fontSize:14, outline:"none", boxSizing:"border-box" }} />
             </div>
+            {searchingOnline && (
+              <div style={{ display:"flex", flexDirection:"column", gap:"clamp(8px,1.5vh,10px)" }}>
+                <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:2 }}>
+                  {YEAR_OPTS.map(opt => {
+                    const active = minYear === opt.value;
+                    return (
+                      <button key={opt.label} onClick={() => setMinYear(opt.value)} style={{ flexShrink:0, padding:"6px 14px", borderRadius:20, border:`0.5px solid ${active ? C.pink : C.border}`, cursor:"pointer", fontSize:11, fontWeight:500, letterSpacing:"1px", textTransform:"uppercase", background:active ? C.pink : "transparent", color:active ? "#fff" : C.muted, transition:"all .15s" }}>{opt.label}</button>
+                    );
+                  })}
+                </div>
+                <div style={{ fontSize:11, color:"#444", letterSpacing:"1px" }}>
+                  {loading ? "Searching…" : error ? `Error: ${error}` : !remoteResults.length ? "" : `${remoteResults.length} result${remoteResults.length===1?"":"s"} · sorted by popularity`}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
 
       <div style={{ padding:"clamp(14px,3vh,20px) clamp(18px,5vw,48px) 0" }}>
-        {searchingOnline ? (
+        {filterMode ? (
+          <div>
+            {filterLoading && <div style={{ padding:"40px 0", textAlign:"center", fontSize:11, color:"#444", letterSpacing:"2px", textTransform:"uppercase" }}>Loading…</div>}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(clamp(150px,24vw,200px),1fr))", gap:"clamp(10px,2vw,14px)" }}>
+              {filterGames.map(g => <PosterCard key={g.id} game={g} onClick={onGameClick} />)}
+            </div>
+            {!filterLoading && !filterGames.length && <Empty label="No games found" />}
+          </div>
+        ) : searchingOnline ? (
           <div style={{ display:"flex", flexDirection:"column", gap:"clamp(10px,2vw,12px)" }}>
-            {loading && remoteResults.length === 0 && (
+            {loading && !remoteResults.length && (
               <div style={{ padding:"40px 0", textAlign:"center" }}>
                 <div style={{ fontSize:11, color:"#444", letterSpacing:"2px", textTransform:"uppercase" }}>Searching…</div>
               </div>
             )}
-            {displayed.map(g=>(
-              <div key={g.id} onClick={()=>onGameClick(g)} style={{ display:"flex", gap:"clamp(12px,2vw,16px)", padding:"clamp(12px,2vh,16px)", background:C.surface, borderRadius:12, border:`0.5px solid ${C.border}`, cursor:"pointer" }}>
-                <div style={{ width:"clamp(56px,12vw,84px)", height:"clamp(74px,16vw,112px)", borderRadius:6, overflow:"hidden", flexShrink:0, background:C.faint }}>
+            {remoteResults.map(g => (
+              <div key={g.id} style={{ display:"flex", gap:"clamp(12px,2vw,16px)", padding:"clamp(12px,2vh,16px)", background:C.surface, borderRadius:12, border:`0.5px solid ${C.border}`, cursor:"pointer" }}>
+                <div onClick={() => onGameClick(g)} style={{ width:"clamp(56px,12vw,84px)", height:"clamp(74px,16vw,112px)", borderRadius:6, overflow:"hidden", flexShrink:0, background:C.faint }}>
                   <Img src={g.cover} style={{ width:"100%", height:"100%" }} />
                 </div>
                 <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", justifyContent:"space-between" }}>
-                  <div>
+                  <div onClick={() => onGameClick(g)}>
                     <div style={{ fontSize:"clamp(14px,2.5vw,16px)", fontWeight:500, marginBottom:4, lineHeight:1.3 }}>{g.title}</div>
                     <div style={{ fontSize:12, color:C.muted, marginBottom:6 }}>
-                      {g.year || "—"}{g.developer !== "Unknown" ? ` · ${g.developer}` : ""}
+                      {g.year || "—"}
+                      {g.developer !== "Unknown" && (
+                        <> · <span onClick={e => { e.stopPropagation(); openDev(g.developer); }} style={{ color:C.blue, cursor:"pointer" }}>{g.developer}</span></>
+                      )}
                     </div>
                     <div style={{ fontSize:13, color:C.muted, lineHeight:1.6, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{g.desc}</div>
                   </div>
@@ -865,21 +1041,29 @@ function BrowseScreen({ games, onGameClick }) {
                       </div>
                     )}
                     {g.genre !== "Unknown" && (
-                      <div style={{ fontSize:10, color:"#444", background:C.faint, borderRadius:4, padding:"3px 8px", letterSpacing:"0.5px" }}>{g.genre}</div>
+                      <div onClick={e => { e.stopPropagation(); const match = BROWSE_GENRES.find(bg => bg.name.toLowerCase() === g.genre.toLowerCase()); openGenre(match || { name:g.genre, slug:g.genre.toLowerCase().replace(/\s+/g,"-") }); }}
+                        style={{ fontSize:10, color:"#444", background:C.faint, borderRadius:4, padding:"3px 8px", letterSpacing:"0.5px", cursor:"pointer" }}>{g.genre}</div>
                     )}
                   </div>
                 </div>
               </div>
             ))}
-            {!loading && displayed.length === 0 && !error && <Empty label="No results — try a different search or year filter" />}
+            {!loading && !remoteResults.length && !error && <Empty label="No results — try a different search or year filter" />}
           </div>
         ) : (
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(clamp(100px,20vw,150px),1fr))", gap:"clamp(10px,2vw,14px)" }}>
-            {displayed.map(g=><PosterCard key={g.id} game={g} onClick={onGameClick} />)}
-            {displayed.length===0 && <div style={{ gridColumn:"1/-1" }}><Empty label="No games found" /></div>}
+          <div>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"clamp(20px,4vh,32px)" }}>
+              <div style={{ fontSize:"clamp(20px,4vw,28px)", fontWeight:500, letterSpacing:"-0.3px" }}>Browse</div>
+              <button onClick={() => setShowRecommend(true)} style={{ background:C.pink, border:"none", color:"#fff", padding:"8px 18px", borderRadius:20, fontSize:11, fontWeight:500, cursor:"pointer", letterSpacing:"1px", textTransform:"uppercase" }}>For You</button>
+            </div>
+            {BROWSE_GENRES.map(g => (
+              <GenreRow key={g.slug} genre={g} onGameClick={onGameClick} onBrowseGenre={openGenre} />
+            ))}
           </div>
         )}
       </div>
+
+      {showRecommend && <RecommendFlow onClose={() => setShowRecommend(false)} onGameClick={g => { setShowRecommend(false); onGameClick(g); }} />}
     </div>
   );
 }
