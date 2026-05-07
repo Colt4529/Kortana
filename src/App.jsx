@@ -465,63 +465,44 @@ function GameDetail({ game, onBack, onUpdate, user }) {
 }
 
 // ── GOTY RACE SIDEBAR ─────────────────────────────────────────────────────────
-const GOTY_2026 = [
-  { id:"pragmata",  title:"Pragmata",               developer:"Capcom",                mc:0 },
-  { id:"judas",     title:"Judas",                  developer:"Ghost Story Games",     mc:0 },
-  { id:"wolverine", title:"Marvel's Wolverine",     developer:"Insomniac Games",       mc:0 },
-  { id:"ow2",       title:"The Outer Worlds 2",     developer:"Obsidian Entertainment",mc:0 },
-  { id:"silksong",  title:"Hollow Knight: Silksong",developer:"Team Cherry",           mc:0 },
-  { id:"mgsd",      title:"Metal Gear Solid Delta", developer:"Konami",                mc:0 },
-  { id:"mafia",     title:"Mafia: The Old Country", developer:"Hangar 13",             mc:0 },
-  { id:"bl4",       title:"Borderlands 4",          developer:"Gearbox Software",      mc:0 },
-  { id:"yotei",     title:"Ghost of Yotei",         developer:"Sucker Punch",          mc:0 },
-  { id:"fable",     title:"Fable",                  developer:"Playground Games",      mc:0 },
-];
+const REAL_PLATFORMS = new Set([1, 2, 3, 7, 8]);
 
-function GotyRace({ onGameClick }) {
-  const [list, setList]       = useState(GOTY_2026.map(g=>({ ...g, cover:"" })));
-  const [loading, setLoading] = useState(true);
+function GotyRace({ list, setList, onGameClick }) {
+  const [editing,   setEditing]   = useState(false);
+  const [query,     setQuery]     = useState("");
+  const [results,   setResults]   = useState([]);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
-    const ctrl = new AbortController();
-    let mounted = true;
-    (async () => {
+    const q = query.trim();
+    if (!q) { setResults([]); return; }
+    setSearching(true);
+    const timer = setTimeout(async () => {
       try {
-        const fetched = await Promise.all(
-          GOTY_2026.map(async game => {
-            try {
-              const r = await fetch(
-                `${RAWG_API_URL}/games?key=${RAWG_API_KEY}&search=${encodeURIComponent(game.title)}&page_size=5&exclude_additions=true`,
-                { signal: ctrl.signal }
-              );
-              if (!r.ok) return { ...game, cover:"" };
-              const d = await r.json();
-              const results = d.results || [];
-              // prefer a result whose name closely matches, has a cover, and is on a real platform
-              const slug = game.title.split(/[:\s]/)[0].toLowerCase();
-              const hit = results.find(g => g.background_image && g.name?.toLowerCase().includes(slug))
-                       || results.find(g => g.background_image)
-                       || null;
-              return { ...game, cover: rawgImg(hit?.background_image||"", {w:600,h:900}), mc: hit?.metacritic||game.mc };
-            } catch { return { ...game, cover:"" }; }
-          })
-        );
-        if (mounted) { setList(fetched); setLoading(false); }
-      } catch { if (mounted) setLoading(false); }
-    })();
-    return () => { mounted = false; ctrl.abort(); };
-  }, []);
+        const r = await fetch(`${RAWG_API_URL}/games?key=${RAWG_API_KEY}&search=${encodeURIComponent(q)}&page_size=6&exclude_additions=true`);
+        const d = await r.json();
+        setResults((d.results||[]).filter(g => g.background_image && g.parent_platforms?.some(p => REAL_PLATFORMS.has(p.platform?.id))).slice(0,5));
+      } catch {}
+      setSearching(false);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [query]);
 
-  const rankColor = i => i === 0 ? C.yellow : i <= 2 ? C.muted : "#444";
-  const mcColor   = mc => mc >= 90 ? C.yellow : mc >= 80 ? C.green : C.blue;
+  const moveUp   = i => { if (i===0) return; const n=[...list]; [n[i-1],n[i]]=[n[i],n[i-1]]; setList(n); };
+  const moveDown = i => { if (i===list.length-1) return; const n=[...list]; [n[i],n[i+1]]=[n[i+1],n[i]]; setList(n); };
+  const remove   = i => setList(list.filter((_,idx)=>idx!==i));
+  const addGame  = g => {
+    if (list.length >= 10 || list.some(x=>String(x.id)===String(g.id))) return;
+    setList([...list, { id:String(g.id), title:g.name, developer:g.developers?.[0]?.name||"Unknown", mc:g.metacritic||0, cover:rawgImg(g.background_image||"",{w:600,h:900}) }]);
+    setQuery(""); setResults([]);
+  };
+
+  const rankColor = i => i===0 ? C.yellow : i<=2 ? C.muted : "#444";
+  const mcColor   = mc => mc>=90 ? C.yellow : mc>=80 ? C.green : C.blue;
 
   const handleClick = game => {
-    onGameClick({
-      id: game.id, title: game.title, developer: game.developer,
-      cover: game.cover, hero: game.cover,
-      year: 2025, rating: 0, status:"", goty:false, desc:"", review:"",
-      publisher:"", genre:"", playtime:0,
-    });
+    if (editing) return;
+    onGameClick({ id:game.id, title:game.title, developer:game.developer, cover:game.cover, hero:game.cover, year:2026, rating:0, status:"", goty:false, desc:"", review:"", publisher:"", genre:"", playtime:0 });
   };
 
   return (
@@ -529,12 +510,22 @@ function GotyRace({ onGameClick }) {
       <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:8 }}>
         <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2px", color:"#444", textTransform:"uppercase", flexShrink:0 }}>GOTY Race 2026</span>
         <div style={{ flex:1, height:"0.5px", background:C.border }} />
+        <button onClick={()=>{ setEditing(v=>!v); setQuery(""); setResults([]); }}
+          style={{ background:"none", border:"none", cursor:"pointer", fontSize:11, fontWeight:500, color:editing?C.pink:C.muted, padding:0, flexShrink:0 }}>
+          {editing ? "Done" : "Edit"}
+        </button>
       </div>
-      <div style={{ fontSize:10, color:"#333", letterSpacing:"0.5px", marginBottom:16 }}>Updated as scores drop throughout the year</div>
-      {loading && <div style={{ fontSize:11, color:"#444", letterSpacing:"1px", marginBottom:12 }}>Fetching covers…</div>}
+      <div style={{ fontSize:10, color:"#333", letterSpacing:"0.5px", marginBottom:16 }}>
+        {editing ? `${list.length}/10 · reorder or remove` : "Your 2026 predictions"}
+      </div>
+
+      {list.length===0 && !editing && (
+        <div style={{ fontSize:11, color:"#444", textAlign:"center", padding:"24px 0" }}>Hit Edit to build your race</div>
+      )}
+
       {list.map((game, i) => (
         <div key={game.id} onClick={()=>handleClick(game)}
-          style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0", borderBottom:`0.5px solid ${C.border}`, cursor:"pointer" }}>
+          style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0", borderBottom:`0.5px solid ${C.border}`, cursor:editing?"default":"pointer" }}>
           <div style={{ width:18, fontSize:11, fontWeight:500, color:rankColor(i), textAlign:"right", flexShrink:0 }}>{i+1}</div>
           <div style={{ width:32, height:44, borderRadius:4, overflow:"hidden", flexShrink:0, background:C.faint }}>
             <Img src={game.cover} style={{ width:"100%", height:"100%" }} />
@@ -543,24 +534,61 @@ function GotyRace({ onGameClick }) {
             <div style={{ fontSize:12, fontWeight:500, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", lineHeight:1.3 }}>{game.title}</div>
             <div style={{ fontSize:10, color:"#444", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{game.developer}</div>
           </div>
-          <div style={{ flexShrink:0, textAlign:"center", minWidth:28 }}>
-            {game.mc > 0 ? (
-              <>
-                <div style={{ fontSize:13, fontWeight:500, color:mcColor(game.mc), lineHeight:1 }}>{game.mc}</div>
-                <div style={{ fontSize:8, color:"#333", letterSpacing:"0.5px", textTransform:"uppercase", marginTop:2 }}>MC</div>
-              </>
-            ) : (
-              <div style={{ fontSize:11, color:"#333", letterSpacing:"0.5px" }}>—</div>
-            )}
-          </div>
+          {editing ? (
+            <div style={{ display:"flex", alignItems:"center", gap:1, flexShrink:0 }}>
+              <button onClick={e=>{e.stopPropagation();moveUp(i);}}   style={{ background:"none", border:"none", color:i===0?"#2a2a2a":C.muted, cursor:i===0?"default":"pointer", fontSize:15, padding:"2px 5px", lineHeight:1 }}>↑</button>
+              <button onClick={e=>{e.stopPropagation();moveDown(i);}} style={{ background:"none", border:"none", color:i===list.length-1?"#2a2a2a":C.muted, cursor:i===list.length-1?"default":"pointer", fontSize:15, padding:"2px 5px", lineHeight:1 }}>↓</button>
+              <button onClick={e=>{e.stopPropagation();remove(i);}}   style={{ background:"none", border:"none", color:C.pink, cursor:"pointer", fontSize:15, padding:"2px 5px", lineHeight:1 }}>✕</button>
+            </div>
+          ) : (
+            <div style={{ flexShrink:0, textAlign:"center", minWidth:28 }}>
+              {game.mc > 0
+                ? <><div style={{ fontSize:13, fontWeight:500, color:mcColor(game.mc), lineHeight:1 }}>{game.mc}</div><div style={{ fontSize:8, color:"#333", letterSpacing:"0.5px", textTransform:"uppercase", marginTop:2 }}>MC</div></>
+                : <div style={{ fontSize:11, color:"#333" }}>—</div>}
+            </div>
+          )}
         </div>
       ))}
+
+      {editing && (
+        <div style={{ marginTop:14, position:"relative" }}>
+          {list.length < 10 ? (
+            <>
+              <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search to add a game…"
+                style={{ width:"100%", background:C.faint, border:`0.5px solid ${C.border}`, borderRadius:8, padding:"10px 12px", color:C.text, fontSize:12, outline:"none", boxSizing:"border-box" }} />
+              {(searching || results.length > 0) && (
+                <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, right:0, background:C.surface, border:`0.5px solid ${C.border}`, borderRadius:8, overflow:"hidden", zIndex:50, boxShadow:"0 8px 32px rgba(0,0,0,.6)" }}>
+                  {searching && <div style={{ padding:"12px 14px", fontSize:12, color:"#444" }}>Searching…</div>}
+                  {results.map(g => {
+                    const already = list.some(x=>String(x.id)===String(g.id));
+                    return (
+                      <div key={g.id} onClick={()=>!already&&addGame(g)}
+                        style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px", borderBottom:`0.5px solid ${C.border}`, cursor:already?"default":"pointer", opacity:already?0.4:1 }}>
+                        <div style={{ width:24, height:34, borderRadius:3, overflow:"hidden", flexShrink:0, background:C.faint }}>
+                          <Img src={rawgImg(g.background_image||"",{w:60,h:90})} style={{ width:"100%", height:"100%" }} />
+                        </div>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:12, fontWeight:500, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{g.name}</div>
+                          <div style={{ fontSize:10, color:"#444" }}>{g.released?.slice(0,4)||"TBA"}</div>
+                        </div>
+                        {already && <span style={{ fontSize:10, color:"#444", flexShrink:0 }}>Added</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          ) : (
+            <div style={{ fontSize:11, color:"#444", textAlign:"center", padding:"10px 0" }}>Remove a game to add another</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 // ── HOME ──────────────────────────────────────────────────────────────────────
-function HomeScreen({ games, logs, onGameClick }) {
+function HomeScreen({ games, logs, onGameClick, gotyList, setGotyList }) {
   const wide    = useWindowWidth() >= 860;
   const hasLogs = logs.length > 0;
   const played  = hasLogs ? logs.filter(g=>g.status==="played") : [];
@@ -641,7 +669,7 @@ function HomeScreen({ games, logs, onGameClick }) {
 
         {/* GOTY Race sidebar */}
         <div style={{ paddingTop:32, position: wide ? "sticky" : "static", top:80 }}>
-          <GotyRace onGameClick={onGameClick} />
+          <GotyRace list={gotyList} setList={setGotyList} onGameClick={onGameClick} />
         </div>
 
       </div>
@@ -1095,9 +1123,12 @@ function FriendsModal({ onClose }) {
 
 // ── ROOT ──────────────────────────────────────────────────────────────────────
 export default function Kortana() {
-  const [games,  setGames]  = useState(INIT_GAMES);
-  const [lists,  setLists]  = useState(() => {
+  const [games,    setGames]    = useState(INIT_GAMES);
+  const [lists,    setLists]    = useState(() => {
     try { const s = localStorage.getItem("kortana_lists"); return s ? JSON.parse(s) : []; } catch { return []; }
+  });
+  const [gotyList, setGotyList] = useState(() => {
+    try { const s = localStorage.getItem("kortana_goty"); return s ? JSON.parse(s) : []; } catch { return []; }
   });
   const [tab,    setTab]    = useState("home");
   const [detail, setDetail] = useState(null);
@@ -1145,6 +1176,10 @@ export default function Kortana() {
   useEffect(() => {
     try { localStorage.setItem("kortana_lists", JSON.stringify(lists)); } catch {}
   }, [lists]);
+
+  useEffect(() => {
+    try { localStorage.setItem("kortana_goty", JSON.stringify(gotyList)); } catch {}
+  }, [gotyList]);
 
   const updateGame = u => setGames(gs=>gs.map(g=>g.id===u.id?u:g));
   const handleSignOut = async () => { await supabase.auth.signOut(); setUser(null); setDisplayName(""); setPhotoUrl(""); };
@@ -1223,7 +1258,7 @@ export default function Kortana() {
           <GameDetail game={games.find(g=>g.id===detail.id)||detail} user={user} onBack={()=>setDetail(null)} onUpdate={g=>{updateGame(g);setDetail(g);}} />
         ) : (
           <>
-            {tab==="home"   && <HomeScreen   games={games} logs={logs} onGameClick={setDetail} />}
+            {tab==="home"   && <HomeScreen   games={games} logs={logs} onGameClick={setDetail} gotyList={gotyList} setGotyList={setGotyList} />}
             {tab==="diary"  && <DiaryScreen  logs={logs} onGameClick={setDetail} />}
             {tab==="browse" && <BrowseScreen games={games} onGameClick={setDetail} />}
             {tab==="logs"   && <LogsScreen   logs={logs} loading={logsLoading} />}
