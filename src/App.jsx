@@ -48,11 +48,11 @@ function StripeBar({ height=3, style }) {
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 function AuthScreen() {
-  const [mode, setMode]       = useState("sign-in");
-  const [email, setEmail]     = useState("");
+  const [mode, setMode]         = useState("sign-in");
+  const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [message, setMessage]   = useState("");
 
   const submit = async () => {
     setLoading(true); setMessage("");
@@ -64,42 +64,87 @@ function AuthScreen() {
     } else {
       const { error } = await supabase.auth.signUp({ email: trimmedEmail, password });
       if (error) setMessage(error.message);
-      else setMessage("Signup successful — check your email to confirm.");
+      else setMessage("Check your email to confirm your account.");
     }
     setLoading(false);
   };
 
-  const inp = { width:"100%", background:C.faint, border:`0.5px solid ${C.border}`, borderRadius:8, padding:"13px 16px", color:C.text, fontSize:14, outline:"none", boxSizing:"border-box" };
+  const onKey = e => { if (e.key === "Enter") submit(); };
+
+  const inp = {
+    width:"100%", background:"transparent",
+    border:"none", borderBottom:`0.5px solid ${C.border}`,
+    padding:"14px 0", color:C.text, fontSize:16, outline:"none",
+    boxSizing:"border-box", letterSpacing:"0.01em",
+  };
 
   return (
-    <div style={{ minHeight:"100vh", background:C.bg, color:C.text, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
-      <div style={{ width:"100%", maxWidth:400, padding:32, borderRadius:16, background:C.surface, border:`0.5px solid ${C.border}` }}>
-        <div style={{ marginBottom:28 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
-            <svg width="24" height="24" viewBox="0 0 110 110" fill="none">
-              <path d="M16 10 L16 100 L34 100 L34 62 L68 100 L92 100 L54 55 L90 10 L66 10 L34 46 L34 10 Z" fill="none" stroke="#2255CC" strokeWidth="4"/>
-              <path d="M90 10 L54 55" stroke="#CC3377" strokeWidth="4" fill="none"/>
-              <path d="M34 62 L68 100 L92 100" stroke="#FAC000" strokeWidth="4" fill="none"/>
-              <path d="M54 55 L92 100" stroke="#00A850" strokeWidth="4" fill="none"/>
-            </svg>
-            <span style={{ fontSize:22, fontWeight:500, letterSpacing:"-0.5px" }}>ortana</span>
-          </div>
-          <div style={{ fontSize:13, color:C.muted }}>Your gaming life, all in one place.</div>
+    <div style={{ minHeight:"100vh", background:C.bg, color:C.text, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"0 32px" }}>
+      <div style={{ width:"100%", maxWidth:340 }}>
+
+        {/* Logo mark */}
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", marginBottom:48 }}>
+          <svg width="72" height="72" viewBox="0 0 110 110" fill="none" style={{ marginBottom:20 }}>
+            <path d="M16 10 L16 100 L34 100 L34 62 L68 100 L92 100 L54 55 L90 10 L66 10 L34 46 L34 10 Z" fill="none" stroke="#2255CC" strokeWidth="5"/>
+            <path d="M90 10 L54 55" stroke="#CC3377" strokeWidth="5" fill="none"/>
+            <path d="M34 62 L68 100 L92 100" stroke="#FAC000" strokeWidth="5" fill="none"/>
+            <path d="M54 55 L92 100" stroke="#00A850" strokeWidth="5" fill="none"/>
+          </svg>
+          <div style={{ fontSize:32, fontWeight:500, letterSpacing:"-1px", color:C.text, lineHeight:1 }}>Kortana</div>
+          <div style={{ fontSize:13, color:"#444", marginTop:8, letterSpacing:"0.02em" }}>Your gaming life, all in one place.</div>
         </div>
 
-        <div style={{ display:"flex", gap:4, marginBottom:24, background:C.faint, borderRadius:8, padding:4 }}>
-          <button onClick={()=>setMode("sign-in")} style={{ flex:1, padding:"8px 0", borderRadius:6, border:"none", cursor:"pointer", background:mode==="sign-in"?C.pink:"transparent", color:mode==="sign-in"?"#fff":C.muted, fontWeight:500, fontSize:13, transition:"all .15s" }}>Sign In</button>
-          <button onClick={()=>setMode("sign-up")} style={{ flex:1, padding:"8px 0", borderRadius:6, border:"none", cursor:"pointer", background:mode==="sign-up"?C.pink:"transparent", color:mode==="sign-up"?"#fff":C.muted, fontWeight:500, fontSize:13, transition:"all .15s" }}>Sign Up</button>
+        {/* Mode toggle */}
+        <div style={{ display:"flex", gap:0, marginBottom:36, background:C.faint, borderRadius:10, padding:3 }}>
+          {[["sign-in","Sign In"],["sign-up","Sign Up"]].map(([m,l])=>(
+            <button key={m} onClick={()=>{setMode(m);setMessage("");}} style={{
+              flex:1, padding:"10px 0", borderRadius:8, border:"none", cursor:"pointer",
+              background: mode===m ? C.surface : "transparent",
+              color: mode===m ? C.text : C.muted,
+              fontWeight:500, fontSize:14, transition:"all .2s",
+              boxShadow: mode===m ? "0 1px 4px rgba(0,0,0,.4)" : "none",
+            }}>{l}</button>
+          ))}
         </div>
 
-        <div style={{ display:"grid", gap:12 }}>
-          <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email" style={inp} />
-          <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password" style={inp} />
-          {message && <div style={{ color: message.startsWith("Signup successful") ? C.green : C.pink, fontSize:13 }}>{message}</div>}
-          <button onClick={submit} disabled={loading} style={{ width:"100%", padding:14, borderRadius:8, border:"none", background:C.pink, color:"#fff", fontWeight:500, cursor:"pointer", fontSize:14, textTransform:"uppercase", letterSpacing:"1.5px" }}>
-            {loading ? "Working…" : mode === "sign-in" ? "Sign In" : "Create Account"}
+        {/* Inputs */}
+        <div style={{ display:"grid", gap:0, marginBottom:28 }}>
+          <input
+            value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={onKey}
+            placeholder="Email" type="email" autoComplete="email"
+            style={inp}
+          />
+          <input
+            type="password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={onKey}
+            placeholder="Password" autoComplete={mode==="sign-in"?"current-password":"new-password"}
+            style={{ ...inp, marginTop:6 }}
+          />
+        </div>
+
+        {/* Error / success */}
+        {message && (
+          <div style={{ fontSize:13, color: message.startsWith("Check") ? C.green : C.pink, marginBottom:20, lineHeight:1.5 }}>{message}</div>
+        )}
+
+        {/* CTA */}
+        <button onClick={submit} disabled={loading} style={{
+          width:"100%", padding:"15px 0", borderRadius:10, border:"none",
+          background: loading ? C.faint : C.pink,
+          color: loading ? C.muted : "#fff",
+          fontWeight:500, fontSize:15, cursor: loading ? "default" : "pointer",
+          letterSpacing:"0.04em", transition:"background .2s",
+        }}>
+          {loading ? "Working…" : mode==="sign-in" ? "Sign In" : "Create Account"}
+        </button>
+
+        {/* Swap mode */}
+        <div style={{ textAlign:"center", marginTop:28 }}>
+          <span style={{ fontSize:13, color:"#444" }}>{mode==="sign-in" ? "Don't have an account? " : "Already have an account? "}</span>
+          <button onClick={()=>{setMode(mode==="sign-in"?"sign-up":"sign-in");setMessage("");}} style={{ background:"none", border:"none", color:C.blue, fontSize:13, cursor:"pointer", fontWeight:500, padding:0 }}>
+            {mode==="sign-in" ? "Sign up" : "Sign in"}
           </button>
         </div>
+
       </div>
     </div>
   );
