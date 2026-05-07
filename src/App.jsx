@@ -18,31 +18,54 @@ const STRIPES = ["#2255CC","#CC3377","#FAC000","#00A850"];
 const SC = { "played":C.green, "playing":C.blue, "want to play":C.yellow, "dropped":C.muted };
 const GENRES     = ["All","RPG","Action","Roguelike","Platformer","Metroidvania","Strategy","Horror","Sports","Adventure"];
 const PUBLISHERS = ["All","Bandai Namco","Supergiant","Team Cherry","ZA/UM","Extremely OK","Activision","Motion Twin","Nintendo"];
-const RAWG_API_KEY = "372eea2d4d9d4de7a1ee03d66d6842eb";
-const RAWG_API_URL = "https://api.rawg.io/api";
+const IGDB_PROXY = "https://fivqyneeitodojrojabx.supabase.co/functions/v1/igdb-proxy";
 
-function rawgImg(url, { w, h } = {}) {
-  if (!url || !url.includes("media.rawg.io/media/") || url.includes("/crop/") || url.includes("/resize/")) return url;
-  if (w && h) return url.replace("media.rawg.io/media/", `media.rawg.io/media/crop/${w}/${h}/`);
-  if (w)      return url.replace("media.rawg.io/media/", `media.rawg.io/media/resize/${w}/-/`);
-  return url;
+async function igdb(endpoint, query) {
+  const res = await fetch(IGDB_PROXY, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ endpoint, query }),
+  });
+  if (!res.ok) throw new Error(`IGDB ${res.status}`);
+  return res.json();
 }
 
-function normalizeRawgGame(raw) {
-  const cover = rawgImg(raw.background_image || raw.background_image_additional || raw.background || "", { w:600 });
-  const hero  = rawgImg(raw.background_image_additional || raw.background_image || raw.background || "", { w:1280 });
+function igdbImg(imageId, size = "cover_big_2x") {
+  return imageId ? `https://images.igdb.com/igdb/image/upload/t_${size}/${imageId}.jpg` : "";
+}
+function steamCover(appId) {
+  return appId ? `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/library_600x900.jpg` : "";
+}
+function steamHero(appId) {
+  return appId ? `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg` : "";
+}
+
+function getIgdbCover(raw) {
+  const steamEntry = (raw.external_games || []).find(e => e.category === 1);
+  const steamId = steamEntry?.uid || null;
+  return {
+    cover:   steamId ? steamCover(steamId) : igdbImg(raw.cover?.image_id),
+    hero:    steamId ? steamHero(steamId)  : igdbImg(raw.screenshots?.[0]?.image_id || raw.artworks?.[0]?.image_id || raw.cover?.image_id, "screenshot_big"),
+    steamId,
+  };
+}
+
+function normalizeIgdbGame(raw) {
+  const { cover, hero, steamId } = getIgdbCover(raw);
+  const devCo = (raw.involved_companies || []).find(c => c.developer);
+  const pubCo = (raw.involved_companies || []).find(c => c.publisher);
   return {
     id: raw.id,
     title: raw.name,
-    cover, hero,
-    year: raw.released ? Number(raw.released.slice(0,4)) : null,
-    developer: raw.developers?.[0]?.name || raw.developer || "Unknown",
-    publisher: raw.publishers?.[0]?.name || raw.publisher || "Unknown",
-    desc: raw.description_raw || raw.short_description || raw.description || "No description available.",
-    rating: raw.rating ? Math.round(raw.rating) : 0,
-    metacritic: raw.metacritic || 0,
+    cover, hero, steamId,
+    year: raw.first_release_date ? new Date(raw.first_release_date * 1000).getFullYear() : null,
+    developer: devCo?.company?.name || "Unknown",
+    publisher: pubCo?.company?.name || "Unknown",
+    desc: raw.summary || "No description available.",
+    rating: raw.rating ? Math.round(raw.rating / 20) : 0,
+    metacritic: raw.aggregated_rating ? Math.round(raw.aggregated_rating) : 0,
     genre: raw.genres?.[0]?.name || "Unknown",
-    status: "", goty: false, tagline: raw.tagline || "", playtime: 0, review: "",
+    status: "", goty: false, tagline: "", playtime: 0, review: "",
   };
 }
 
@@ -480,12 +503,17 @@ function GotyRace({ onGameClick }) {
     let mounted = true;
     (async () => {
       const fetched = await Promise.all(
-        GOTY_2026.map(async (game, i) => {
+        GOTY_2026.map(async (game) => {
           try {
-            const r = await fetch(`${RAWG_API_URL}/games?key=${RAWG_API_KEY}&search=${encodeURIComponent(game.title)}&page_size=3&exclude_additions=true`);
-            const d = await r.json();
-            const hit = (d.results||[]).find(g => g.background_image) || null;
-            return { ...game, cover: rawgImg(hit?.background_image||"", {w:600}), mc: hit?.metacritic||0 };
+            const data = await igdb("games", `
+              search "${game.title.replace(/"/g, '\\"')}";
+              fields id, name, cover.image_id, external_games.uid, external_games.category, aggregated_rating;
+              where cover != null;
+              limit 1;
+            `);
+            const hit = data?.[0];
+            const { cover } = hit ? getIgdbCover(hit) : { cover:"" };
+            return { ...game, cover, mc: hit?.aggregated_rating ? Math.round(hit.aggregated_rating) : 0 };
           } catch { return { ...game, cover:"", mc:0 }; }
         })
       );
@@ -532,11 +560,20 @@ function GotyRace({ onGameClick }) {
 function NewAndHot({ onGameClick }) {
   const [games, setGames] = useState([]);
   useEffect(() => {
-    const yr = new Date().getFullYear();
-    fetch(`${RAWG_API_URL}/games?key=${RAWG_API_KEY}&ordering=-added&dates=${yr-1}-01-01,${yr}-12-31&metacritic=75,100&parent_platforms=1,2,3,7&exclude_additions=true&page_size=12`)
-      .then(r=>r.json())
-      .then(d=>setGames((d.results||[]).filter(g=>g.background_image).map(normalizeRawgGame)))
-      .catch(()=>{});
+    const oneYearAgo = Math.floor(Date.now() / 1000) - 86400 * 365;
+    igdb("games", `
+      fields id, name, first_release_date, cover.image_id, summary, genres.name,
+        involved_companies.company.name, involved_companies.developer,
+        external_games.uid, external_games.category, rating, hypes;
+      where hypes > 0 & platforms = (6,48,49,130,167,169) & cover != null
+        & category = (0,8,9) & first_release_date > ${oneYearAgo};
+      sort hypes desc;
+      limit 12;
+    `)
+      .then(data => {
+        if (Array.isArray(data)) setGames(data.filter(g => g.cover?.image_id).map(normalizeIgdbGame));
+      })
+      .catch(() => {});
   }, []);
   if (!games.length) return null;
   return (
@@ -574,16 +611,22 @@ function GotyHistory({ onGameClick }) {
       const results = await Promise.all(
         TGA_WINNERS.map(async w => {
           try {
-            const r = await fetch(`${RAWG_API_URL}/games?key=${RAWG_API_KEY}&search=${encodeURIComponent(w.title)}&page_size=2&exclude_additions=true`);
-            const d = await r.json();
-            const hit = (d.results||[]).find(g=>g.background_image)||null;
-            return [w.year, rawgImg(hit?.background_image||"",{w:300})];
-          } catch { return [w.year,""]; }
+            const data = await igdb("games", `
+              search "${w.title.replace(/"/g, '\\"')}";
+              fields id, name, cover.image_id, external_games.uid, external_games.category;
+              where cover != null;
+              limit 1;
+            `);
+            const hit = data?.[0];
+            if (!hit) return [w.year, ""];
+            const { cover } = getIgdbCover(hit);
+            return [w.year, cover];
+          } catch { return [w.year, ""]; }
         })
       );
       if (mounted) setCovers(Object.fromEntries(results));
     })();
-    return () => { mounted=false; };
+    return () => { mounted = false; };
   }, []);
 
   return (
@@ -592,16 +635,16 @@ function GotyHistory({ onGameClick }) {
         <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2px", color:"#444", textTransform:"uppercase", flexShrink:0 }}>TGA Winners</span>
         <div style={{ flex:1, height:"0.5px", background:C.border }} />
       </div>
-      {TGA_WINNERS.map(w=>(
-        <div key={w.year} onClick={()=>onGameClick({ id:`tga-${w.year}`, title:w.title, developer:w.developer, cover:covers[w.year]||"", hero:covers[w.year]||"", year:w.year, rating:0, status:"", goty:true, desc:"", review:"", publisher:"", genre:"", playtime:0 })}
-          style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 0", borderBottom:`0.5px solid ${C.border}`, cursor:"pointer" }}>
-          <div style={{ width:28, fontSize:10, fontWeight:500, color:C.yellow, textAlign:"right", flexShrink:0 }}>{w.year}</div>
-          <div style={{ width:36, height:24, borderRadius:3, overflow:"hidden", flexShrink:0, background:C.faint }}>
+      {TGA_WINNERS.map(w => (
+        <div key={w.year} onClick={() => onGameClick({ id:`tga-${w.year}`, title:w.title, developer:w.developer, cover:covers[w.year]||"", hero:covers[w.year]||"", year:w.year, rating:0, status:"", goty:true, desc:"", review:"", publisher:"", genre:"", playtime:0 })}
+          style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 0", borderBottom:`0.5px solid ${C.border}`, cursor:"pointer" }}>
+          <div style={{ width:42, height:56, borderRadius:5, overflow:"hidden", flexShrink:0, background:C.faint }}>
             <Img src={covers[w.year]||""} style={{ width:"100%", height:"100%" }} />
           </div>
           <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontSize:11, fontWeight:500, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{w.title}</div>
-            <div style={{ fontSize:9, color:"#444", marginTop:1 }}>{w.developer}</div>
+            <div style={{ fontSize:9, color:C.yellow, fontWeight:500, letterSpacing:"1.5px", marginBottom:2 }}>{w.year}</div>
+            <div style={{ fontSize:12, fontWeight:500, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{w.title}</div>
+            <div style={{ fontSize:10, color:"#444", marginTop:1 }}>{w.developer}</div>
           </div>
         </div>
       ))}
@@ -723,29 +766,44 @@ function DiaryScreen({ logs, onGameClick }) {
 }
 
 // ── BROWSE ────────────────────────────────────────────────────────────────────
-const REAL_PLATFORMS = new Set([1, 2, 3, 7, 8]); // PC, PlayStation, Xbox, Nintendo, Mac
+const IGDB_PLATFORMS = "6,48,49,130,167,169,14"; // PC, PS4/5, XB1/XSX, Switch, Mac
 
 const BROWSE_GENRES = [
-  { name:"Action",     slug:"action"                 },
-  { name:"RPG",        slug:"role-playing-games-rpg" },
-  { name:"Adventure",  slug:"adventure"              },
-  { name:"Strategy",   slug:"strategy"               },
-  { name:"Indie",      slug:"indie"                  },
-  { name:"Platformer", slug:"platformer"             },
-  { name:"Shooter",    slug:"shooter"                },
-  { name:"Fighting",   slug:"fighting"               },
-  { name:"Sports",     slug:"sports"                 },
-  { name:"Puzzle",     slug:"puzzle"                 },
+  { name:"Action",     filter:"themes = (1)"   },
+  { name:"RPG",        filter:"genres = (12)"  },
+  { name:"Adventure",  filter:"genres = (31)"  },
+  { name:"Horror",     filter:"themes = (19)"  },
+  { name:"Strategy",   filter:"genres = (15)"  },
+  { name:"Indie",      filter:"genres = (32)"  },
+  { name:"Platformer", filter:"genres = (8)"   },
+  { name:"Shooter",    filter:"genres = (5)"   },
+  { name:"Fighting",   filter:"genres = (4)"   },
+  { name:"Sports",     filter:"genres = (14)"  },
+];
+
+const BROWSE_DEVS = [
+  "Nintendo", "Naughty Dog", "FromSoftware", "Rockstar Games",
+  "CD Projekt Red", "Larian Studios", "Insomniac Games", "Valve",
+  "Supergiant Games", "Bethesda Game Studios", "Square Enix", "Bandai Namco",
 ];
 
 function GenreRow({ genre, onGameClick, onBrowseGenre }) {
   const [games, setGames] = useState([]);
   useEffect(() => {
-    fetch(`${RAWG_API_URL}/games?key=${RAWG_API_KEY}&genres=${genre.slug}&ordering=-rating&metacritic=70,100&parent_platforms=1,2,3,7&exclude_additions=true&page_size=10`)
-      .then(r => r.json())
-      .then(d => setGames((d.results || []).filter(g => g.background_image).map(normalizeRawgGame)))
+    igdb("games", `
+      fields id, name, first_release_date, cover.image_id, genres.name,
+        involved_companies.company.name, involved_companies.developer,
+        external_games.uid, external_games.category, rating;
+      where ${genre.filter} & platforms = (${IGDB_PLATFORMS}) & cover != null
+        & category = (0,8,9) & rating > 70 & first_release_date > 946684800;
+      sort rating desc;
+      limit 10;
+    `)
+      .then(data => {
+        if (Array.isArray(data)) setGames(data.filter(g => g.cover?.image_id).map(normalizeIgdbGame));
+      })
       .catch(() => {});
-  }, [genre.slug]);
+  }, [genre.name]);
   if (!games.length) return null;
   return (
     <div style={{ marginBottom:"clamp(24px,5vh,36px)" }}>
@@ -775,19 +833,41 @@ function RecommendFlow({ onClose, onGameClick }) {
   useEffect(() => {
     if (step !== 1) return;
     setLoading(true);
-    fetch(`${RAWG_API_URL}/games?key=${RAWG_API_KEY}&ordering=-rating&metacritic=88,100&parent_platforms=1,2,3,7&exclude_additions=true&page_size=12`)
-      .then(r => r.json())
-      .then(d => { setRateGames((d.results || []).filter(g => g.background_image).map(normalizeRawgGame)); setLoading(false); })
+    igdb("games", `
+      fields id, name, first_release_date, cover.image_id,
+        involved_companies.company.name, involved_companies.developer,
+        external_games.uid, external_games.category, rating, rating_count;
+      where rating_count > 500 & platforms = (${IGDB_PLATFORMS}) & cover != null
+        & category = (0,8,9) & rating > 85;
+      sort rating_count desc;
+      limit 12;
+    `)
+      .then(data => {
+        if (Array.isArray(data)) { setRateGames(data.filter(g => g.cover?.image_id).map(normalizeIgdbGame)); }
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, [step]);
 
   useEffect(() => {
     if (step !== 3 || !pickedGenres.length) return;
     setLoading(true);
-    const slugs = pickedGenres.map(g => g.slug).join(",");
-    fetch(`${RAWG_API_URL}/games?key=${RAWG_API_KEY}&genres=${slugs}&ordering=-rating&metacritic=75,100&parent_platforms=1,2,3,7&exclude_additions=true&page_size=20`)
-      .then(r => r.json())
-      .then(d => { setRecGames((d.results || []).filter(g => g.background_image).map(normalizeRawgGame)); setLoading(false); })
+    const combined = pickedGenres.length === 1
+      ? pickedGenres[0].filter
+      : `(${pickedGenres.map(g => g.filter).join(" | ")})`;
+    igdb("games", `
+      fields id, name, first_release_date, cover.image_id, genres.name,
+        involved_companies.company.name, involved_companies.developer,
+        external_games.uid, external_games.category, rating;
+      where ${combined} & platforms = (${IGDB_PLATFORMS}) & cover != null
+        & category = (0,8,9) & rating > 75;
+      sort rating desc;
+      limit 20;
+    `)
+      .then(data => {
+        if (Array.isArray(data)) { setRecGames(data.filter(g => g.cover?.image_id).map(normalizeIgdbGame)); }
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, [step, pickedGenres]);
 
@@ -839,9 +919,9 @@ function RecommendFlow({ onClose, onGameClick }) {
             <div style={{ fontSize:13, color:C.muted, marginBottom:"clamp(16px,3vh,24px)" }}>Choose up to 5 genres you enjoy.</div>
             <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginBottom:28 }}>
               {BROWSE_GENRES.map(g => {
-                const on = pickedGenres.some(p => p.slug === g.slug);
+                const on = pickedGenres.some(p => p.name === g.name);
                 return (
-                  <button key={g.slug} onClick={() => { if (on) setPickedGenres(p => p.filter(x => x.slug !== g.slug)); else if (pickedGenres.length < 5) setPickedGenres(p => [...p, g]); }}
+                  <button key={g.name} onClick={() => { if (on) setPickedGenres(p => p.filter(x => x.name !== g.name)); else if (pickedGenres.length < 5) setPickedGenres(p => [...p, g]); }}
                     style={{ padding:"10px 20px", borderRadius:24, border:`0.5px solid ${on ? C.blue : C.border}`, background:on ? C.blue : "transparent", color:on ? "#fff" : C.muted, fontSize:13, fontWeight:500, cursor:"pointer", transition:"all .15s" }}>
                     {g.name}
                   </button>
@@ -905,64 +985,78 @@ function BrowseScreen({ games, onGameClick }) {
     if (!query) { setRemoteResults([]); setError(null); setLoading(false); return; }
     setLoading(true); setError(null);
     let active = true;
-    const ctrl = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const yearParam = minYear ? `&dates=${minYear}-01-01,${new Date().getFullYear()}-12-31` : "";
-        const r = await fetch(`${RAWG_API_URL}/games?key=${RAWG_API_KEY}&search=${encodeURIComponent(query)}&page_size=20&exclude_additions=true${yearParam}`, { signal: ctrl.signal });
-        if (!r.ok) throw new Error("Search failed");
-        const data = await r.json();
+        const yearClause = minYear
+          ? `& first_release_date > ${Math.floor(new Date(`${minYear}-01-01`).getTime() / 1000)}`
+          : "";
+        const data = await igdb("games", `
+          search "${query.replace(/"/g, '\\"')}";
+          fields id, name, first_release_date, cover.image_id, summary, genres.name,
+            involved_companies.company.name, involved_companies.developer, involved_companies.publisher,
+            external_games.uid, external_games.category,
+            screenshots.image_id, rating, aggregated_rating, rating_count;
+          where cover != null & category = (0,8,9) ${yearClause};
+          sort first_release_date desc;
+          limit 10;
+        `);
         if (!active) return;
-        const qualified = (data.results || [])
-          .filter(g => g.background_image && g.released && g.parent_platforms?.some(p => REAL_PLATFORMS.has(p.platform?.id)))
-          .slice(0, 8);
-        const details = await Promise.all(
-          qualified.map(async item => {
-            try {
-              const dr = await fetch(`${RAWG_API_URL}/games/${item.id}?key=${RAWG_API_KEY}`, { signal: ctrl.signal });
-              return normalizeRawgGame(dr.ok ? await dr.json() : item);
-            } catch { return normalizeRawgGame(item); }
-          })
-        );
-        if (active) setRemoteResults(details.filter(Boolean));
+        if (Array.isArray(data)) setRemoteResults(data.filter(g => g.cover?.image_id).map(normalizeIgdbGame));
+        else setError("Search failed");
       } catch (err) {
-        if (active && err.name !== "AbortError") setError(err.message || "Unable to load results");
+        if (active) setError(err.message || "Unable to load results");
       } finally {
         if (active) setLoading(false);
       }
     }, 480);
-    return () => { active = false; clearTimeout(timer); ctrl.abort(); };
+    return () => { active = false; clearTimeout(timer); };
   }, [search, minYear]);
 
   useEffect(() => {
     if (!filterMode) { setFilterGames([]); return; }
     setFilterLoading(true); setFilterGames([]);
-    const ctrl = new AbortController();
+    let active = true;
     const run = async () => {
       try {
-        let url;
+        let data;
         if (filterMode.type === "genre") {
-          url = `${RAWG_API_URL}/games?key=${RAWG_API_KEY}&genres=${filterMode.slug}&ordering=-rating&metacritic=70,100&parent_platforms=1,2,3,7&exclude_additions=true&page_size=20`;
+          data = await igdb("games", `
+            fields id, name, first_release_date, cover.image_id, genres.name,
+              involved_companies.company.name, involved_companies.developer,
+              external_games.uid, external_games.category, rating;
+            where ${filterMode.filter} & platforms = (${IGDB_PLATFORMS}) & cover != null
+              & category = (0,8,9) & rating > 70;
+            sort rating desc;
+            limit 20;
+          `);
         } else {
-          const devRes = await fetch(`${RAWG_API_URL}/developers?key=${RAWG_API_KEY}&search=${encodeURIComponent(filterMode.name)}&page_size=3`, { signal: ctrl.signal });
-          const devData = devRes.ok ? await devRes.json() : { results:[] };
-          const dev = devData.results?.[0];
-          url = dev?.slug
-            ? `${RAWG_API_URL}/games?key=${RAWG_API_KEY}&developers=${dev.slug}&ordering=-rating&page_size=20`
-            : `${RAWG_API_URL}/games?key=${RAWG_API_KEY}&search=${encodeURIComponent(filterMode.name)}&ordering=-rating&page_size=20`;
+          const companies = await igdb("companies", `
+            search "${filterMode.name.replace(/"/g, '\\"')}";
+            fields id, name;
+            limit 3;
+          `);
+          const devId = Array.isArray(companies) ? companies[0]?.id : null;
+          data = devId ? await igdb("games", `
+            fields id, name, first_release_date, cover.image_id, genres.name,
+              involved_companies.company.name, involved_companies.developer,
+              external_games.uid, external_games.category, rating;
+            where involved_companies.company = ${devId} & involved_companies.developer = true
+              & cover != null & category = (0,8,9);
+            sort rating desc;
+            limit 20;
+          `) : [];
         }
-        const r = await fetch(url, { signal: ctrl.signal });
-        const data = r.ok ? await r.json() : { results:[] };
-        setFilterGames((data.results || []).filter(g => g.background_image).slice(0, 20).map(normalizeRawgGame));
+        if (active && Array.isArray(data))
+          setFilterGames(data.filter(g => g.cover?.image_id).map(normalizeIgdbGame));
       } catch {}
-      finally { setFilterLoading(false); }
+      finally { if (active) setFilterLoading(false); }
     };
     run();
-    return () => ctrl.abort();
+    return () => { active = false; };
   }, [filterMode]);
 
   const mcColor = mc => mc >= 90 ? C.yellow : mc >= 75 ? C.green : C.blue;
-  const openGenre = genre => setFilterMode({ type:"genre", ...genre });
+  const openGenre = genre => setFilterMode({ type:"genre", name:genre.name, filter:genre.filter });
   const openDev   = name  => setFilterMode({ type:"dev", name });
   const clearFilter = () => setFilterMode(null);
 
@@ -1041,7 +1135,7 @@ function BrowseScreen({ games, onGameClick }) {
                       </div>
                     )}
                     {g.genre !== "Unknown" && (
-                      <div onClick={e => { e.stopPropagation(); const match = BROWSE_GENRES.find(bg => bg.name.toLowerCase() === g.genre.toLowerCase()); openGenre(match || { name:g.genre, slug:g.genre.toLowerCase().replace(/\s+/g,"-") }); }}
+                      <div onClick={e => { e.stopPropagation(); const match = BROWSE_GENRES.find(bg => bg.name.toLowerCase() === g.genre.toLowerCase()); if (match) openGenre(match); }}
                         style={{ fontSize:10, color:"#444", background:C.faint, borderRadius:4, padding:"3px 8px", letterSpacing:"0.5px", cursor:"pointer" }}>{g.genre}</div>
                     )}
                   </div>
@@ -1052,12 +1146,21 @@ function BrowseScreen({ games, onGameClick }) {
           </div>
         ) : (
           <div>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"clamp(20px,4vh,32px)" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"clamp(16px,3vh,24px)" }}>
               <div style={{ fontSize:"clamp(20px,4vw,28px)", fontWeight:500, letterSpacing:"-0.3px" }}>Browse</div>
               <button onClick={() => setShowRecommend(true)} style={{ background:C.pink, border:"none", color:"#fff", padding:"8px 18px", borderRadius:20, fontSize:11, fontWeight:500, cursor:"pointer", letterSpacing:"1px", textTransform:"uppercase" }}>For You</button>
             </div>
+            {/* Developer pills */}
+            <div style={{ marginBottom:"clamp(20px,4vh,32px)" }}>
+              <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:10 }}>Developers</div>
+              <div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:6, marginLeft:"-clamp(18px,5vw,48px)", marginRight:"-clamp(18px,5vw,48px)", paddingLeft:"clamp(18px,5vw,48px)", paddingRight:"clamp(18px,5vw,48px)" }}>
+                {BROWSE_DEVS.map(dev => (
+                  <button key={dev} onClick={() => openDev(dev)} style={{ flexShrink:0, padding:"7px 16px", borderRadius:20, border:`0.5px solid ${C.border}`, background:"transparent", color:C.muted, fontSize:12, fontWeight:500, cursor:"pointer", transition:"all .15s", whiteSpace:"nowrap" }}>{dev}</button>
+                ))}
+              </div>
+            </div>
             {BROWSE_GENRES.map(g => (
-              <GenreRow key={g.slug} genre={g} onGameClick={onGameClick} onBrowseGenre={openGenre} />
+              <GenreRow key={g.name} genre={g} onGameClick={onGameClick} onBrowseGenre={openGenre} />
             ))}
           </div>
         )}
@@ -1431,7 +1534,7 @@ export default function Kortana() {
         @media(min-width:768px){body{padding:0 12px}}
       `}</style>
 
-      <div style={{ maxWidth:"1200px", margin:"0 auto", width:"100%", padding:"0 12px" }}>
+      <div style={{ width:"100%" }}>
 
         {/* ── Top bar ── */}
         {!detail && (
