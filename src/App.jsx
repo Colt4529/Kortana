@@ -21,9 +21,16 @@ const PUBLISHERS = ["All","Bandai Namco","Supergiant","Team Cherry","ZA/UM","Ext
 const RAWG_API_KEY = "372eea2d4d9d4de7a1ee03d66d6842eb";
 const RAWG_API_URL = "https://api.rawg.io/api";
 
+function rawgImg(url, { w, h } = {}) {
+  if (!url || !url.includes("media.rawg.io/media/") || url.includes("/crop/") || url.includes("/resize/")) return url;
+  if (w && h) return url.replace("media.rawg.io/media/", `media.rawg.io/media/crop/${w}/${h}/`);
+  if (w)      return url.replace("media.rawg.io/media/", `media.rawg.io/media/resize/${w}/-/`);
+  return url;
+}
+
 function normalizeRawgGame(raw) {
-  const cover = raw.background_image || raw.background_image_additional || raw.background || "";
-  const hero  = raw.background_image_additional || raw.background_image || raw.background || "";
+  const cover = rawgImg(raw.background_image || raw.background_image_additional || raw.background || "", { w:600, h:900 });
+  const hero  = rawgImg(raw.background_image_additional || raw.background_image || raw.background || "", { w:1280 });
   return {
     id: raw.id,
     title: raw.name,
@@ -490,7 +497,7 @@ function GotyRace({ onGameClick }) {
               if (!r.ok) return { ...game, cover:"" };
               const d = await r.json();
               const hit = d.results?.[0];
-              return { ...game, cover: hit?.background_image||"", mc: hit?.metacritic||game.mc };
+              return { ...game, cover: rawgImg(hit?.background_image||"", {w:600,h:900}), mc: hit?.metacritic||game.mc };
             } catch { return { ...game, cover:"" }; }
           })
         );
