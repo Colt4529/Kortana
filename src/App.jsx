@@ -30,6 +30,27 @@ async function igdb(endpoint, query) {
   return res.json();
 }
 
+async function steamApi(type, steamId) {
+  const res = await fetch(IGDB_PROXY, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ endpoint: `steam/${type}`, steamId }),
+  });
+  if (!res.ok) throw new Error(`Steam ${res.status}`);
+  return res.json();
+}
+
+function parseSteamInput(raw) {
+  const s = raw.trim();
+  if (/^\d{17}$/.test(s)) return { type: "id", value: s };
+  const direct = s.match(/steamcommunity\.com\/profiles\/(\d{17})/);
+  if (direct) return { type: "id", value: direct[1] };
+  const vanity = s.match(/steamcommunity\.com\/id\/([^\/\?&#]+)/);
+  if (vanity) return { type: "vanity", value: vanity[1] };
+  if (s.length > 0 && !/\s/.test(s) && !s.includes(".")) return { type: "vanity", value: s };
+  return null;
+}
+
 function igdbImg(imageId, size = "cover_big_2x") {
   return imageId ? `https://images.igdb.com/igdb/image/upload/t_${size}/${imageId}.jpg` : "";
 }
@@ -652,8 +673,210 @@ function GotyHistory({ onGameClick }) {
   );
 }
 
+// ── CONNECT STEAM SHEET ───────────────────────────────────────────────────────
+function ConnectSteamSheet({ onConnect, onClose }) {
+  const [sid,      setSid]      = useState("");
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState("");
+  const [preview,  setPreview]  = useState(null);
+
+  const find = async () => {
+    const clean = sid.trim();
+    if (!/^\d{17}$/.test(clean)) { setError("Enter a valid 17-digit Steam ID"); return; }
+    setLoading(true); setError(""); setPreview(null);
+    try {
+      const data = await steamApi("nowplaying", clean);
+      const player = data?.response?.players?.[0];
+      if (!player) { setError("Couldn't load that Steam profile. Check your ID."); setLoading(false); return; }
+      setPreview({ name: player.personaname, avatar: player.avatarfull, steamId: clean });
+    } catch { setError("Failed to connect. Try again."); }
+    setLoading(false);
+  };
+
+  return (
+    <div onClick={e=>e.target===e.currentTarget&&onClose()} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.87)", zIndex:400, display:"flex", alignItems:"flex-end", justifyContent:"center", backdropFilter:"blur(14px)" }}>
+      <div style={{ background:C.surface, borderRadius:"16px 16px 0 0", width:"100%", maxWidth:440, paddingBottom:40, border:`0.5px solid ${C.border}`, borderBottom:"none", animation:"slideUp .22s ease", overflow:"hidden" }}>
+        <StripeBar height={3} />
+        <div style={{ display:"flex", justifyContent:"center", padding:"14px 0 6px" }}>
+          <div style={{ width:36, height:3, borderRadius:2, background:C.border }} />
+        </div>
+        <div style={{ padding:"4px 24px 0" }}>
+          <div style={{ fontSize:17, fontWeight:500, letterSpacing:"-0.3px", marginBottom:6 }}>Connect Steam</div>
+          <div style={{ fontSize:13, color:C.muted, marginBottom:24, lineHeight:1.6 }}>Sync your library, playtime, and recently played games.</div>
+
+          <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:8 }}>Your Steam ID</div>
+          <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+            <input
+              value={sid}
+              onChange={e=>{ setSid(e.target.value); setPreview(null); setError(""); }}
+              onKeyDown={e=>e.key==="Enter"&&find()}
+              placeholder="76561198xxxxxxxxx"
+              maxLength={17}
+              style={{ flex:1, background:C.faint, border:`0.5px solid ${error ? C.pink : C.border}`, borderRadius:8, padding:"12px 14px", color:C.text, fontSize:14, outline:"none" }}
+            />
+            <button onClick={find} disabled={loading || sid.trim().length < 17} style={{ padding:"12px 20px", borderRadius:8, border:"none", background:sid.trim().length===17 ? C.blue : C.faint, color:sid.trim().length===17 ? "#fff" : C.muted, fontWeight:500, fontSize:13, cursor:sid.trim().length===17?"pointer":"default", flexShrink:0, transition:"all .15s" }}>
+              {loading ? "…" : "Find"}
+            </button>
+          </div>
+          <div style={{ fontSize:11, color:"#333", marginBottom:20 }}>
+            Get your 17-digit ID at <span style={{ color:C.blue }}>steamidfinder.com</span>
+          </div>
+
+          {error && (
+            <div style={{ fontSize:12, color:C.pink, marginBottom:16, padding:"10px 14px", background:"rgba(204,51,119,.08)", borderRadius:8 }}>{error}</div>
+          )}
+
+          {preview && (
+            <>
+              <div style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", background:C.faint, borderRadius:10, marginBottom:20, border:`0.5px solid ${C.green}44` }}>
+                <img src={preview.avatar} style={{ width:48, height:48, borderRadius:"50%", objectFit:"cover" }} alt="" onError={e=>e.target.style.display="none"} />
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:14, fontWeight:500, color:C.text, marginBottom:2 }}>{preview.name}</div>
+                  <div style={{ fontSize:11, color:C.green }}>Steam profile found</div>
+                </div>
+                <div style={{ fontSize:18, color:C.green }}>✓</div>
+              </div>
+              <button onClick={() => onConnect(preview.steamId)} style={{ width:"100%", padding:14, borderRadius:8, border:"none", background:C.green, color:"#fff", fontWeight:500, fontSize:14, cursor:"pointer", textTransform:"uppercase", letterSpacing:"1.5px" }}>
+                Connect Account
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── STEAM COMPONENTS ─────────────────────────────────────────────────────────
+function NowPlayingCard({ steamId }) {
+  const [game, setGame] = useState(null);
+
+  useEffect(() => {
+    if (!steamId) return;
+    const check = async () => {
+      try {
+        const data = await steamApi("nowplaying", steamId);
+        const player = data?.response?.players?.[0];
+        if (player?.gameid) {
+          setGame({ appId: player.gameid, title: player.gameextrainfo || "Unknown Game" });
+        } else {
+          setGame(null);
+        }
+      } catch {}
+    };
+    check();
+    const interval = setInterval(check, 120000);
+    return () => clearInterval(interval);
+  }, [steamId]);
+
+  if (!game) return null;
+  return (
+    <div style={{ position:"relative", height:160, overflow:"hidden", borderRadius:12, margin:"0 clamp(18px,5vw,48px) 24px" }}>
+      <Img src={steamHero(game.appId)} style={{ width:"100%", height:"100%", filter:"brightness(.3) saturate(.5)" }} />
+      <div style={{ position:"absolute", inset:0, background:"linear-gradient(to right, rgba(10,10,10,.95) 0%, rgba(10,10,10,.4) 100%)" }} />
+      <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", gap:16, padding:"0 20px" }}>
+        <div style={{ width:72, height:96, borderRadius:6, overflow:"hidden", flexShrink:0, boxShadow:"0 4px 20px rgba(0,0,0,.8)" }}>
+          <Img src={steamCover(game.appId)} style={{ width:"100%", height:"100%" }} />
+        </div>
+        <div>
+          <div style={{ fontSize:9, color:C.green, fontWeight:500, letterSpacing:"2px", textTransform:"uppercase", marginBottom:6, display:"flex", alignItems:"center", gap:5 }}>
+            <div style={{ width:6, height:6, borderRadius:"50%", background:C.green, animation:"steamPulse 2s infinite" }} />
+            Now Playing on Steam
+          </div>
+          <div style={{ fontSize:"clamp(16px,3vw,22px)", fontWeight:500, lineHeight:1.2, letterSpacing:"-0.3px" }}>{game.title}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SteamRecentRow({ steamId, onGameClick }) {
+  const [games, setGames] = useState([]);
+
+  useEffect(() => {
+    if (!steamId) return;
+    steamApi("recentlyplayed", steamId)
+      .then(data => {
+        const list = data?.response?.games || [];
+        setGames(list.slice(0, 10).map(g => ({
+          id: `steam-${g.appid}`,
+          title: g.name,
+          cover: steamCover(g.appid),
+          hero: steamHero(g.appid),
+          steamId: String(g.appid),
+          hoursRecent: g.playtime_2weeks ? Math.round(g.playtime_2weeks / 60 * 10) / 10 : 0,
+          totalHours: g.playtime_forever ? Math.round(g.playtime_forever / 60) : 0,
+          year: null, developer: "Steam", rating: 0, status: "", goty: false,
+          desc: "", review: "", publisher: "", genre: "", playtime: g.playtime_forever ? Math.round(g.playtime_forever / 60) : 0,
+        })));
+      })
+      .catch(() => {});
+  }, [steamId]);
+
+  if (!steamId || !games.length) return null;
+  return (
+    <div style={{ paddingTop:32 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16 }}>
+        <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2px", color:"#444", textTransform:"uppercase", flexShrink:0 }}>Recently Played on Steam</span>
+        <div style={{ flex:1, height:"0.5px", background:C.border }} />
+      </div>
+      <div style={{ display:"flex", gap:"clamp(10px,2vw,14px)", overflowX:"auto", paddingBottom:4, scrollSnapType:"x mandatory", marginLeft:"-clamp(18px,5vw,48px)", marginRight:"-clamp(18px,5vw,48px)", paddingLeft:"clamp(18px,5vw,48px)", paddingRight:"clamp(18px,5vw,48px)" }}>
+        {games.map(g => (
+          <div key={g.id} onClick={() => onGameClick(g)} style={{ width:"clamp(130px,22vw,170px)", flexShrink:0, scrollSnapAlign:"start", cursor:"pointer" }}>
+            <div style={{ position:"relative", aspectRatio:"2/3", borderRadius:8, overflow:"hidden", background:C.faint, boxShadow:"0 4px 20px rgba(0,0,0,.6)" }}>
+              <Img src={g.cover} style={{ width:"100%", height:"100%" }} />
+              <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(10,10,10,.9) 0%, transparent 55%)" }} />
+              <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"8px 10px" }}>
+                <div style={{ fontSize:11, fontWeight:500, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", lineHeight:1.3, marginBottom:2 }}>{g.title}</div>
+                {g.totalHours > 0 && <div style={{ fontSize:9, color:"#555" }}>{g.totalHours}h total</div>}
+              </div>
+              {g.hoursRecent > 0 && (
+                <div style={{ position:"absolute", top:6, right:6, background:"rgba(0,168,80,.15)", border:`0.5px solid ${C.green}44`, borderRadius:4, padding:"2px 6px", fontSize:9, color:C.green, fontWeight:500 }}>{g.hoursRecent}h this week</div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SteamLibraryStats({ steamId }) {
+  const [stats, setStats] = useState(null);
+  useEffect(() => {
+    if (!steamId) return;
+    steamApi("library", steamId)
+      .then(data => {
+        const games = data?.response?.games || [];
+        if (!games.length) return;
+        const totalHours = Math.round(games.reduce((s, g) => s + (g.playtime_forever || 0), 0) / 60);
+        const top = [...games].sort((a, b) => (b.playtime_forever || 0) - (a.playtime_forever || 0))[0];
+        setStats({ count: games.length, totalHours, topName: top?.name || null, topHours: top ? Math.round(top.playtime_forever / 60) : 0 });
+      })
+      .catch(() => {});
+  }, [steamId]);
+  if (!stats) return null;
+  return (
+    <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"clamp(8px,2vw,12px)", marginBottom:8 }}>
+      {[
+        ["Games Owned", stats.count.toLocaleString(), C.blue],
+        ["Hours Played", stats.totalHours.toLocaleString(), C.green],
+        ["Most Played", stats.topHours > 0 ? `${stats.topHours}h` : "—", C.yellow],
+      ].map(([l, v, col]) => (
+        <div key={l} style={{ background:C.surface, borderRadius:10, padding:"clamp(12px,2.5vw,16px)", textAlign:"center", border:`0.5px solid ${C.border}` }}>
+          <div style={{ fontSize:"clamp(15px,3vw,20px)", fontWeight:500, color:col, letterSpacing:"-0.3px" }}>{v}</div>
+          <div style={{ fontSize:9, color:"#444", marginTop:4, letterSpacing:"1.5px", textTransform:"uppercase", fontWeight:500 }}>{l}</div>
+          {l === "Most Played" && stats.topName && (
+            <div style={{ fontSize:8, color:"#333", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{stats.topName}</div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── HOME ──────────────────────────────────────────────────────────────────────
-function HomeScreen({ games, logs, onGameClick }) {
+function HomeScreen({ games, logs, onGameClick, steamId, onConnectSteam }) {
   const wide    = useWindowWidth() >= 860;
   const hasLogs = logs.length > 0;
   const played  = hasLogs ? logs.filter(g=>g.status==="played") : [];
@@ -689,6 +912,9 @@ function HomeScreen({ games, logs, onGameClick }) {
           <div style={{ fontSize:15, color:C.muted, lineHeight:1.7 }}>Start browsing games and save your first log to build your library.</div>
         </div>
       )}
+
+      {/* Steam Now Playing */}
+      <NowPlayingCard steamId={steamId} />
 
       {/* Stats */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", margin:"0 clamp(18px,5vw,48px) 32px", gap:"clamp(8px,2vw,12px)" }}>
@@ -731,10 +957,36 @@ function HomeScreen({ games, logs, onGameClick }) {
             </div>
           )}
 
+          {/* Steam section */}
+          {steamId ? (
+            <div style={{ paddingTop:32 }}>
+              <SectionHead label="Steam Library" />
+              <SteamLibraryStats steamId={steamId} />
+            </div>
+          ) : (
+            <div style={{ paddingTop:32 }}>
+              <div onClick={onConnectSteam} style={{ display:"flex", alignItems:"center", gap:16, padding:"clamp(16px,3vw,20px)", background:"linear-gradient(135deg, rgba(27,40,56,.9) 0%, rgba(13,17,23,.95) 100%)", borderRadius:12, border:"0.5px solid #2a475e44", cursor:"pointer", transition:"opacity .15s" }}>
+                <div style={{ width:44, height:44, borderRadius:10, background:"rgba(27,40,56,1)", border:"0.5px solid #2a475e", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489l3.075-3.739A3.5 3.5 0 0 1 15.5 11h.5l3.739-3.075A9.956 9.956 0 0 0 12 2z" fill="#1b9af0" opacity=".9"/>
+                    <path d="M11.97 14.5A2.5 2.5 0 1 0 9.47 12" stroke="#fff" strokeWidth="1.5" fill="none"/>
+                  </svg>
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:14, fontWeight:500, color:C.text, marginBottom:3 }}>Connect Steam</div>
+                  <div style={{ fontSize:12, color:C.muted }}>Sync your library, playtime & recently played</div>
+                </div>
+                <div style={{ color:"#2a475e", fontSize:20, flexShrink:0 }}>›</div>
+              </div>
+            </div>
+          )}
+
           <div style={{ paddingTop:32 }}>
             <SectionHead label="New & Hot" />
             <NewAndHot onGameClick={onGameClick} />
           </div>
+
+          <SteamRecentRow steamId={steamId} onGameClick={onGameClick} />
         </div>
 
         {/* GOTY Race sidebar */}
@@ -861,34 +1113,64 @@ function DealCard({ deal }) {
   );
 }
 
+const DEAL_CATS = [
+  { key:"all",   label:"All Deals" },
+  { key:"aaa",   label:"AAA",       test: d => Number(d.normalPrice) >= 40 },
+  { key:"indie", label:"Indie",     test: d => Number(d.normalPrice) <= 20 },
+];
+
 function DealsRow() {
   const [deals, setDeals] = useState([]);
+  const [cat,   setCat]   = useState("all");
+
   useEffect(() => {
-    // CheapShark: no CORS issues, works browser-side — ITAD will replace this via edge function proxy once deployed
-    fetch("https://www.cheapshark.com/api/1.0/deals?upperPrice=60&sortBy=Savings&pageSize=60&metacritic=70&onSale=1")
+    fetch("https://www.cheapshark.com/api/1.0/deals?upperPrice=60&sortBy=Savings&pageSize=120&metacritic=60&onSale=1")
       .then(r => r.json())
       .then(data => {
-        setDeals((data || [])
-          .filter(d => d.steamAppID && Number(d.savings) >= 50)
-          .slice(0, 18));
+        setDeals((data || []).filter(d => d.steamAppID && Number(d.savings) >= 40));
       })
       .catch(() => {});
   }, []);
+
   if (!deals.length) return null;
-  const maxSavings = Math.max(...deals.map(d => Math.round(Number(d.savings))));
+
+  const catDef  = DEAL_CATS.find(c => c.key === cat);
+  const visible = cat === "all" ? deals.slice(0, 20) : deals.filter(catDef.test).slice(0, 20);
+  const maxSavings = visible.length ? Math.max(...visible.map(d => Math.round(Number(d.savings)))) : 0;
+
   return (
     <div style={{ marginBottom:"clamp(24px,5vh,36px)" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"clamp(10px,2vh,14px)" }}>
         <span style={{ fontSize:"clamp(15px,2.5vw,19px)", fontWeight:500, letterSpacing:"-0.2px" }}>Hot Deals</span>
-        <span style={{ fontSize:11, color:C.green, fontWeight:500 }}>Up to {maxSavings}% off</span>
+        {maxSavings > 0 && <span style={{ fontSize:11, color:C.green, fontWeight:500 }}>Up to {maxSavings}% off</span>}
       </div>
-      <div style={{ display:"flex", gap:"clamp(10px,2vw,14px)", overflowX:"auto", paddingBottom:8, scrollSnapType:"x mandatory", marginLeft:"-clamp(18px,5vw,48px)", marginRight:"-clamp(18px,5vw,48px)", paddingLeft:"clamp(18px,5vw,48px)", paddingRight:"clamp(18px,5vw,48px)" }}>
-        {deals.map(d => (
-          <div key={d.dealID} style={{ width:"clamp(130px,20vw,170px)", flexShrink:0, scrollSnapAlign:"start" }}>
-            <DealCard deal={d} />
-          </div>
+
+      {/* Category tabs */}
+      <div style={{ display:"flex", gap:6, marginBottom:"clamp(10px,2vh,14px)" }}>
+        {DEAL_CATS.map(c => (
+          <button key={c.key} onClick={() => setCat(c.key)} style={{
+            flexShrink:0, padding:"5px 14px", borderRadius:20, cursor:"pointer",
+            border:`0.5px solid ${cat===c.key ? C.green : C.border}`,
+            background: cat===c.key ? C.green : "transparent",
+            color: cat===c.key ? "#000" : C.muted,
+            fontSize:11, fontWeight:500, letterSpacing:"1px", textTransform:"uppercase", transition:"all .15s",
+          }}>{c.label}</button>
         ))}
       </div>
+
+      {visible.length > 0 ? (
+        <div style={{ display:"flex", gap:"clamp(10px,2vw,14px)", overflowX:"auto", paddingBottom:8, scrollSnapType:"x mandatory", marginLeft:"-clamp(18px,5vw,48px)", marginRight:"-clamp(18px,5vw,48px)", paddingLeft:"clamp(18px,5vw,48px)", paddingRight:"clamp(18px,5vw,48px)" }}>
+          {visible.map(d => (
+            <div key={d.dealID} style={{ width:"clamp(130px,20vw,170px)", flexShrink:0, scrollSnapAlign:"start" }}>
+              <DealCard deal={d} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ padding:"24px 0", fontSize:11, color:"#444", letterSpacing:"2px", textTransform:"uppercase" }}>
+          No {catDef.label} deals right now
+        </div>
+      )}
     </div>
   );
 }
@@ -1446,18 +1728,26 @@ function SettingsDropdown({ user, displayName, photoUrl, onAccount, onFriends, o
   );
 }
 
-function AccountModal({ user, displayName, photoUrl, setDisplayName, setPhotoUrl, onClose }) {
-  const [name, setName]     = useState(displayName);
-  const [url,  setUrl]      = useState(photoUrl);
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg]       = useState("");
+function AccountModal({ user, displayName, photoUrl, setDisplayName, setPhotoUrl, steamId, setSteamId, onClose }) {
+  const [name,    setName]    = useState(displayName);
+  const [url,     setUrl]     = useState(photoUrl);
+  const [sid,     setSid]     = useState(steamId || "");
+  const [saving,  setSaving]  = useState(false);
+  const [msg,     setMsg]     = useState("");
   const initial = (name || user.email)[0].toUpperCase();
 
   const save = async () => {
     setSaving(true); setMsg("");
-    const { error } = await supabase.auth.updateUser({ data: { display_name: name.trim(), avatar_url: url.trim() } });
+    const { error } = await supabase.auth.updateUser({
+      data: { display_name: name.trim(), avatar_url: url.trim(), steam_id: sid.trim() },
+    });
     if (error) setMsg(error.message);
-    else { setDisplayName(name.trim()); setPhotoUrl(url.trim()); setMsg("Saved."); }
+    else {
+      setDisplayName(name.trim());
+      setPhotoUrl(url.trim());
+      setSteamId(sid.trim());
+      setMsg("Saved.");
+    }
     setSaving(false);
   };
 
@@ -1483,6 +1773,18 @@ function AccountModal({ user, displayName, photoUrl, setDisplayName, setPhotoUrl
             <div>
               <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:8 }}>Profile Photo URL</div>
               <input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://…" style={inp} />
+            </div>
+            <div>
+              <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:8 }}>Steam ID</div>
+              {sid ? (
+                <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 14px", background:C.faint, borderRadius:8, border:`0.5px solid ${C.green}44` }}>
+                  <div style={{ flex:1, fontSize:13, color:C.text, fontFamily:"monospace" }}>{sid}</div>
+                  <button onClick={()=>setSid("")} style={{ background:"none", border:"none", color:"#444", fontSize:11, cursor:"pointer", fontWeight:500, letterSpacing:"1px", textTransform:"uppercase", padding:0, flexShrink:0 }}>Disconnect</button>
+                </div>
+              ) : (
+                <input value={sid} onChange={e=>setSid(e.target.value)} placeholder="76561198xxxxxxxxx" maxLength={17} style={inp} />
+              )}
+              {!sid && <div style={{ fontSize:11, color:"#444", marginTop:5 }}>Find yours at steamidfinder.com</div>}
             </div>
             {msg && <div style={{ fontSize:13, color: msg==="Saved." ? C.green : C.pink }}>{msg}</div>}
             <button onClick={save} disabled={saving} style={{ width:"100%", padding:14, borderRadius:8, border:"none", background:C.pink, color:"#fff", fontWeight:500, fontSize:14, cursor:"pointer", textTransform:"uppercase", letterSpacing:"1.5px" }}>
@@ -1535,6 +1837,8 @@ export default function Kortana() {
   const [settingsModal, setSettingsModal] = useState(null);
   const [displayName, setDisplayName]     = useState("");
   const [photoUrl, setPhotoUrl]           = useState("");
+  const [steamId, setSteamId]             = useState("");
+  const [showConnectSteam, setShowConnectSteam] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -1543,7 +1847,11 @@ export default function Kortana() {
       if (!mounted) return;
       const u = data.session?.user ?? null;
       setUser(u);
-      if (u) { setDisplayName(u.user_metadata?.display_name || ""); setPhotoUrl(u.user_metadata?.avatar_url || ""); }
+      if (u) {
+        setDisplayName(u.user_metadata?.display_name || "");
+        setPhotoUrl(u.user_metadata?.avatar_url || "");
+        setSteamId(u.user_metadata?.steam_id || "");
+      }
       setAuthLoading(false);
     };
     initAuth();
@@ -1551,7 +1859,11 @@ export default function Kortana() {
       if (!mounted) return;
       const u = session?.user ?? null;
       setUser(u);
-      if (u) { setDisplayName(u.user_metadata?.display_name || ""); setPhotoUrl(u.user_metadata?.avatar_url || ""); }
+      if (u) {
+        setDisplayName(u.user_metadata?.display_name || "");
+        setPhotoUrl(u.user_metadata?.avatar_url || "");
+        setSteamId(u.user_metadata?.steam_id || "");
+      }
     });
     return () => { mounted = false; subscription?.subscription?.unsubscribe?.(); };
   }, []);
@@ -1573,7 +1885,12 @@ export default function Kortana() {
   }, [lists]);
 
   const updateGame = u => setGames(gs=>gs.map(g=>g.id===u.id?u:g));
-  const handleSignOut = async () => { await supabase.auth.signOut(); setUser(null); setDisplayName(""); setPhotoUrl(""); };
+  const handleSignOut = async () => { await supabase.auth.signOut(); setUser(null); setDisplayName(""); setPhotoUrl(""); setSteamId(""); };
+
+  const connectSteam = async (newSteamId) => {
+    const { error } = await supabase.auth.updateUser({ data: { steam_id: newSteamId } });
+    if (!error) { setSteamId(newSteamId); setShowConnectSteam(false); }
+  };
 
   const TABS = [
     { key:"home",   label:"Home"   },
@@ -1597,8 +1914,9 @@ export default function Kortana() {
     <div style={{ minHeight:"100vh", background:C.bg, position:"relative", overflowX:"hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&display=swap');
-        @keyframes fadeUp  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+        @keyframes fadeUp     { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes slideUp    { from{transform:translateY(100%)} to{transform:translateY(0)} }
+        @keyframes steamPulse { 0%,100%{opacity:1} 50%{opacity:.3} }
         *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:'Poppins',sans-serif}
         ::-webkit-scrollbar{display:none}
         input,textarea,select{color-scheme:dark}
@@ -1649,7 +1967,7 @@ export default function Kortana() {
           <GameDetail game={games.find(g=>g.id===detail.id)||detail} user={user} onBack={()=>setDetail(null)} onUpdate={g=>{updateGame(g);setDetail(g);}} />
         ) : (
           <>
-            {tab==="home"   && <HomeScreen   games={games} logs={logs} onGameClick={setDetail} />}
+            {tab==="home"   && <HomeScreen   games={games} logs={logs} onGameClick={setDetail} steamId={steamId} onConnectSteam={()=>setShowConnectSteam(true)} />}
             {tab==="diary"  && <DiaryScreen  logs={logs} onGameClick={setDetail} />}
             {tab==="browse" && <BrowseScreen games={games} onGameClick={setDetail} />}
             {tab==="logs"   && <LogsScreen   logs={logs} loading={logsLoading} />}
@@ -1671,10 +1989,13 @@ export default function Kortana() {
 
         {/* ── Modals ── */}
         {settingsModal === "account" && (
-          <AccountModal user={user} displayName={displayName} photoUrl={photoUrl} setDisplayName={setDisplayName} setPhotoUrl={setPhotoUrl} onClose={()=>setSettingsModal(null)} />
+          <AccountModal user={user} displayName={displayName} photoUrl={photoUrl} setDisplayName={setDisplayName} setPhotoUrl={setPhotoUrl} steamId={steamId} setSteamId={setSteamId} onClose={()=>setSettingsModal(null)} />
         )}
         {settingsModal === "friends" && (
           <FriendsModal onClose={()=>setSettingsModal(null)} />
+        )}
+        {showConnectSteam && (
+          <ConnectSteamSheet onConnect={connectSteam} onClose={()=>setShowConnectSteam(false)} />
         )}
 
       </div>
