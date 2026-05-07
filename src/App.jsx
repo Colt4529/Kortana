@@ -688,19 +688,19 @@ function BrowseScreen({ games, onGameClick }) {
           ? `&dates=${minYear}-01-01,${new Date().getFullYear()}-12-31`
           : "";
         const r = await fetch(
-          `${RAWG_API_URL}/games?key=${RAWG_API_KEY}&search=${encodeURIComponent(query)}&page_size=20&exclude_additions=true&ordering=-added${yearParam}`,
+          `${RAWG_API_URL}/games?key=${RAWG_API_KEY}&search=${encodeURIComponent(query)}&page_size=20&exclude_additions=true${yearParam}`,
           { signal: ctrl.signal }
         );
         if (!r.ok) throw new Error("Search failed");
         const data = await r.json();
         if (!active) return;
 
-        // quality gate: must have a cover, a release date, and some traction
+        // keep only games with a platform assignment — fan games and junk entries never get these
         const qualified = (data.results || [])
           .filter(g =>
             g.background_image &&
             g.released &&
-            (g.added >= 15 || g.metacritic > 0 || g.ratings_count >= 3)
+            g.parent_platforms?.length > 0
           )
           .slice(0, 8);
 
@@ -1090,7 +1090,9 @@ function FriendsModal({ onClose }) {
 // ── ROOT ──────────────────────────────────────────────────────────────────────
 export default function Kortana() {
   const [games,  setGames]  = useState(INIT_GAMES);
-  const [lists,  setLists]  = useState(INIT_LISTS);
+  const [lists,  setLists]  = useState(() => {
+    try { const s = localStorage.getItem("kortana_lists"); return s ? JSON.parse(s) : []; } catch { return []; }
+  });
   const [tab,    setTab]    = useState("home");
   const [detail, setDetail] = useState(null);
   const [user,   setUser]   = useState(null);
@@ -1133,6 +1135,10 @@ export default function Kortana() {
     };
     loadLogs();
   }, [user]);
+
+  useEffect(() => {
+    try { localStorage.setItem("kortana_lists", JSON.stringify(lists)); } catch {}
+  }, [lists]);
 
   const updateGame = u => setGames(gs=>gs.map(g=>g.id===u.id?u:g));
   const handleSignOut = async () => { await supabase.auth.signOut(); setUser(null); setDisplayName(""); setPhotoUrl(""); };
