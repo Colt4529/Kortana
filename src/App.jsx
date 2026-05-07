@@ -835,31 +835,27 @@ const ITAD_STORE_META = {
   34:  { name:"Fanatical",   color:"#e6181c" },
 };
 
+const CS_STORES = { "1":"Steam","7":"GOG","11":"Humble","13":"Fanatical","25":"Epic","35":"GameBillet","23":"Voidu" };
+
 function DealCard({ deal }) {
-  const shop = deal.deal?.shop;
-  const meta = ITAD_STORE_META[shop?.id] || { name: shop?.name || "Store", color:"#333" };
-  const cut = deal.deal?.cut || 0;
-  const sale = deal.deal?.price?.amount;
-  const reg  = deal.deal?.regular?.amount;
-  const url  = deal.deal?.url || deal.urls?.buy || "#";
-  const cover = `https://cdn.isthereanydeal.com/games/${deal.id}/image.jpg`;
+  const pct   = Math.round(Number(deal.savings));
+  const store = CS_STORES[deal.storeID] || "Store";
+  const cover = `https://cdn.akamai.steamstatic.com/steam/apps/${deal.steamAppID}/library_600x900.jpg`;
   return (
-    <a href={url} target="_blank" rel="noopener noreferrer"
+    <a href={`https://www.cheapshark.com/redirect?dealID=${deal.dealID}`} target="_blank" rel="noopener noreferrer"
       style={{ display:"block", position:"relative", borderRadius:8, overflow:"hidden", textDecoration:"none", boxShadow:"0 4px 20px rgba(0,0,0,.6)" }}>
       <div style={{ aspectRatio:"2/3", position:"relative", background:C.faint }}>
         <Img src={cover} style={{ width:"100%", height:"100%" }} />
         <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(10,10,10,.96) 0%, rgba(10,10,10,.2) 55%, transparent 100%)" }} />
       </div>
-      <div style={{ position:"absolute", top:8, left:8, background:C.green, borderRadius:5, padding:"3px 7px", fontSize:10, fontWeight:700, color:"#000" }}>-{cut}%</div>
-      <div style={{ position:"absolute", top:8, right:8, background:meta.color, borderRadius:5, padding:"3px 7px", fontSize:9, fontWeight:600, color:"#fff", letterSpacing:"0.5px", maxWidth:72, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{meta.name}</div>
+      <div style={{ position:"absolute", top:8, left:8, background:C.green, borderRadius:5, padding:"3px 7px", fontSize:10, fontWeight:700, color:"#000" }}>-{pct}%</div>
       <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"clamp(8px,2vw,11px)" }}>
         <div style={{ fontSize:"clamp(10px,1.5vw,12px)", fontWeight:500, color:C.text, lineHeight:1.3, marginBottom:4, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{deal.title}</div>
         <div style={{ display:"flex", alignItems:"baseline", gap:6 }}>
-          {sale === 0
-            ? <span style={{ fontSize:13, fontWeight:700, color:C.green }}>FREE</span>
-            : sale != null && <span style={{ fontSize:14, fontWeight:700, color:C.green }}>${sale.toFixed(2)}</span>}
-          {reg != null && reg > 0 && <span style={{ fontSize:10, color:"#555", textDecoration:"line-through" }}>${reg.toFixed(2)}</span>}
+          <span style={{ fontSize:14, fontWeight:700, color:C.green }}>${deal.salePrice}</span>
+          <span style={{ fontSize:10, color:"#555", textDecoration:"line-through" }}>${deal.normalPrice}</span>
         </div>
+        <div style={{ fontSize:9, color:"#444", marginTop:3 }}>{store}</div>
       </div>
     </a>
   );
@@ -868,25 +864,27 @@ function DealCard({ deal }) {
 function DealsRow() {
   const [deals, setDeals] = useState([]);
   useEffect(() => {
-    fetch(`https://api.isthereanydeal.com/deals/v2?key=${ITAD_KEY}&country=US&sort=cut:desc&limit=40`)
+    // CheapShark: no CORS issues, works browser-side — ITAD will replace this via edge function proxy once deployed
+    fetch("https://www.cheapshark.com/api/1.0/deals?upperPrice=60&sortBy=Savings&pageSize=60&metacritic=70&onSale=1")
       .then(r => r.json())
       .then(data => {
-        const list = Array.isArray(data) ? data : (data?.list || []);
-        setDeals(list.filter(d => (d.deal?.cut || 0) >= 50).slice(0, 18));
+        setDeals((data || [])
+          .filter(d => d.steamAppID && Number(d.savings) >= 50)
+          .slice(0, 18));
       })
       .catch(() => {});
   }, []);
   if (!deals.length) return null;
-  const maxCut = Math.max(...deals.map(d => d.deal?.cut || 0));
+  const maxSavings = Math.max(...deals.map(d => Math.round(Number(d.savings))));
   return (
     <div style={{ marginBottom:"clamp(24px,5vh,36px)" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"clamp(10px,2vh,14px)" }}>
         <span style={{ fontSize:"clamp(15px,2.5vw,19px)", fontWeight:500, letterSpacing:"-0.2px" }}>Hot Deals</span>
-        <span style={{ fontSize:11, color:C.green, fontWeight:500 }}>Up to {maxCut}% off</span>
+        <span style={{ fontSize:11, color:C.green, fontWeight:500 }}>Up to {maxSavings}% off</span>
       </div>
       <div style={{ display:"flex", gap:"clamp(10px,2vw,14px)", overflowX:"auto", paddingBottom:8, scrollSnapType:"x mandatory", marginLeft:"-clamp(18px,5vw,48px)", marginRight:"-clamp(18px,5vw,48px)", paddingLeft:"clamp(18px,5vw,48px)", paddingRight:"clamp(18px,5vw,48px)" }}>
         {deals.map(d => (
-          <div key={d.id} style={{ width:"clamp(130px,20vw,170px)", flexShrink:0, scrollSnapAlign:"start" }}>
+          <div key={d.dealID} style={{ width:"clamp(130px,20vw,170px)", flexShrink:0, scrollSnapAlign:"start" }}>
             <DealCard deal={d} />
           </div>
         ))}
