@@ -467,7 +467,6 @@ function GameDetail({ game, onBack, onUpdate, user }) {
 // ── GOTY RACE SIDEBAR ─────────────────────────────────────────────────────────
 const GOTY_2026 = [
   { id:"pragmata",  title:"Pragmata",               developer:"Capcom",                mc:0 },
-  { id:"fable",     title:"Fable",                  developer:"Playground Games",      mc:0 },
   { id:"judas",     title:"Judas",                  developer:"Ghost Story Games",     mc:0 },
   { id:"wolverine", title:"Marvel's Wolverine",     developer:"Insomniac Games",       mc:0 },
   { id:"ow2",       title:"The Outer Worlds 2",     developer:"Obsidian Entertainment",mc:0 },
@@ -476,6 +475,7 @@ const GOTY_2026 = [
   { id:"mafia",     title:"Mafia: The Old Country", developer:"Hangar 13",             mc:0 },
   { id:"bl4",       title:"Borderlands 4",          developer:"Gearbox Software",      mc:0 },
   { id:"yotei",     title:"Ghost of Yotei",         developer:"Sucker Punch",          mc:0 },
+  { id:"fable",     title:"Fable",                  developer:"Playground Games",      mc:0 },
 ];
 
 function GotyRace({ onGameClick }) {
