@@ -2,22 +2,27 @@ import { useState, useEffect } from "react";
 import { supabase, insertGameLog } from "./supabaseClient";
 
 const C = {
-  bg:      "#0e0e10",
-  surface: "#16161a",
-  border:  "rgba(255,255,255,0.07)",
-  text:    "#f0ede8",
-  muted:   "rgba(240,237,232,0.38)",
-  faint:   "rgba(240,237,232,0.09)",
-  yellow:  "#f5c518",
-  green:   "#2ecc71",
-  cyan:    "#00d4e8",
-  red:     "#e8341c",
-  orange:  "#f07020",
-  blue:    "#2060f0",
+  bg:      "#0a0a0a",
+  surface: "#111111",
+  border:  "#1e1e1e",
+  text:    "#ffffff",
+  muted:   "#888888",
+  faint:   "#1a1a1a",
+  blue:    "#2255CC",
+  pink:    "#CC3377",
+  yellow:  "#FAC000",
+  green:   "#00A850",
 };
 
-const STRIPES = ["#e8341c","#f07020","#f5c518","#2ecc71","#00d4e8","#2060f0"];
-const SC = { "played":C.green, "playing":C.cyan, "want to play":C.yellow, "dropped":C.red };
+// Responsive sizing helper
+const responsiveValue = (mobile, tablet, desktop, screenWidth = 768) => {
+  if (screenWidth < 768) return mobile;
+  if (screenWidth < 1024) return tablet;
+  return desktop;
+};
+
+const STRIPES = ["#2255CC","#CC3377","#FAC000","#00A850"];
+const SC = { "played":C.green, "playing":C.blue, "want to play":C.yellow, "dropped":C.muted };
 const GENRES     = ["All","RPG","Action","Roguelike","Platformer","Metroidvania","Strategy","Horror","Sports","Adventure"];
 const PUBLISHERS = ["All","Bandai Namco","Supergiant","Team Cherry","ZA/UM","Extremely OK","Activision","Motion Twin","Nintendo"];
 const RAWG_API_KEY = "372eea2d4d9d4de7a1ee03d66d6842eb";
@@ -86,12 +91,20 @@ function AuthScreen() {
       <div style={{ width:"100%", maxWidth:420, padding:28, borderRadius:18, background:C.surface, border:`1px solid ${C.border}`, boxShadow:"0 20px 60px rgba(0,0,0,.35)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:22 }}>
           <div>
-            <div style={{ fontSize:26, fontWeight:900 }}>kortana</div>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <svg width="22" height="22" viewBox="0 0 110 110" fill="none">
+                <path d="M16 10 L16 100 L34 100 L34 62 L68 100 L92 100 L54 55 L90 10 L66 10 L34 46 L34 10 Z" fill="none" stroke="#2255CC" strokeWidth="4"/>
+                <path d="M90 10 L54 55" stroke="#CC3377" strokeWidth="4" fill="none"/>
+                <path d="M34 62 L68 100 L92 100" stroke="#FAC000" strokeWidth="4" fill="none"/>
+                <path d="M54 55 L92 100" stroke="#00A850" strokeWidth="4" fill="none"/>
+              </svg>
+              <span style={{ fontSize:22, fontWeight:500, letterSpacing:"-0.5px" }}>ortana</span>
+            </div>
             <div style={{ fontSize:12, color:C.muted, marginTop:6 }}>Sign in or create an account to unlock your library.</div>
           </div>
           <div style={{ display:"flex", gap:6 }}>
-            <button onClick={()=>setMode("sign-in")} style={{ padding:"8px 16px", borderRadius:999, border:"none", cursor:"pointer", background:mode==="sign-in"?C.yellow:C.faint, color:mode==="sign-in"?"#000":C.text, fontWeight:800 }}>Sign In</button>
-            <button onClick={()=>setMode("sign-up")} style={{ padding:"8px 16px", borderRadius:999, border:"none", cursor:"pointer", background:mode==="sign-up"?C.yellow:C.faint, color:mode==="sign-up"?"#000":C.text, fontWeight:800 }}>Sign Up</button>
+            <button onClick={()=>setMode("sign-in")} style={{ padding:"8px 16px", borderRadius:999, border:"none", cursor:"pointer", background:mode==="sign-in"?C.pink:C.faint, color:mode==="sign-in"?"#fff":C.text, fontWeight:600 }}>Sign In</button>
+            <button onClick={()=>setMode("sign-up")} style={{ padding:"8px 16px", borderRadius:999, border:"none", cursor:"pointer", background:mode==="sign-up"?C.pink:C.faint, color:mode==="sign-up"?"#fff":C.text, fontWeight:600 }}>Sign Up</button>
           </div>
         </div>
 
@@ -103,8 +116,8 @@ function AuthScreen() {
           <div>
             <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password" style={{ width:"100%", background:C.bg, border:`1px solid ${C.border}`, borderRadius:6, padding:"14px 16px", color:C.text, fontSize:14, outline:"none", boxSizing:"border-box" }} />
           </div>
-          {message && <div style={{ color: message.startsWith("Signup successful") ? C.green : C.red, fontSize:13, minHeight:18 }}>{message}</div>}
-          <button onClick={submit} disabled={loading} style={{ width:"100%", padding:14, borderRadius:8, border:"none", background:C.yellow, color:"#000", fontWeight:900, cursor:"pointer", fontSize:14, textTransform:"uppercase", letterSpacing:"0.08em" }}>
+          {message && <div style={{ color: message.startsWith("Signup successful") ? C.green : C.pink, fontSize:13, minHeight:18 }}>{message}</div>}
+          <button onClick={submit} disabled={loading} style={{ width:"100%", padding:14, borderRadius:8, border:"none", background:C.pink, color:"#fff", fontWeight:600, cursor:"pointer", fontSize:14, textTransform:"uppercase", letterSpacing:"0.08em" }}>
             {loading ? "Working…" : mode === "sign-in" ? "Sign In" : "Create Account"}
           </button>
           <div style={{ textAlign:"center", fontSize:12, color:C.muted }}>
@@ -150,14 +163,14 @@ function Stars({ value, onChange, size=28 }) {
 
 function Pills({ items, active, onSelect }) {
   return (
-    <div style={{ display:"flex", gap:7, overflowX:"auto", paddingBottom:2 }}>
+    <div style={{ display:"flex", gap:"clamp(6px, 1.5vw, 10px)", overflowX:"auto", paddingBottom:2, scrollBehavior:"smooth" }}>
       {items.map(item=>(
         <button key={item} onClick={()=>onSelect(item)} style={{
-          flexShrink:0, padding:"7px 15px", borderRadius:2, border:"none", cursor:"pointer",
-          fontSize:11, fontWeight:700, letterSpacing:"0.07em", textTransform:"uppercase",
-          background: item===active ? C.yellow : C.faint,
-          color: item===active ? "#000" : C.muted,
-          transition:"all .15s",
+          flexShrink:0, padding:"clamp(6px, 1.2vh, 10px) clamp(12px, 2vw, 18px)", borderRadius:3, border:"none", cursor:"pointer",
+          fontSize:"clamp(10px, 1.2vw, 12px)", fontWeight:700, letterSpacing:"0.07em", textTransform:"uppercase",
+          background: item===active ? C.blue : C.faint,
+          color: item===active ? "#fff" : C.muted,
+          transition:"all .15s ease",
         }}>{item}</button>
       ))}
     </div>
@@ -166,9 +179,9 @@ function Pills({ items, active, onSelect }) {
 
 function Section({ label, children }) {
   return (
-    <div style={{ padding:"22px 18px 0" }}>
-      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
-        <span style={{ fontSize:10, fontWeight:800, letterSpacing:"0.2em", color:C.muted, textTransform:"uppercase" }}>{label}</span>
+    <div style={{ padding:"32px clamp(18px, 5vw, 48px) 0" }}>
+      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:"clamp(14px, 3vh, 20px)" }}>
+        <span style={{ fontSize:"clamp(10px, 1vw, 12px)", fontWeight:800, letterSpacing:"0.2em", color:C.muted, textTransform:"uppercase" }}>{label}</span>
         <div style={{ flex:1, height:1, background:C.border }} />
       </div>
       {children}
@@ -179,19 +192,19 @@ function Section({ label, children }) {
 function PosterCard({ game, onClick }) {
   return (
     <div onClick={()=>onClick?.(game)} style={{
-      position:"relative", aspectRatio:"2/3", borderRadius:4, overflow:"hidden", cursor:"pointer",
-      boxShadow:"0 4px 20px rgba(0,0,0,.6)",
+      position:"relative", aspectRatio:"2/3", borderRadius:6, overflow:"hidden", cursor:"pointer",
+      boxShadow:"0 4px 20px rgba(0,0,0,.6)", transition:"all 0.3s ease",
     }}>
       <Img src={game.cover} style={{ width:"100%", height:"100%" }} />
       <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(14,14,16,.92) 0%, transparent 50%)" }} />
-      <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"8px 8px 10px" }}>
-        <div style={{ fontSize:11, fontWeight:800, color:C.text, lineHeight:1.2, marginBottom:3 }}>{game.title}</div>
+      <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"clamp(8px, 2vw, 14px)" }}>
+        <div style={{ fontSize:"clamp(10px, 1.5vw, 13px)", fontWeight:800, color:C.text, lineHeight:1.2, marginBottom:3 }}>{game.title}</div>
         <Stars value={game.rating} size={10} />
       </div>
       {game.goty && (
-        <div style={{ position:"absolute", top:7, right:7, background:C.yellow, borderRadius:2, padding:"2px 6px", fontSize:8, fontWeight:900, color:"#000", letterSpacing:"0.08em" }}>GOTY</div>
+        <div style={{ position:"absolute", top:"clamp(6px, 1vh, 10px)", right:"clamp(6px, 1vh, 10px)", background:C.yellow, borderRadius:2, padding:"2px 6px", fontSize:"clamp(7px, 1vw, 9px)", fontWeight:900, color:"#000", letterSpacing:"0.08em" }}>GOTY</div>
       )}
-      <div style={{ position:"absolute", top:9, left:9, width:6, height:6, borderRadius:"50%", background:SC[game.status]||C.muted, opacity:0.8 }} />
+      <div style={{ position:"absolute", top:"clamp(8px, 1.5vh, 12px)", left:"clamp(8px, 1.5vh, 12px)", width:"clamp(5px, 1vw, 8px)", height:"clamp(5px, 1vw, 8px)", borderRadius:"50%", background:SC[game.status]||C.muted, opacity:0.8 }} />
     </div>
   );
 }
@@ -199,22 +212,22 @@ function PosterCard({ game, onClick }) {
 function DiaryRow({ game, onClick, index=0 }) {
   return (
     <div onClick={()=>onClick?.(game)}
-      style={{ display:"flex", gap:13, padding:"13px 0", borderBottom:`1px solid ${C.border}`, cursor:"pointer",
-        animation:`fadeUp .3s ${Math.min(index,8)*.04}s both` }}>
-      <div style={{ width:48, height:65, borderRadius:4, overflow:"hidden", flexShrink:0, boxShadow:"0 4px 14px rgba(0,0,0,.5)" }}>
+      style={{ display:"flex", gap:"clamp(12px, 2vw, 16px)", padding:"clamp(12px, 2vh, 16px) 0", borderBottom:`1px solid ${C.border}`, cursor:"pointer",
+        animation:`fadeUp .3s ${Math.min(index,8)*.04}s both`, transition:"opacity 0.2s ease" }}>
+      <div style={{ width:"clamp(42px, 8vw, 56px)", height:"clamp(56px, 11vw, 74px)", borderRadius:4, overflow:"hidden", flexShrink:0, boxShadow:"0 4px 14px rgba(0,0,0,.5)" }}>
         <Img src={game.cover} style={{ width:"100%", height:"100%" }} />
       </div>
       <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", justifyContent:"center", gap:3 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-          <span style={{ fontSize:15, fontWeight:800, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{game.title}</span>
-          {game.goty && <span style={{ background:"rgba(245,197,24,.09)", border:`1px solid rgba(245,197,24,.25)`, borderRadius:2, padding:"0 5px", fontSize:8, fontWeight:900, color:C.yellow, flexShrink:0, letterSpacing:"0.08em" }}>GOTY</span>}
+        <div style={{ display:"flex", alignItems:"center", gap:7, flexWrap:"wrap" }}>
+          <span style={{ fontSize:"clamp(14px, 2.5vw, 16px)", fontWeight:800, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{game.title}</span>
+          {game.goty && <span style={{ background:"rgba(250,192,0,.09)", border:`1px solid rgba(250,192,0,.25)`, borderRadius:2, padding:"0 5px", fontSize:"clamp(8px, 1vw, 9px)", fontWeight:600, color:C.yellow, flexShrink:0, letterSpacing:"0.08em" }}>GOTY</span>}
         </div>
         <Stars value={game.rating} size={13} />
-        {game.review ? <div style={{ fontSize:11, fontStyle:"italic", color:C.muted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{game.review}</div> : null}
+        {game.review ? <div style={{ fontSize:"clamp(11px, 1.5vw, 12px)", fontStyle:"italic", color:C.muted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{game.review}</div> : null}
       </div>
-      <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", justifyContent:"space-between", flexShrink:0 }}>
-        <span style={{ fontSize:9, color:C.faint }}>{game.year}</span>
-        <span style={{ fontSize:9, fontWeight:800, color:SC[game.status]||C.muted, letterSpacing:"0.08em", textTransform:"uppercase" }}>{game.status}</span>
+      <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", justifyContent:"space-between", flexShrink:0, gap:2 }}>
+        <span style={{ fontSize:"clamp(8px, 1vw, 10px)", color:C.faint }}>{game.year}</span>
+        <span style={{ fontSize:"clamp(8px, 1vw, 10px)", fontWeight:800, color:SC[game.status]||C.muted, letterSpacing:"0.08em", textTransform:"uppercase" }}>{game.status}</span>
       </div>
     </div>
   );
@@ -255,7 +268,7 @@ function LogSheet({ game, onClose, onSave, user }) {
 
         {/* played / liked / backlog */}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", borderTop:`1px solid ${C.border}`, borderBottom:`1px solid ${C.border}` }}>
-          {[["👁","Played","played",C.green],["♥","Liked","liked",C.red],["🕒","Backlog","want to play",C.yellow]].map(([icon,label,val,col])=>{
+          {[["👁","Played","played",C.green],["♥","Liked","liked",C.pink],["🕒","Backlog","want to play",C.yellow]].map(([icon,label,val,col])=>{
             const active = val==="liked" ? form.liked : form.status===val;
             return (
               <button key={val} onClick={()=>val==="liked"?setForm({...form,liked:!form.liked}):setForm({...form,status:val})}
@@ -311,7 +324,7 @@ function LogSheet({ game, onClose, onSave, user }) {
         <div style={{ padding:"0 20px" }}>
           <button onClick={()=>onSave({...game,...form})} style={{
             width:"100%", padding:16, borderRadius:3, border:"none",
-            background:C.yellow, color:"#000", fontSize:16, fontWeight:900, cursor:"pointer", letterSpacing:"0.06em", textTransform:"uppercase"
+            background:C.pink, color:"#fff", fontSize:16, fontWeight:600, cursor:"pointer", letterSpacing:"0.06em", textTransform:"uppercase"
           }}>{user ? "Save & Sync" : "Save"}</button>
         </div>
       </div>
@@ -347,53 +360,53 @@ function GameDetail({ game, onBack, onUpdate, user }) {
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"system-ui,sans-serif" }}>
       {/* hero — stripe only at very top, once */}
-      <div style={{ position:"relative", height:265, overflow:"hidden" }}>
+      <div style={{ position:"relative", height:"clamp(265px, 50vh, 520px)", overflow:"hidden" }}>
         <Img src={game.hero} style={{ width:"100%", height:"100%", filter:"brightness(.36) saturate(.7)" }} />
         <div style={{ position:"absolute", inset:0, background:`linear-gradient(to bottom, rgba(14,14,16,.05) 0%, ${C.bg} 100%)` }} />
         <StripeBar height={4} style={{ position:"absolute", top:0, left:0, right:0 }} />
-        <button onClick={onBack} style={{ position:"absolute", top:54, left:16, background:"rgba(14,14,16,.75)", border:`1px solid ${C.border}`, color:C.text, width:36, height:36, borderRadius:2, fontSize:20, cursor:"pointer", backdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"center" }}>‹</button>
+        <button onClick={onBack} style={{ position:"absolute", top:"clamp(54px, 10vh, 84px)", left:"clamp(16px, 3vw, 32px)", background:"rgba(14,14,16,.75)", border:`1px solid ${C.border}`, color:C.text, width:36, height:36, borderRadius:2, fontSize:20, cursor:"pointer", backdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.2s" }}>‹</button>
       </div>
 
       {/* poster + title */}
-      <div style={{ display:"flex", gap:16, padding:"0 18px", marginTop:-78, position:"relative", zIndex:2 }}>
-        <div style={{ width:98, height:130, borderRadius:4, overflow:"hidden", flexShrink:0, boxShadow:"0 14px 44px rgba(0,0,0,.9)" }}>
+      <div style={{ display:"flex", gap:"clamp(16px, 3vw, 24px)", padding:"0 clamp(18px, 5vw, 48px)", marginTop:"-clamp(60px, 12vh, 100px)", position:"relative", zIndex:2, maxWidth:"1200px", margin:"0 auto" }}>
+        <div style={{ width:"clamp(80px, 15vw, 140px)", height:"clamp(105px, 22vw, 185px)", borderRadius:4, overflow:"hidden", flexShrink:0, boxShadow:"0 14px 44px rgba(0,0,0,.9)" }}>
           <Img src={game.cover} style={{ width:"100%", height:"100%" }} />
         </div>
-        <div style={{ paddingTop:86 }}>
-          <div style={{ fontSize:23, fontWeight:900, lineHeight:1.1, letterSpacing:"-.3px" }}>{game.title}</div>
-          <div style={{ fontSize:13, color:C.muted, marginTop:5 }}>{game.year}</div>
-          {game.rating>0 && <div style={{ marginTop:7 }}><Stars value={game.rating} size={18} /></div>}
+        <div style={{ paddingTop:"clamp(60px, 15vh, 100px)" }}>
+          <div style={{ fontSize:"clamp(24px, 5vw, 40px)", fontWeight:900, lineHeight:1.1, letterSpacing:"-.3px" }}>{game.title}</div>
+          <div style={{ fontSize:"clamp(12px, 2vw, 15px)", color:C.muted, marginTop:5 }}>{game.year}</div>
+          {game.rating>0 && <div style={{ marginTop:8 }}><Stars value={game.rating} size={20} /></div>}
         </div>
       </div>
 
-      <div style={{ padding:"26px 18px 0" }}>
+      <div style={{ padding:"clamp(26px, 5vh, 40px) clamp(18px, 5vw, 48px) 0", maxWidth:"1200px", margin:"0 auto", width:"100%" }}>
         {game.tagline && (
-          <div style={{ fontSize:10, fontWeight:800, color:C.muted, letterSpacing:"0.22em", textTransform:"uppercase", marginBottom:22 }}>{game.tagline}</div>
+          <div style={{ fontSize:"clamp(10px, 1vw, 12px)", fontWeight:800, color:C.muted, letterSpacing:"0.22em", textTransform:"uppercase", marginBottom:"clamp(22px, 4vh, 32px)" }}>{game.tagline}</div>
         )}
 
         {/* big developer */}
-        <div style={{ marginBottom:24 }}>
-          <div style={{ fontSize:9, color:C.muted, letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:5 }}>Developed by</div>
-          <div style={{ fontSize:30, fontWeight:900, color:C.text, letterSpacing:"-.4px", lineHeight:1 }}>{game.developer}</div>
+        <div style={{ marginBottom:"clamp(24px, 4vh, 36px)" }}>
+          <div style={{ fontSize:"clamp(9px, 1vw, 11px)", color:C.muted, letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:5 }}>Developed by</div>
+          <div style={{ fontSize:"clamp(28px, 5vw, 44px)", fontWeight:900, color:C.text, letterSpacing:"-.4px", lineHeight:1 }}>{game.developer}</div>
         </div>
 
         {/* meta grid */}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px 20px", marginBottom:22, padding:"16px", background:C.surface, borderRadius:4, border:`1px solid ${C.border}` }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(160px, 1fr))", gap:"clamp(14px, 3vw, 20px)", marginBottom:"clamp(22px, 4vh, 32px)", padding:"clamp(16px, 3vw, 24px)", background:C.surface, borderRadius:4, border:`1px solid ${C.border}` }}>
           {[["PUBLISHED BY",game.publisher],["GENRE",game.genre],["RELEASE YEAR",String(game.year)],["YOUR PLAYTIME",game.playtime>0?`${game.playtime} hrs`:"—"]].map(([l,v])=>(
             <div key={l}>
-              <div style={{ fontSize:9, color:C.muted, letterSpacing:"0.18em", textTransform:"uppercase", marginBottom:3 }}>{l}</div>
-              <div style={{ fontSize:15, fontWeight:800, color:C.text }}>{v}</div>
+              <div style={{ fontSize:"clamp(9px, 1vw, 11px)", color:C.muted, letterSpacing:"0.18em", textTransform:"uppercase", marginBottom:3 }}>{l}</div>
+              <div style={{ fontSize:"clamp(14px, 2.5vw, 18px)", fontWeight:800, color:C.text }}>{v}</div>
             </div>
           ))}
         </div>
 
-        <div style={{ height:1, background:C.border, marginBottom:18 }} />
-        <div style={{ fontSize:14, color:"rgba(240,237,232,.58)", lineHeight:1.8, marginBottom:24 }}>{game.desc}</div>
+        <div style={{ height:1, background:C.border, marginBottom:"clamp(18px, 3vh, 28px)" }} />
+        <div style={{ fontSize:"clamp(13px, 2vw, 16px)", color:"rgba(240,237,232,.58)", lineHeight:1.9, marginBottom:"clamp(24px, 4vh, 36px)" }}>{game.desc}</div>
 
         {/* histogram */}
-        <div style={{ marginBottom:24 }}>
-          <div style={{ fontSize:9, color:C.muted, letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:10 }}>Community Rating</div>
-          <div style={{ display:"flex", alignItems:"flex-end", gap:3, height:38 }}>
+        <div style={{ marginBottom:"clamp(24px, 4vh, 36px)" }}>
+          <div style={{ fontSize:"clamp(9px, 1vw, 11px)", color:C.muted, letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:10 }}>Community Rating</div>
+          <div style={{ display:"flex", alignItems:"flex-end", gap:3, height:40 }}>
             {[2,4,8,13,20,30,25,17,10,5].map((h,i)=>(
               <div key={i} style={{ flex:1, borderRadius:"2px 2px 0 0", background:"rgba(240,237,232,.13)", height:`${(h/30)*100}%` }} />
             ))}
@@ -402,32 +415,32 @@ function GameDetail({ game, onBack, onUpdate, user }) {
 
         {/* your log */}
         {game.status!=="want to play"&&(game.rating>0||game.review) && (
-          <div style={{ background:C.surface, borderRadius:4, padding:"14px 16px", marginBottom:22, border:`1px solid ${C.border}` }}>
-            <div style={{ fontSize:9, color:C.muted, letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:10 }}>Your Log</div>
+          <div style={{ background:C.surface, borderRadius:4, padding:"clamp(14px, 2vh, 20px)", marginBottom:"clamp(22px, 4vh, 32px)", border:`1px solid ${C.border}` }}>
+            <div style={{ fontSize:"clamp(9px, 1vw, 11px)", color:C.muted, letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:10 }}>Your Log</div>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:game.review?10:0 }}>
               <Stars value={game.rating} size={22} />
-              <span style={{ fontSize:9, fontWeight:800, color:SC[game.status], letterSpacing:"0.1em", textTransform:"uppercase" }}>{game.status}</span>
+              <span style={{ fontSize:"clamp(9px, 1vw, 11px)", fontWeight:800, color:SC[game.status], letterSpacing:"0.1em", textTransform:"uppercase" }}>{game.status}</span>
             </div>
-            {game.review && <div style={{ fontStyle:"italic", fontSize:14, color:C.muted, lineHeight:1.7, borderLeft:`2px solid ${C.border}`, paddingLeft:12 }}>"{game.review}"</div>}
+            {game.review && <div style={{ fontStyle:"italic", fontSize:"clamp(13px, 2vw, 16px)", color:C.muted, lineHeight:1.8, borderLeft:`2px solid ${C.border}`, paddingLeft:12 }}>"{game.review}"</div>}
           </div>
         )}
 
         {game.goty && (
-          <div style={{ display:"inline-flex", alignItems:"center", gap:8, background:"rgba(245,197,24,.07)", border:`1px solid rgba(245,197,24,.18)`, borderRadius:3, padding:"8px 14px", marginBottom:24 }}>
+          <div style={{ display:"inline-flex", alignItems:"center", gap:8, background:"rgba(250,192,0,.07)", border:`1px solid rgba(250,192,0,.18)`, borderRadius:3, padding:"8px 14px", marginBottom:"clamp(24px, 4vh, 36px)" }}>
             <span>🏆</span>
-            <span style={{ fontSize:11, fontWeight:900, color:C.yellow, letterSpacing:"0.1em", textTransform:"uppercase" }}>Game of the Year</span>
+            <span style={{ fontSize:"clamp(10px, 1.5vw, 12px)", fontWeight:900, color:C.yellow, letterSpacing:"0.1em", textTransform:"uppercase" }}>Game of the Year</span>
           </div>
         )}
 
         <div style={{ height:100 }} />
       </div>
 
-      <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:430, padding:"12px 18px 32px", background:`linear-gradient(to top, ${C.bg} 65%, transparent)`, zIndex:50 }}>
+      <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:"calc(1200px + 24px)", padding:"12px clamp(18px, 5vw, 48px) clamp(24px, 4vh, 40px)", background:`linear-gradient(to top, ${C.bg} 65%, transparent)`, zIndex:50 }}>
         <button onClick={()=>setSheet(true)} style={{
-          width:"100%", padding:16, borderRadius:3, border: game.status==="want to play"?`1px solid ${C.border}`:"none", cursor:"pointer",
-          background: game.status==="want to play" ? C.surface : C.yellow,
-          color: game.status==="want to play" ? C.text : "#000",
-          fontSize:15, fontWeight:900, letterSpacing:"0.08em", textTransform:"uppercase",
+          width:"100%", padding:"clamp(14px, 2vh, 18px)", borderRadius:3, border: game.status==="want to play"?`1px solid ${C.border}`:"none", cursor:"pointer",
+          background: game.status==="want to play" ? C.surface : C.pink,
+          color: game.status==="want to play" ? C.text : "#fff",
+          fontSize:"clamp(14px, 2vw, 16px)", fontWeight:900, letterSpacing:"0.08em", textTransform:"uppercase", transition:"all 0.2s"
         }}>{game.status==="want to play" ? "Log this Game" : "Edit Log"}</button>
       </div>
 
@@ -452,38 +465,38 @@ function HomeScreen({ games, logs, onGameClick }) {
     <div style={{ paddingBottom:90, color:C.text, fontFamily:"system-ui,sans-serif" }}>
       {hasLogs ? (
         heroGame && (
-          <div onClick={()=>onGameClick(heroGame)} style={{ position:"relative", height:280, overflow:"hidden", cursor:"pointer" }}>
+          <div onClick={()=>onGameClick(heroGame)} style={{ position:"relative", height:"clamp(280px, 45vh, 480px)", overflow:"hidden", cursor:"pointer", margin:"0 0 36px 0" }}>
             <Img src={heroGame.hero || heroGame.cover} style={{ width:"100%", height:"100%", filter:"brightness(.36) saturate(.7)" }} />
             <div style={{ position:"absolute", inset:0, background:`linear-gradient(to bottom, transparent 20%, ${C.bg} 100%)` }} />
-            <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"0 18px 22px" }}>
-              <div style={{ fontSize:10, letterSpacing:"0.22em", color:C.muted, marginBottom:8, textTransform:"uppercase", fontWeight:800 }}>Featured</div>
-              <div style={{ fontSize:30, fontWeight:900, lineHeight:1.05, letterSpacing:"-.4px" }}>{heroGame.title}</div>
-              <div style={{ fontSize:12, color:C.muted, marginTop:5 }}>{heroGame.year} · {heroGame.developer}</div>
+            <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"0 clamp(18px, 5vw, 48px) clamp(22px, 6vh, 42px)" }}>
+              <div style={{ fontSize:"clamp(10px, 1vw, 13px)", letterSpacing:"0.22em", color:C.muted, marginBottom:"clamp(8px, 2vh, 16px)", textTransform:"uppercase", fontWeight:800 }}>Featured</div>
+              <div style={{ fontSize:"clamp(30px, 6vw, 52px)", fontWeight:900, lineHeight:1.05, letterSpacing:"-.4px" }}>{heroGame.title}</div>
+              <div style={{ fontSize:"clamp(12px, 2vw, 16px)", color:C.muted, marginTop:"clamp(5px, 1vh, 12px)" }}>{heroGame.year} · {heroGame.developer}</div>
             </div>
           </div>
         )
       ) : (
-        <div style={{ padding:"24px 18px", marginBottom:16, borderRadius:12, background:C.surface, border:`1px solid ${C.border}` }}>
-          <div style={{ fontSize:22, fontWeight:900, marginBottom:10 }}>Welcome to Kortana</div>
-          <div style={{ fontSize:14, color:C.muted, lineHeight:1.6 }}>This account has played 0 games so far. Start browsing games and save your first log to build your library.</div>
+        <div style={{ padding:"32px clamp(18px, 5vw, 48px)", marginBottom:24, borderRadius:12, background:C.surface, border:`1px solid ${C.border}` }}>
+          <div style={{ fontSize:"clamp(22px, 4vw, 32px)", fontWeight:900, marginBottom:14 }}>Welcome to Kortana</div>
+          <div style={{ fontSize:"clamp(13px, 2vw, 16px)", color:C.muted, lineHeight:1.7 }}>This account has played 0 games so far. Start browsing games and save your first log to build your library.</div>
         </div>
       )}
 
-      {/* stats */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", margin:"16px 18px 0", gap:8 }}>
-        {[["Played",played.length,C.green],["Playing",playing.length,C.cyan],["Avg",avgR==="—"?avgR:avgR+"★",C.text],["GOTY",goty.length,C.yellow]].map(([l,v,col])=>(
-          <div key={l} style={{ background:C.surface, borderRadius:3, padding:"13px 6px", textAlign:"center", border:`1px solid ${C.border}` }}>
-            <div style={{ fontSize:20, fontWeight:900, color:col, letterSpacing:"-.2px" }}>{v}</div>
-            <div style={{ fontSize:9, color:C.muted, marginTop:3, letterSpacing:"0.12em", textTransform:"uppercase" }}>{l}</div>
+      {/* stats grid — responsive */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(140px, 1fr))", margin:"0 clamp(18px, 5vw, 48px) 32px", gap:"clamp(8px, 2vw, 16px)" }}>
+        {[["Played",played.length,C.green],["Playing",playing.length,C.blue],["Avg",avgR==="—"?avgR:avgR+"★",C.text],["GOTY",goty.length,C.yellow]].map(([l,v,col])=>(
+          <div key={l} style={{ background:C.surface, borderRadius:6, padding:"clamp(14px, 3vw, 20px)", textAlign:"center", border:`1px solid ${C.border}`, transition:"all 0.3s ease", cursor:"default" }}>
+            <div style={{ fontSize:"clamp(18px, 4vw, 32px)", fontWeight:900, color:col, letterSpacing:"-.2px" }}>{v}</div>
+            <div style={{ fontSize:"clamp(9px, 1vw, 11px)", color:C.muted, marginTop:"clamp(3px, 1vh, 8px)", letterSpacing:"0.12em", textTransform:"uppercase" }}>{l}</div>
           </div>
         ))}
       </div>
 
       <Section label="Recently Logged">
         {hasLogs ? (
-          <div style={{ display:"flex", gap:10, overflowX:"auto", paddingBottom:4, scrollSnapType:"x mandatory" }}>
+          <div style={{ display:"flex", gap:"clamp(10px, 2vw, 16px)", overflowX:"auto", paddingBottom:4, scrollSnapType:"x mandatory", paddingLeft:"clamp(18px, 5vw, 48px)", paddingRight:"clamp(18px, 5vw, 48px)", marginLeft:"-clamp(18px, 5vw, 48px)", marginRight:"-clamp(18px, 5vw, 48px)" }}>
             {[...logs].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).slice(0,8).map(g=>(
-              <div key={g.id} style={{ width:112, flexShrink:0, scrollSnapAlign:"start" }}>
+              <div key={g.id} style={{ width:"clamp(100px, 20vw, 160px)", flexShrink:0, scrollSnapAlign:"start" }}>
                 <PosterCard game={g} onClick={onGameClick} />
               </div>
             ))}
@@ -500,10 +513,10 @@ function HomeScreen({ games, logs, onGameClick }) {
       )}
 
       {goty.length>0 && (
-        <Section label="🏆  Games of the Year">
-          <div style={{ display:"flex", gap:10, overflowX:"auto", paddingBottom:4, scrollSnapType:"x mandatory" }}>
+        <Section label="Games of the Year">
+          <div style={{ display:"flex", gap:"clamp(10px, 2vw, 16px)", overflowX:"auto", paddingBottom:4, scrollSnapType:"x mandatory", paddingLeft:"clamp(18px, 5vw, 48px)", paddingRight:"clamp(18px, 5vw, 48px)", marginLeft:"-clamp(18px, 5vw, 48px)", marginRight:"-clamp(18px, 5vw, 48px)" }}>
             {goty.map(g=>(
-              <div key={g.id} style={{ width:112, flexShrink:0, scrollSnapAlign:"start" }}>
+              <div key={g.id} style={{ width:"clamp(100px, 20vw, 160px)", flexShrink:0, scrollSnapAlign:"start" }}>
                 <PosterCard game={g} onClick={onGameClick} />
               </div>
             ))}
@@ -520,11 +533,11 @@ function DiaryScreen({ logs, onGameClick }) {
   const list = logs.filter(g=>filter==="all"||g.status===filter).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   return (
     <div style={{ paddingBottom:90, color:C.text, fontFamily:"system-ui,sans-serif" }}>
-      <div style={{ padding:"52px 18px 14px", position:"sticky", top:0, background:C.bg, zIndex:10, borderBottom:`1px solid ${C.border}` }}>
-        <div style={{ fontSize:22, fontWeight:900, marginBottom:14, letterSpacing:"-.3px" }}>Diary</div>
+      <div style={{ padding:"clamp(52px, 12vh, 72px) clamp(18px, 5vw, 48px) clamp(14px, 3vh, 20px)", position:"sticky", top:0, background:C.bg, zIndex:10, borderBottom:`1px solid ${C.border}` }}>
+        <div style={{ fontSize:"clamp(22px, 4vw, 32px)", fontWeight:900, marginBottom:"clamp(14px, 2vh, 20px)", letterSpacing:"-.3px" }}>Diary</div>
         <Pills items={["all","played","playing","want to play","dropped"]} active={filter} onSelect={setFilter} />
       </div>
-      <div style={{ padding:"6px 18px 0" }}>
+      <div style={{ padding:"clamp(6px, 1.5vh, 12px) clamp(18px, 5vw, 48px) 0" }}>
         {list.map((g,i)=><DiaryRow key={g.id} game={g} index={i} onClick={onGameClick} />)}
         {list.length===0 && <Empty label="No diary entries yet" />}
       </div>
@@ -599,48 +612,48 @@ function BrowseScreen({ games, onGameClick }) {
 
   return (
     <div style={{ paddingBottom:90, color:C.text, fontFamily:"system-ui,sans-serif" }}>
-      <div style={{ padding:"52px 18px 14px", position:"sticky", top:0, background:C.bg, zIndex:10, borderBottom:`1px solid ${C.border}` }}>
-        <div style={{ position:"relative", marginBottom:12 }}>
-          <span style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", fontSize:14, color:C.muted }}>🔍</span>
+      <div style={{ padding:"clamp(52px, 12vh, 72px) clamp(18px, 5vw, 48px) clamp(14px, 3vh, 20px)", position:"sticky", top:0, background:C.bg, zIndex:10, borderBottom:`1px solid ${C.border}` }}>
+        <div style={{ position:"relative", marginBottom:"clamp(12px, 2vh, 18px)" }}>
+          <span style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", fontSize:"clamp(13px, 2vw, 16px)", color:C.muted }}>🔍</span>
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search games…"
-            style={{ width:"100%", background:C.surface, border:`1px solid ${C.border}`, borderRadius:3, padding:"12px 14px 12px 38px", color:C.text, fontSize:15, outline:"none", boxSizing:"border-box" }} />
+            style={{ width:"100%", background:C.surface, border:`1px solid ${C.border}`, borderRadius:3, padding:"clamp(10px, 2vh, 14px) 14px clamp(10px, 2vh, 14px) 38px", color:C.text, fontSize:"clamp(14px, 2vw, 16px)", outline:"none", boxSizing:"border-box", transition:"border-color 0.2s" }} />
         </div>
-        <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+        <div style={{ display:"flex", flexDirection:"column", gap:"clamp(8px, 1.5vh, 12px)" }}>
           <Pills items={GENRES}     active={genre} onSelect={setGenre} />
           <Pills items={PUBLISHERS} active={pub}   onSelect={setPub} />
           {searchingOnline && (
-            <div style={{ fontSize:12, color:C.muted, marginTop:4 }}>
+            <div style={{ fontSize:"clamp(11px, 1.5vw, 13px)", color:C.muted, marginTop:4 }}>
               {loading ? "Searching RAWG…" : error ? `Error: ${error}` : `${remoteResults.length} RAWG result${remoteResults.length===1?"":"s"}`}
             </div>
           )}
           <div style={{ display:"flex", gap:6 }}>
             {[["recent","Recent"],["rating","Top Rated"],["year","Newest"]].map(([v,l])=>(
-              <button key={v} onClick={()=>setSort(v)} style={{ padding:"6px 14px", borderRadius:2, border:"none", cursor:"pointer", fontSize:11, fontWeight:800, letterSpacing:"0.08em", textTransform:"uppercase", background:sort===v?C.faint:"transparent", color:sort===v?C.text:C.muted }}>{l}</button>
+              <button key={v} onClick={()=>setSort(v)} style={{ padding:"6px 14px", borderRadius:2, border:"none", cursor:"pointer", fontSize:"clamp(10px, 1.2vw, 11px)", fontWeight:800, letterSpacing:"0.08em", textTransform:"uppercase", background:sort===v?C.faint:"transparent", color:sort===v?C.text:C.muted, transition:"all 0.15s" }}>{l}</button>
             ))}
           </div>
         </div>
       </div>
-      <div style={{ padding:"14px 18px 0" }}>
+      <div style={{ padding:"clamp(14px, 3vh, 20px) clamp(18px, 5vw, 48px) 0" }}>
         {searchingOnline ? (
-          <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+          <div style={{ display:"flex", flexDirection:"column", gap:"clamp(12px, 2vw, 18px)" }}>
             {displayed.map(g => (
               <div key={g.id} onClick={()=>onGameClick(g)} style={{
-                display:"flex", gap:12, padding:"12px", background:C.surface, borderRadius:4, border:`1px solid ${C.border}`, cursor:"pointer"
+                display:"flex", gap:"clamp(12px, 2vw, 16px)", padding:"clamp(12px, 2vh, 16px)", background:C.surface, borderRadius:4, border:`1px solid ${C.border}`, cursor:"pointer", transition:"all 0.2s ease", hover: { background: C.faint }
               }}>
-                <div style={{ width:60, height:80, borderRadius:3, overflow:"hidden", flexShrink:0 }}>
+                <div style={{ width:"clamp(60px, 12vw, 100px)", height:"clamp(80px, 16vw, 132px)", borderRadius:3, overflow:"hidden", flexShrink:0 }}>
                   <Img src={g.cover} style={{ width:"100%", height:"100%" }} />
                 </div>
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:16, fontWeight:800, color:C.text, marginBottom:4 }}>{g.title}</div>
-                  <div style={{ fontSize:12, color:C.muted, marginBottom:2 }}>{g.year} · {g.developer} · {g.publisher}</div>
-                  <div style={{ fontSize:12, color:C.muted, lineHeight:1.4, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{g.desc}</div>
+                  <div style={{ fontSize:"clamp(15px, 2.5vw, 18px)", fontWeight:800, color:C.text, marginBottom:4 }}>{g.title}</div>
+                  <div style={{ fontSize:"clamp(11px, 1.5vw, 13px)", color:C.muted, marginBottom:2 }}>{g.year} · {g.developer} · {g.publisher}</div>
+                  <div style={{ fontSize:"clamp(11px, 1.5vw, 13px)", color:C.muted, lineHeight:1.5, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{g.desc}</div>
                 </div>
               </div>
             ))}
             {displayed.length===0 && <Empty label="No search results" />}
           </div>
         ) : (
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(clamp(100px, 20vw, 160px), 1fr))", gap:"clamp(10px, 2vw, 16px)" }}>
             {displayed.map(g=><PosterCard key={g.id} game={g} onClick={onGameClick} />)}
             {displayed.length===0 && <div style={{ gridColumn:"1/-1" }}><Empty label="No games found" /></div>}
           </div>
@@ -653,30 +666,30 @@ function BrowseScreen({ games, onGameClick }) {
 function LogsScreen({ logs, loading }) {
   return (
     <div style={{ paddingBottom:90, color:C.text, fontFamily:"system-ui,sans-serif" }}>
-      <div style={{ padding:"52px 18px 14px", position:"sticky", top:0, background:C.bg, zIndex:10, borderBottom:`1px solid ${C.border}` }}>
-        <div style={{ fontSize:22, fontWeight:900, marginBottom:8 }}>Saved Logs</div>
-        <div style={{ fontSize:13, color:C.muted }}>Your saved game log entries from Supabase.</div>
+      <div style={{ padding:"clamp(52px, 12vh, 72px) clamp(18px, 5vw, 48px) clamp(14px, 3vh, 20px)", position:"sticky", top:0, background:C.bg, zIndex:10, borderBottom:`1px solid ${C.border}` }}>
+        <div style={{ fontSize:"clamp(22px, 4vw, 32px)", fontWeight:900, marginBottom:"clamp(8px, 1.5vh, 12px)" }}>Saved Logs</div>
+        <div style={{ fontSize:"clamp(13px, 2vw, 15px)", color:C.muted }}>Your saved game log entries from Supabase.</div>
       </div>
-      <div style={{ padding:"14px 18px 0" }}>
+      <div style={{ padding:"clamp(14px, 3vh, 20px) clamp(18px, 5vw, 48px) 0" }}>
         {loading ? (
           <Empty label="Loading saved logs…" icon="⏳" />
         ) : logs.length === 0 ? (
           <Empty label="No saved logs yet" />
         ) : (
-          <div style={{ display:"grid", gap:12 }}>
+          <div style={{ display:"grid", gap:"clamp(12px, 2vw, 16px)" }}>
             {logs.map(log => (
-              <div key={log.id} style={{ display:"flex", gap:12, padding:14, borderRadius:8, background:C.surface, border:`1px solid ${C.border}` }}>
-                <div style={{ width:68, height:88, borderRadius:6, overflow:"hidden", flexShrink:0, background:C.bg }}>
+              <div key={log.id} style={{ display:"flex", gap:"clamp(12px, 2vw, 16px)", padding:"clamp(12px, 2vh, 16px)", borderRadius:8, background:C.surface, border:`1px solid ${C.border}` }}>
+                <div style={{ width:"clamp(68px, 12vw, 100px)", height:"clamp(88px, 14vw, 132px)", borderRadius:6, overflow:"hidden", flexShrink:0, background:C.bg }}>
                   <Img src={log.cover} style={{ width:"100%", height:"100%" }} />
                 </div>
                 <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", justifyContent:"space-between" }}>
                   <div>
-                    <div style={{ fontSize:15, fontWeight:900, color:C.text, marginBottom:4 }}>{log.title}</div>
-                    <div style={{ fontSize:11, color:C.muted, marginBottom:8 }}>{log.year || '—'} · {log.developer || 'Unknown'}</div>
-                    <div style={{ fontSize:12, color:C.muted, lineHeight:1.5, overflow:"hidden", textOverflow:"ellipsis", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{log.review || 'No review yet.'}</div>
+                    <div style={{ fontSize:"clamp(14px, 2.5vw, 16px)", fontWeight:900, color:C.text, marginBottom:4 }}>{log.title}</div>
+                    <div style={{ fontSize:"clamp(10px, 1.5vw, 12px)", color:C.muted, marginBottom:8 }}>{log.year || '—'} · {log.developer || 'Unknown'}</div>
+                    <div style={{ fontSize:"clamp(11px, 1.5vw, 13px)", color:C.muted, lineHeight:1.6, overflow:"hidden", textOverflow:"ellipsis", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{log.review || 'No review yet.'}</div>
                   </div>
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginTop:12 }}>
-                    <span style={{ fontSize:10, fontWeight:800, color:SC[log.status]||C.muted, textTransform:"uppercase", letterSpacing:"0.08em" }}>{log.status || 'Unknown'}</span>
+                    <span style={{ fontSize:"clamp(9px, 1vw, 11px)", fontWeight:800, color:SC[log.status]||C.muted, textTransform:"uppercase", letterSpacing:"0.08em" }}>{log.status || 'Unknown'}</span>
                     <Stars value={log.rating || 0} size={14} />
                   </div>
                 </div>
@@ -697,7 +710,7 @@ function ListsScreen({ lists, games, setLists, onGameClick }) {
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
 
-  const iSt = { width:"100%", background:C.faint, border:`1px solid ${C.border}`, borderRadius:3, padding:"11px 14px", color:C.text, fontSize:15, outline:"none", boxSizing:"border-box" };
+  const iSt = { width:"100%", background:C.faint, border:`1px solid ${C.border}`, borderRadius:3, padding:"clamp(10px, 2vh, 14px) 14px", color:C.text, fontSize:"clamp(14px, 2vw, 16px)", outline:"none", boxSizing:"border-box", transition:"all 0.2s" };
 
   const createList = () => {
     if (!newName.trim()) return;
@@ -712,58 +725,58 @@ function ListsScreen({ lists, games, setLists, onGameClick }) {
     const notIn     = games.filter(g=>!open.gameIds.includes(g.id));
     return (
       <div style={{ minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"system-ui,sans-serif", paddingBottom:90 }}>
-        <div style={{ padding:"52px 18px 16px", background:C.bg, position:"sticky", top:0, zIndex:10, borderBottom:`1px solid ${C.border}` }}>
-          <button onClick={()=>{setOpen(null);setEditing(false);setAdding(false);}} style={{ background:"none", border:"none", color:C.muted, fontSize:12, cursor:"pointer", marginBottom:12, padding:0, fontWeight:800, letterSpacing:"0.1em", textTransform:"uppercase" }}>‹ Lists</button>
+        <div style={{ padding:"clamp(52px, 12vh, 72px) clamp(18px, 5vw, 48px) clamp(16px, 3vh, 24px)", background:C.bg, position:"sticky", top:0, zIndex:10, borderBottom:`1px solid ${C.border}` }}>
+          <button onClick={()=>{setOpen(null);setEditing(false);setAdding(false);}} style={{ background:"none", border:"none", color:C.muted, fontSize:"clamp(11px, 1.5vw, 13px)", cursor:"pointer", marginBottom:"clamp(12px, 2vh, 18px)", padding:0, fontWeight:800, letterSpacing:"0.1em", textTransform:"uppercase" }}>‹ Lists</button>
           {editing ? (
             <>
-              <input value={open.name} onChange={e=>updateList({...open,name:e.target.value})} style={{...iSt,fontSize:20,fontWeight:900,marginBottom:8}} />
-              <input value={open.desc||""} onChange={e=>updateList({...open,desc:e.target.value})} placeholder="Description…" style={{...iSt,fontSize:13}} />
-              <div style={{ display:"flex", gap:8, marginTop:10 }}>
-                <button onClick={()=>setEditing(false)} style={{ flex:1, padding:"11px", borderRadius:3, border:"none", background:C.yellow, color:"#000", fontWeight:900, cursor:"pointer", textTransform:"uppercase", letterSpacing:"0.06em" }}>Done</button>
-                <button onClick={()=>deleteList(open.id)} style={{ padding:"11px 16px", borderRadius:3, border:"none", background:"rgba(232,52,28,.1)", color:C.red, fontWeight:800, cursor:"pointer" }}>Delete</button>
+              <input value={open.name} onChange={e=>updateList({...open,name:e.target.value})} style={{...iSt,fontSize:"clamp(18px, 3vw, 24px)",fontWeight:900,marginBottom:10}} />
+              <input value={open.desc||""} onChange={e=>updateList({...open,desc:e.target.value})} placeholder="Description…" style={{...iSt,marginBottom:"clamp(12px, 2vh, 16px)"}} />
+              <div style={{ display:"flex", gap:8, marginTop:12 }}>
+                <button onClick={()=>setEditing(false)} style={{ flex:1, padding:"clamp(10px, 2vh, 14px)", borderRadius:3, border:"none", background:C.pink, color:"#fff", fontWeight:600, cursor:"pointer", textTransform:"uppercase", letterSpacing:"0.06em", fontSize:"clamp(12px, 2vw, 14px)" }}>Done</button>
+                <button onClick={()=>deleteList(open.id)} style={{ padding:"clamp(10px, 2vh, 14px) 16px", borderRadius:3, border:"none", background:"rgba(204,51,119,.12)", color:C.pink, fontWeight:600, cursor:"pointer", fontSize:"clamp(12px, 2vw, 14px)" }}>Delete</button>
               </div>
             </>
           ) : (
             <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between" }}>
               <div>
-                <div style={{ fontSize:24, fontWeight:900 }}>{open.name}</div>
-                {open.desc && <div style={{ fontSize:13, color:C.muted, marginTop:4 }}>{open.desc}</div>}
-                <div style={{ fontSize:11, color:C.faint, marginTop:5 }}>{listGames.length} game{listGames.length!==1?"s":""}</div>
+                <div style={{ fontSize:"clamp(22px, 4vw, 32px)", fontWeight:900 }}>{open.name}</div>
+                {open.desc && <div style={{ fontSize:"clamp(12px, 2vw, 15px)", color:C.muted, marginTop:4 }}>{open.desc}</div>}
+                <div style={{ fontSize:"clamp(10px, 1.5vw, 12px)", color:C.faint, marginTop:5 }}>{listGames.length} game{listGames.length!==1?"s":""}</div>
               </div>
-              <button onClick={()=>setEditing(true)} style={{ background:C.faint, border:`1px solid ${C.border}`, color:C.muted, padding:"7px 16px", borderRadius:3, fontSize:11, fontWeight:800, cursor:"pointer", letterSpacing:"0.08em", textTransform:"uppercase" }}>Edit</button>
+              <button onClick={()=>setEditing(true)} style={{ background:C.faint, border:`1px solid ${C.border}`, color:C.muted, padding:"7px 16px", borderRadius:3, fontSize:"clamp(10px, 1.5vw, 12px)", fontWeight:800, cursor:"pointer", letterSpacing:"0.08em", textTransform:"uppercase" }}>Edit</button>
             </div>
           )}
         </div>
-        <div style={{ padding:"8px 18px 0" }}>
+        <div style={{ padding:"clamp(8px, 1.5vh, 12px) clamp(18px, 5vw, 48px) 0", maxWidth:"1200px", margin:"0 auto", width:"100%" }}>
           {listGames.map((g,i)=>(
             <div key={g.id} style={{ display:"flex", alignItems:"center" }}>
               <div style={{ flex:1 }}><DiaryRow game={g} index={i} onClick={onGameClick} /></div>
-              <button onClick={()=>updateList({...open,gameIds:open.gameIds.filter(id=>id!==g.id)})} style={{ background:"none", border:"none", color:C.faint, fontSize:18, cursor:"pointer", padding:"0 4px" }}>✕</button>
+              <button onClick={()=>updateList({...open,gameIds:open.gameIds.filter(id=>id!==g.id)})} style={{ background:"none", border:"none", color:C.faint, fontSize:18, cursor:"pointer", padding:"0 4px", transition:"all 0.2s" }}>✕</button>
             </div>
           ))}
           {listGames.length===0 && <Empty label="No games in this list" />}
         </div>
-        <div style={{ padding:"0 18px", marginTop:16 }}>
+        <div style={{ padding:"0 clamp(18px, 5vw, 48px)", marginTop:16, maxWidth:"1200px", margin:"16px auto 0" }}>
           {!adding ? (
-            <button onClick={()=>setAdding(true)} style={{ width:"100%", padding:14, borderRadius:3, border:`1px dashed ${C.border}`, background:"transparent", color:C.muted, fontSize:13, fontWeight:800, cursor:"pointer", letterSpacing:"0.08em", textTransform:"uppercase" }}>+ Add a Game</button>
+            <button onClick={()=>setAdding(true)} style={{ width:"100%", padding:"clamp(12px, 2vh, 16px)", borderRadius:3, border:`1px dashed ${C.border}`, background:"transparent", color:C.muted, fontSize:"clamp(12px, 2vw, 14px)", fontWeight:800, cursor:"pointer", letterSpacing:"0.08em", textTransform:"uppercase", transition:"all 0.2s" }}>+ Add a Game</button>
           ) : (
             <div>
-              <div style={{ fontSize:10, color:C.muted, letterSpacing:"0.18em", textTransform:"uppercase", marginBottom:10 }}>Add to list</div>
+              <div style={{ fontSize:"clamp(10px, 1.5vw, 12px)", color:C.muted, letterSpacing:"0.18em", textTransform:"uppercase", marginBottom:10 }}>Add to list</div>
               {notIn.map(g=>(
                 <div key={g.id} onClick={()=>updateList({...open,gameIds:[...open.gameIds,g.id]})}
-                  style={{ display:"flex", alignItems:"center", gap:12, padding:"11px 0", borderBottom:`1px solid ${C.border}`, cursor:"pointer" }}>
-                  <div style={{ width:38, height:52, borderRadius:3, overflow:"hidden", flexShrink:0 }}>
+                  style={{ display:"flex", alignItems:"center", gap:"clamp(12px, 2vw, 16px)", padding:"clamp(11px, 2vh, 14px) 0", borderBottom:`1px solid ${C.border}`, cursor:"pointer", transition:"all 0.2s" }}>
+                  <div style={{ width:"clamp(36px, 7vw, 50px)", height:"clamp(48px, 10vw, 66px)", borderRadius:3, overflow:"hidden", flexShrink:0 }}>
                     <Img src={g.cover} style={{ width:"100%", height:"100%" }} />
                   </div>
                   <div style={{ flex:1 }}>
-                    <div style={{ fontSize:14, fontWeight:800 }}>{g.title}</div>
-                    <div style={{ fontSize:11, color:C.muted }}>{g.year} · {g.genre}</div>
+                    <div style={{ fontSize:"clamp(13px, 2.5vw, 16px)", fontWeight:800 }}>{g.title}</div>
+                    <div style={{ fontSize:"clamp(10px, 1.5vw, 12px)", color:C.muted }}>{g.year} · {g.genre}</div>
                   </div>
-                  <span style={{ fontSize:20, color:C.yellow, fontWeight:900 }}>+</span>
+                  <span style={{ fontSize:"clamp(18px, 3vw, 24px)", color:C.yellow, fontWeight:900 }}>+</span>
                 </div>
               ))}
-              {notIn.length===0 && <div style={{ fontSize:13, color:C.muted, textAlign:"center", padding:"20px 0" }}>All games added</div>}
-              <button onClick={()=>setAdding(false)} style={{ width:"100%", marginTop:14, padding:12, borderRadius:3, border:"none", background:C.faint, color:C.muted, fontWeight:800, cursor:"pointer", textTransform:"uppercase", letterSpacing:"0.08em" }}>Done</button>
+              {notIn.length===0 && <div style={{ fontSize:"clamp(12px, 2vw, 14px)", color:C.muted, textAlign:"center", padding:"20px 0" }}>All games added</div>}
+              <button onClick={()=>setAdding(false)} style={{ width:"100%", marginTop:14, padding:"clamp(12px, 2vh, 14px)", borderRadius:3, border:"none", background:C.faint, color:C.muted, fontWeight:800, cursor:"pointer", textTransform:"uppercase", letterSpacing:"0.08em", fontSize:"clamp(12px, 2vw, 14px)" }}>Done</button>
             </div>
           )}
         </div>
@@ -773,42 +786,42 @@ function ListsScreen({ lists, games, setLists, onGameClick }) {
 
   return (
     <div style={{ paddingBottom:90, color:C.text, fontFamily:"system-ui,sans-serif" }}>
-      <div style={{ padding:"52px 18px 20px" }}>
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
-          <div style={{ fontSize:22, fontWeight:900 }}>Your Lists</div>
-          <button onClick={()=>setAdding(true)} style={{ background:C.yellow, border:"none", color:"#000", padding:"8px 18px", borderRadius:3, fontSize:11, fontWeight:900, cursor:"pointer", letterSpacing:"0.1em", textTransform:"uppercase" }}>+ New</button>
+      <div style={{ padding:"clamp(52px, 12vh, 72px) clamp(18px, 5vw, 48px) clamp(20px, 4vh, 28px)" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+          <div style={{ fontSize:"clamp(22px, 4vw, 32px)", fontWeight:900 }}>Your Lists</div>
+          <button onClick={()=>setAdding(true)} style={{ background:C.pink, border:"none", color:"#fff", padding:"8px 18px", borderRadius:3, fontSize:"clamp(10px, 1.5vw, 12px)", fontWeight:600, cursor:"pointer", letterSpacing:"0.1em", textTransform:"uppercase", transition:"all 0.2s" }}>+ New</button>
         </div>
         {adding && (
-          <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:3, padding:"16px", marginTop:16, marginBottom:6 }}>
-            <input value={newName} onChange={e=>setNewName(e.target.value)} placeholder="List name…" style={{...iSt,fontSize:16,fontWeight:800,marginBottom:9}} />
-            <input value={newDesc} onChange={e=>setNewDesc(e.target.value)} placeholder="Description (optional)…" style={{...iSt,fontSize:13,marginBottom:12}} />
+          <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:3, padding:"clamp(16px, 3vw, 24px)", marginTop:16, marginBottom:8 }}>
+            <input value={newName} onChange={e=>setNewName(e.target.value)} placeholder="List name…" style={{...iSt,fontSize:"clamp(16px, 2.5vw, 18px)",fontWeight:800,marginBottom:10}} />
+            <input value={newDesc} onChange={e=>setNewDesc(e.target.value)} placeholder="Description (optional)…" style={{...iSt,marginBottom:"clamp(12px, 2vh, 16px)"}} />
             <div style={{ display:"flex", gap:8 }}>
-              <button onClick={createList} style={{ flex:1, padding:"12px", borderRadius:3, border:"none", background:C.yellow, color:"#000", fontWeight:900, cursor:"pointer", textTransform:"uppercase", letterSpacing:"0.06em" }}>Create</button>
-              <button onClick={()=>{setAdding(false);setNewName("");setNewDesc("");}} style={{ padding:"12px 16px", borderRadius:3, border:"none", background:C.faint, color:C.muted, fontWeight:800, cursor:"pointer" }}>Cancel</button>
+              <button onClick={createList} style={{ flex:1, padding:"clamp(12px, 2vh, 14px)", borderRadius:3, border:"none", background:C.pink, color:"#fff", fontWeight:600, cursor:"pointer", textTransform:"uppercase", letterSpacing:"0.06em", fontSize:"clamp(12px, 2vw, 14px)" }}>Create</button>
+              <button onClick={()=>{setAdding(false);setNewName("");setNewDesc("");}} style={{ padding:"clamp(12px, 2vh, 14px) 16px", borderRadius:3, border:"none", background:C.faint, color:C.muted, fontWeight:800, cursor:"pointer", fontSize:"clamp(12px, 2vw, 14px)" }}>Cancel</button>
             </div>
           </div>
         )}
       </div>
-      <div style={{ padding:"0 18px" }}>
+      <div style={{ padding:"0 clamp(18px, 5vw, 48px)", maxWidth:"1200px", margin:"0 auto", width:"100%" }}>
         {lists.length===0&&!adding && <Empty label="Create your first list" icon="📋" />}
         {lists.map(list=>{
           const covers = games.filter(g=>list.gameIds.slice(0,3).includes(g.id));
           return (
             <div key={list.id} onClick={()=>{setOpen(list);setEditing(false);setAdding(false);}}
-              style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 0", borderBottom:`1px solid ${C.border}`, cursor:"pointer" }}>
-              <div style={{ display:"flex", gap:3, flexShrink:0 }}>
+              style={{ display:"flex", alignItems:"center", gap:"clamp(12px, 2vw, 18px)", padding:"clamp(14px, 2vh, 18px) 0", borderBottom:`1px solid ${C.border}`, cursor:"pointer", transition:"all 0.2s" }}>
+              <div style={{ display:"flex", gap:"clamp(3px, 0.5vw, 6px)", flexShrink:0 }}>
                 {[0,1,2].map(i=>(
-                  <div key={i} style={{ width:42, height:57, borderRadius:3, overflow:"hidden", background:C.surface, border:`1px solid ${C.border}` }}>
+                  <div key={i} style={{ width:"clamp(38px, 7vw, 56px)", height:"clamp(50px, 10vw, 74px)", borderRadius:3, overflow:"hidden", background:C.surface, border:`1px solid ${C.border}` }}>
                     {covers[i] && <Img src={covers[i].cover} style={{ width:"100%", height:"100%" }} />}
                   </div>
                 ))}
               </div>
               <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:16, fontWeight:900 }}>{list.name}</div>
-                {list.desc && <div style={{ fontSize:12, color:C.muted, marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{list.desc}</div>}
-                <div style={{ fontSize:11, color:C.faint, marginTop:4 }}>{list.gameIds.length} game{list.gameIds.length!==1?"s":""}</div>
+                <div style={{ fontSize:"clamp(15px, 2.5vw, 18px)", fontWeight:900 }}>{list.name}</div>
+                {list.desc && <div style={{ fontSize:"clamp(11px, 1.5vw, 13px)", color:C.muted, marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{list.desc}</div>}
+                <div style={{ fontSize:"clamp(10px, 1.5vw, 12px)", color:C.faint, marginTop:4 }}>{list.gameIds.length} game{list.gameIds.length!==1?"s":""}</div>
               </div>
-              <div style={{ color:C.yellow, fontSize:18, fontWeight:900 }}>›</div>
+              <div style={{ color:C.blue, fontSize:"clamp(16px, 2.5vw, 20px)", fontWeight:500 }}>›</div>
             </div>
           );
         })}
@@ -882,11 +895,11 @@ export default function Kortana() {
   };
 
   const TABS = [
-    { key:"home",   icon:"⌂",  label:"Home"   },
-    { key:"diary",  icon:"📖", label:"Diary"  },
-    { key:"browse", icon:"🔍", label:"Browse" },
-    { key:"logs",   icon:"📜", label:"Saved"  },
-    { key:"lists",  icon:"📋", label:"Lists"  },
+    { key:"home",   label:"Home"   },
+    { key:"diary",  label:"Diary"  },
+    { key:"browse", label:"Browse" },
+    { key:"logs",   label:"Saved"  },
+    { key:"lists",  label:"Lists"  },
   ];
 
   if (authLoading) {
@@ -902,20 +915,27 @@ export default function Kortana() {
   }
 
   return (
-    <div style={{ minHeight:"100vh", background:C.bg, maxWidth:430, margin:"0 auto", position:"relative", overflowX:"hidden" }}>
+    <div style={{ minHeight:"100vh", background:C.bg, position:"relative", overflowX:"hidden" }}>
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&display=swap');
         @keyframes fadeUp  { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
         @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
-        *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+        *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:'Poppins',sans-serif}
         ::-webkit-scrollbar{display:none}
         input,textarea,select{color-scheme:dark}
-        input::placeholder,textarea::placeholder{color:rgba(240,237,232,0.22)!important}
+        input::placeholder,textarea::placeholder{color:#444444!important}
+
+        @media (min-width: 768px) {
+          body { padding: 0 12px; }
+        }
       `}</style>
 
+      <div style={{ maxWidth:"1200px", margin:"0 auto", width:"100%", padding:"0 12px" }}>
+
       {!detail && (
-        <div style={{ position:"fixed", top:14, right:18, zIndex:210, display:"flex", alignItems:"center", gap:8 }}>
-          <span style={{ fontSize:11, color:C.muted, maxWidth:180, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.email}</span>
-          <button onClick={handleSignOut} style={{ padding:"8px 12px", borderRadius:999, border:"none", background:C.yellow, color:"#000", fontWeight:800, cursor:"pointer", fontSize:11, textTransform:"uppercase", letterSpacing:"0.08em" }}>Sign Out</button>
+        <div style={{ position:"fixed", top:14, right:"clamp(18px, 5vw, 48px)", zIndex:210, display:"flex", alignItems:"center", gap:8 }}>
+          <span style={{ fontSize:"clamp(10px, 1vw, 12px)", color:C.muted, maxWidth:180, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.email}</span>
+          <button onClick={handleSignOut} style={{ padding:"8px 12px", borderRadius:999, border:"none", background:C.pink, color:"#fff", fontWeight:600, cursor:"pointer", fontSize:"clamp(10px, 1vw, 11px)", textTransform:"uppercase", letterSpacing:"0.08em" }}>Sign Out</button>
         </div>
       )}
 
@@ -936,19 +956,18 @@ export default function Kortana() {
         </>
       )}
 
-      {/* bottom tab bar — stripe only here as the signature accent */}
+      {/* bottom tab bar */}
       {!detail && (
-        <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:430,
-          background:`rgba(14,14,16,.97)`, backdropFilter:"blur(20px)", borderTop:`1px solid ${C.border}`,
-          display:"grid", gridTemplateColumns:"repeat(5,1fr)", zIndex:100, paddingBottom:16, overflow:"hidden" }}>
+        <div style={{ position:"fixed", bottom:0, left:0, right:0,
+          background:`rgba(14,14,16,.98)`, backdropFilter:"blur(20px)", borderTop:`1px solid ${C.border}`,
+          display:"grid", gridTemplateColumns:"repeat(5,1fr)", zIndex:100, paddingBottom:12, overflow:"hidden" }}>
           <StripeBar height={2} style={{ position:"absolute", top:0, left:0, right:0 }} />
           {TABS.map(t=>(
             <button key={t.key} onClick={()=>setTab(t.key)} style={{
-              background:"none", border:"none", cursor:"pointer", padding:"12px 0 4px",
-              display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
-              <span style={{ fontSize:20, filter:tab===t.key?"none":"grayscale(1) opacity(.28)", transition:"filter .15s" }}>{t.icon}</span>
-              <span style={{ fontSize:10, fontWeight:800, letterSpacing:"0.08em", textTransform:"uppercase",
-                color:tab===t.key?C.yellow:C.muted, transition:"color .15s" }}>{t.label}</span>
+              background:"none", border:"none", cursor:"pointer", padding:"12px 8px 4px",
+              display:"flex", flexDirection:"column", alignItems:"center", gap:2, transition:"all 0.15s ease" }}>
+              <span style={{ fontSize:"clamp(11px, 1vw, 12px)", fontWeight:600, letterSpacing:"0.04em", textTransform:"uppercase",
+                color:tab===t.key?C.blue:C.muted, transition:"color .15s", opacity:tab===t.key?1:0.6 }}>{t.label}</span>
             </button>
           ))}
         </div>
@@ -956,13 +975,20 @@ export default function Kortana() {
 
       {/* wordmark */}
       {!detail && (
-        <div style={{ position:"fixed", top:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:430,
-          padding:"14px 18px 0", pointerEvents:"none", zIndex:200 }}>
-          <div style={{ fontSize:19, fontWeight:900, letterSpacing:"0.02em", color:C.text }}>
-            kortana
+        <div style={{ position:"fixed", top:0, left:0, right:0,
+          padding:"clamp(14px, 3vw, 24px) clamp(18px, 5vw, 48px)", pointerEvents:"none", zIndex:200 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <svg width="28" height="28" viewBox="0 0 110 110" fill="none">
+              <path d="M16 10 L16 100 L34 100 L34 62 L68 100 L92 100 L54 55 L90 10 L66 10 L34 46 L34 10 Z" fill="none" stroke="#2255CC" strokeWidth="4"/>
+              <path d="M90 10 L54 55" stroke="#CC3377" strokeWidth="4" fill="none"/>
+              <path d="M34 62 L68 100 L92 100" stroke="#FAC000" strokeWidth="4" fill="none"/>
+              <path d="M54 55 L92 100" stroke="#00A850" strokeWidth="4" fill="none"/>
+            </svg>
+            <span style={{ fontSize:"clamp(18px, 3vw, 24px)", fontWeight:500, letterSpacing:"-0.5px", color:C.text }}>ortana</span>
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
