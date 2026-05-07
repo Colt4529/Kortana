@@ -491,12 +491,17 @@ function GotyRace({ onGameClick }) {
           GOTY_2026.map(async game => {
             try {
               const r = await fetch(
-                `${RAWG_API_URL}/games?key=${RAWG_API_KEY}&search=${encodeURIComponent(game.title)}&page_size=1`,
+                `${RAWG_API_URL}/games?key=${RAWG_API_KEY}&search=${encodeURIComponent(game.title)}&page_size=5&exclude_additions=true`,
                 { signal: ctrl.signal }
               );
               if (!r.ok) return { ...game, cover:"" };
               const d = await r.json();
-              const hit = d.results?.[0];
+              const results = d.results || [];
+              // prefer a result whose name closely matches, has a cover, and is on a real platform
+              const slug = game.title.split(/[:\s]/)[0].toLowerCase();
+              const hit = results.find(g => g.background_image && g.name?.toLowerCase().includes(slug))
+                       || results.find(g => g.background_image)
+                       || null;
               return { ...game, cover: rawgImg(hit?.background_image||"", {w:600,h:900}), mc: hit?.metacritic||game.mc };
             } catch { return { ...game, cover:"" }; }
           })
@@ -695,12 +700,13 @@ function BrowseScreen({ games, onGameClick }) {
         const data = await r.json();
         if (!active) return;
 
-        // keep only games with a platform assignment — fan games and junk entries never get these
+        // require a cover, release date, and at least one real platform (PC/console) — excludes mobile-only and fan games
+        const REAL_PLATFORMS = new Set([1, 2, 3, 7, 8]); // PC, PlayStation, Xbox, Nintendo, Mac
         const qualified = (data.results || [])
           .filter(g =>
             g.background_image &&
             g.released &&
-            g.parent_platforms?.length > 0
+            g.parent_platforms?.some(p => REAL_PLATFORMS.has(p.platform?.id))
           )
           .slice(0, 8);
 
