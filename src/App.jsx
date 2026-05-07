@@ -458,21 +458,21 @@ function GameDetail({ game, onBack, onUpdate, user }) {
 }
 
 // ── GOTY RACE SIDEBAR ─────────────────────────────────────────────────────────
-const GOTY_2025 = [
-  { id:"ce33",   title:"Clair Obscur: Expedition 33", developer:"Sandfall Interactive",  mc:92 },
-  { id:"sf",     title:"Split Fiction",               developer:"Hazelight Studios",     mc:88 },
-  { id:"mhw",    title:"Monster Hunter Wilds",        developer:"Capcom",                mc:86 },
-  { id:"ds2",    title:"Death Stranding 2",           developer:"Kojima Productions",    mc:85 },
-  { id:"doom",   title:"Doom: The Dark Ages",         developer:"id Software",           mc:84 },
-  { id:"lad",    title:"Like a Dragon: Pirate Yakuza in Hawaii", developer:"RGG Studio", mc:83 },
-  { id:"ern",    title:"Elden Ring: Nightreign",      developer:"FromSoftware",          mc:82 },
-  { id:"avow",   title:"Avowed",                      developer:"Obsidian Entertainment",mc:80 },
-  { id:"acs",    title:"Assassin's Creed Shadows",    developer:"Ubisoft",               mc:79 },
-  { id:"som",    title:"South of Midnight",           developer:"Compulsion Games",      mc:77 },
+const GOTY_2026 = [
+  { id:"pragmata",  title:"Pragmata",               developer:"Capcom",                mc:0 },
+  { id:"fable",     title:"Fable",                  developer:"Playground Games",      mc:0 },
+  { id:"judas",     title:"Judas",                  developer:"Ghost Story Games",     mc:0 },
+  { id:"wolverine", title:"Marvel's Wolverine",     developer:"Insomniac Games",       mc:0 },
+  { id:"ow2",       title:"The Outer Worlds 2",     developer:"Obsidian Entertainment",mc:0 },
+  { id:"silksong",  title:"Hollow Knight: Silksong",developer:"Team Cherry",           mc:0 },
+  { id:"mgsd",      title:"Metal Gear Solid Delta", developer:"Konami",                mc:0 },
+  { id:"mafia",     title:"Mafia: The Old Country", developer:"Hangar 13",             mc:0 },
+  { id:"bl4",       title:"Borderlands 4",          developer:"Gearbox Software",      mc:0 },
+  { id:"yotei",     title:"Ghost of Yotei",         developer:"Sucker Punch",          mc:0 },
 ];
 
 function GotyRace({ onGameClick }) {
-  const [list, setList]       = useState(GOTY_2025.map(g=>({ ...g, cover:"" })));
+  const [list, setList]       = useState(GOTY_2026.map(g=>({ ...g, cover:"" })));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -481,7 +481,7 @@ function GotyRace({ onGameClick }) {
     (async () => {
       try {
         const fetched = await Promise.all(
-          GOTY_2025.map(async game => {
+          GOTY_2026.map(async game => {
             try {
               const r = await fetch(
                 `${RAWG_API_URL}/games?key=${RAWG_API_KEY}&search=${encodeURIComponent(game.title)}&page_size=1`,
@@ -515,10 +515,10 @@ function GotyRace({ onGameClick }) {
   return (
     <div>
       <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:8 }}>
-        <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2px", color:"#444", textTransform:"uppercase", flexShrink:0 }}>GOTY Race 2025</span>
+        <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2px", color:"#444", textTransform:"uppercase", flexShrink:0 }}>GOTY Race 2026</span>
         <div style={{ flex:1, height:"0.5px", background:C.border }} />
       </div>
-      <div style={{ fontSize:10, color:"#333", letterSpacing:"0.5px", marginBottom:16 }}>Metacritic · critic + community consensus</div>
+      <div style={{ fontSize:10, color:"#333", letterSpacing:"0.5px", marginBottom:16 }}>Updated as scores drop throughout the year</div>
       {loading && <div style={{ fontSize:11, color:"#444", letterSpacing:"1px", marginBottom:12 }}>Fetching covers…</div>}
       {list.map((game, i) => (
         <div key={game.id} onClick={()=>handleClick(game)}
@@ -532,8 +532,14 @@ function GotyRace({ onGameClick }) {
             <div style={{ fontSize:10, color:"#444", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{game.developer}</div>
           </div>
           <div style={{ flexShrink:0, textAlign:"center", minWidth:28 }}>
-            <div style={{ fontSize:13, fontWeight:500, color:mcColor(game.mc), lineHeight:1 }}>{game.mc}</div>
-            <div style={{ fontSize:8, color:"#333", letterSpacing:"0.5px", textTransform:"uppercase", marginTop:2 }}>MC</div>
+            {game.mc > 0 ? (
+              <>
+                <div style={{ fontSize:13, fontWeight:500, color:mcColor(game.mc), lineHeight:1 }}>{game.mc}</div>
+                <div style={{ fontSize:8, color:"#333", letterSpacing:"0.5px", textTransform:"uppercase", marginTop:2 }}>MC</div>
+              </>
+            ) : (
+              <div style={{ fontSize:11, color:"#333", letterSpacing:"0.5px" }}>—</div>
+            )}
           </div>
         </div>
       ))}
