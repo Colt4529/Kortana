@@ -1363,7 +1363,6 @@ function BrowseScreen({ games, onGameClick }) {
             external_games.uid, external_games.category,
             rating, aggregated_rating, rating_count;
           where cover != null & category = (0,8,9) ${yearClause};
-          sort first_release_date desc;
           limit 10;
         `);
         if (!active) return;
@@ -1583,6 +1582,7 @@ function ListsScreen({ lists, games, setLists, onGameClick }) {
   const [adding,  setAdding]  = useState(false);
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
+  const wide = useWindowWidth() >= 860;
 
   const iSt = { width:"100%", background:C.faint, border:`0.5px solid ${C.border}`, borderRadius:8, padding:"clamp(10px,2vh,13px) 14px", color:C.text, fontSize:14, outline:"none", boxSizing:"border-box" };
 
@@ -1658,7 +1658,6 @@ function ListsScreen({ lists, games, setLists, onGameClick }) {
     );
   }
 
-  const wide = useWindowWidth() >= 860;
   return (
     <div style={{ paddingBottom:90, color:C.text }}>
       <div style={{ padding:"clamp(52px,12vh,72px) clamp(18px,5vw,48px) clamp(20px,4vh,28px)" }}>
