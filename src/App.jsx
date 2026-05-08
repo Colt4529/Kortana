@@ -784,8 +784,9 @@ function ConnectSteamSheet({ onConnect, onClose }) {
 // ── STEAM COMPONENTS ─────────────────────────────────────────────────────────
 // ── GAMING NEWS ───────────────────────────────────────────────────────────────
 const NEWS_FEEDS = [
-  "https://feeds.ign.com/ign/all",
-  "https://www.gamespot.com/feeds/news",
+  { url:"https://gamerant.com/feed",          name:"Game Rant",  color:C.pink  },
+  { url:"https://www.eurogamer.net/feed",     name:"Eurogamer",  color:C.blue  },
+  { url:"https://www.pcgamer.com/rss/",       name:"PC Gamer",   color:C.green },
 ];
 
 function NewsRow() {
@@ -794,25 +795,36 @@ function NewsRow() {
   useEffect(() => {
     const RSS2JSON = "https://api.rss2json.com/v1/api.json?rss_url=";
     Promise.allSettled(
-      NEWS_FEEDS.map(url =>
-        fetch(`${RSS2JSON}${encodeURIComponent(url)}&api_key=&count=8`)
+      NEWS_FEEDS.map(feed =>
+        fetch(`${RSS2JSON}${encodeURIComponent(feed.url)}`)
           .then(r => r.json())
-          .then(d => d.items || [])
+          .then(d => (d.items || []).map(item => ({ ...item, _source: feed.name, _color: feed.color })))
           .catch(() => [])
       )
     ).then(results => {
       const all = results.flatMap(r => r.status === "fulfilled" ? r.value : []);
+      // Sort by pubDate descending, dedupe by title
       const seen = new Set();
-      const deduped = all.filter(a => {
-        if (!a.title || seen.has(a.title)) return false;
-        seen.add(a.title);
-        return true;
-      });
-      setArticles(deduped.slice(0, 16));
+      const deduped = all
+        .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
+        .filter(a => {
+          if (!a.title || seen.has(a.title)) return false;
+          seen.add(a.title);
+          return true;
+        });
+      setArticles(deduped.slice(0, 24));
     });
   }, []);
 
-  if (!articles.length) return null;
+  if (!articles.length) return (
+    <div style={{ paddingTop:32 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:14 }}>
+        <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2px", color:"#444", textTransform:"uppercase", flexShrink:0 }}>Gaming News</span>
+        <div style={{ flex:1, height:"0.5px", background:C.border }} />
+      </div>
+      <div style={{ fontSize:11, color:"#333", letterSpacing:"1px" }}>Loading news…</div>
+    </div>
+  );
 
   return (
     <div style={{ paddingTop:32 }}>
@@ -821,24 +833,36 @@ function NewsRow() {
         <div style={{ flex:1, height:"0.5px", background:C.border }} />
       </div>
       <div style={{ display:"flex", flexDirection:"column" }}>
-        {articles.map((a, i) => (
-          <a key={i} href={a.link} target="_blank" rel="noopener noreferrer"
-            style={{ display:"flex", gap:12, padding:"clamp(10px,2vh,14px) 0", borderBottom:`0.5px solid ${C.border}`, textDecoration:"none", alignItems:"center" }}>
-            {a.thumbnail && (
-              <div style={{ width:72, height:52, borderRadius:6, overflow:"hidden", flexShrink:0, background:C.faint }}>
-                <img src={a.thumbnail} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e=>e.target.style.display="none"} />
+        {articles.map((a, i) => {
+          const ts = a.pubDate ? relTime(new Date(a.pubDate)) : "";
+          const thumb = a.thumbnail && !a.thumbnail.includes("1x1") ? a.thumbnail : null;
+          return (
+            <a key={i} href={a.link} target="_blank" rel="noopener noreferrer"
+              style={{ display:"flex", gap:12, padding:"12px 0", borderBottom:`0.5px solid ${C.border}`, textDecoration:"none", alignItems:"center", transition:"opacity .15s" }}
+              onMouseEnter={e=>e.currentTarget.style.opacity="0.7"}
+              onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
+              {/* Thumbnail */}
+              <div style={{ width:76, height:54, borderRadius:6, overflow:"hidden", flexShrink:0, background:C.faint }}>
+                {thumb
+                  ? <img src={thumb} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e=>{ e.target.style.display="none"; }} />
+                  : <div style={{ width:"100%", height:"100%", background:`${a._color}18`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      <span style={{ fontSize:9, color:a._color, fontWeight:700, letterSpacing:"1px" }}>{a._source?.[0]}</span>
+                    </div>
+                }
               </div>
-            )}
-            <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:9, color:C.blue, fontWeight:500, letterSpacing:"1.5px", textTransform:"uppercase", marginBottom:4 }}>
-                {a.author || (a.link?.includes("ign") ? "IGN" : "GameSpot")}
+              {/* Text */}
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:4 }}>
+                  <span style={{ fontSize:8, fontWeight:700, color:a._color, letterSpacing:"1.5px", textTransform:"uppercase" }}>{a._source}</span>
+                  {ts && <span style={{ fontSize:8, color:"#444" }}>· {ts}</span>}
+                </div>
+                <div style={{ fontSize:12, fontWeight:500, color:C.text, lineHeight:1.4, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
+                  {a.title}
+                </div>
               </div>
-              <div style={{ fontSize:13, fontWeight:500, color:C.text, lineHeight:1.4, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
-                {a.title}
-              </div>
-            </div>
-          </a>
-        ))}
+            </a>
+          );
+        })}
       </div>
     </div>
   );
@@ -1460,8 +1484,11 @@ function BrowseScreen({ games, onGameClick }) {
             screenshots.image_id, summary, genres.name,
             involved_companies.company.name, involved_companies.developer, involved_companies.publisher,
             external_games.uid, external_games.category,
-            rating, aggregated_rating, rating_count;
-          where cover != null & version_parent = null ${yearClause};
+            rating, aggregated_rating, rating_count, hypes;
+          where cover != null & version_parent = null
+            & (rating_count > 0 | hypes > 5)
+            & involved_companies.developer = true
+            ${yearClause};
           limit 10;
         `);
         if (!active) return;
