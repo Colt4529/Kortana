@@ -2014,42 +2014,7 @@ function GenreRow({ genre, onGameClick, onBrowseGenre }) {
 
 const ITAD_KEY = "804b64e3e8f12509ed083929448fc2fea70b77f8";
 
-const ITAD_STORE_META = {
-  61:  { name:"Steam",       color:"#1b2838" },
-  35:  { name:"Nintendo",    color:"#e4000f" },
-  16:  { name:"PlayStation", color:"#003087" },
-  52:  { name:"Xbox",        color:"#107c10" },
-  13:  { name:"GOG",         color:"#86328a" },
-  25:  { name:"Epic",        color:"#2a2a2a" },
-  37:  { name:"Humble",      color:"#cc2929" },
-  34:  { name:"Fanatical",   color:"#e6181c" },
-};
 
-const CS_STORES = { "1":"Steam","7":"GOG","11":"Humble","13":"Fanatical","25":"Epic","35":"GameBillet","23":"Voidu" };
-
-function DealCard({ deal }) {
-  const pct   = Math.round(Number(deal.savings));
-  const store = CS_STORES[deal.storeID] || "Store";
-  const cover = `https://cdn.akamai.steamstatic.com/steam/apps/${deal.steamAppID}/library_600x900.jpg`;
-  return (
-    <a href={`https://www.cheapshark.com/redirect?dealID=${deal.dealID}`} target="_blank" rel="noopener noreferrer"
-      style={{ display:"block", position:"relative", borderRadius:8, overflow:"hidden", textDecoration:"none", boxShadow:"0 4px 20px rgba(0,0,0,.6)" }}>
-      <div style={{ aspectRatio:"2/3", position:"relative", background:C.faint }}>
-        <Img src={cover} style={{ width:"100%", height:"100%" }} />
-        <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(10,10,10,.96) 0%, rgba(10,10,10,.2) 55%, transparent 100%)" }} />
-      </div>
-      <div style={{ position:"absolute", top:8, left:8, background:C.green, borderRadius:5, padding:"3px 7px", fontSize:10, fontWeight:700, color:"#000" }}>-{pct}%</div>
-      <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"clamp(8px,2vw,11px)" }}>
-        <div style={{ fontSize:"clamp(10px,1.5vw,12px)", fontWeight:500, color:C.text, lineHeight:1.3, marginBottom:4, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{deal.title}</div>
-        <div style={{ display:"flex", alignItems:"baseline", gap:6 }}>
-          <span style={{ fontSize:14, fontWeight:700, color:C.green }}>${deal.salePrice}</span>
-          <span style={{ fontSize:10, color:"#555", textDecoration:"line-through" }}>${deal.normalPrice}</span>
-        </div>
-        <div style={{ fontSize:9, color:"#444", marginTop:3 }}>{store}</div>
-      </div>
-    </a>
-  );
-}
 
 // ── STOREFRONT DEALS (ITAD multi-platform) ────────────────────────────────────
 async function fetchItadDeals(shops) {
@@ -2163,63 +2128,114 @@ function StorefrontDeals() {
   );
 }
 
-const DEAL_CATS = [
-  { key:"all",   label:"All Deals" },
-  { key:"aaa",   label:"AAA",       test: d => Number(d.normalPrice) >= 40 },
-  { key:"indie", label:"Indie",     test: d => Number(d.normalPrice) <= 20 },
+const HOT_DEAL_TABS = [
+  { key:"all",      label:"All",         shops:"",             color:C.green   },
+  { key:"steam",    label:"Steam",       shops:"steam",        color:"#1b9af0" },
+  { key:"psn",      label:"PlayStation", shops:"psn",          color:"#003791" },
+  { key:"xbox",     label:"Xbox",        shops:"xboxgames",    color:"#107c10" },
+  { key:"nintendo", label:"Nintendo",    shops:"nintendo",     color:"#e60012" },
+  { key:"epic",     label:"Epic",        shops:"epicgames",    color:"#c7c7c7" },
 ];
 
+const PLATFORM_ICON = {
+  steam:      "🖥",
+  psn:        "🎮",
+  xboxgames:  "🟢",
+  nintendo:   "🔴",
+  epicgames:  "⚫",
+  gog:        "🟣",
+};
+
 function DealsRow() {
-  const [deals, setDeals] = useState([]);
-  const [cat,   setCat]   = useState("all");
+  const [tab,     setTab]     = useState("all");
+  const [deals,   setDeals]   = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [cache,   setCache]   = useState({});
+
+  const activeTab = HOT_DEAL_TABS.find(t => t.key === tab);
 
   useEffect(() => {
-    fetch("https://www.cheapshark.com/api/1.0/deals?upperPrice=60&sortBy=Savings&pageSize=120&metacritic=60&onSale=1")
-      .then(r => r.json())
-      .then(data => {
-        setDeals((data || []).filter(d => d.steamAppID && Number(d.savings) >= 40));
+    if (cache[tab]) { setDeals(cache[tab]); return; }
+    setLoading(true);
+    fetchItadDeals(activeTab.shops)
+      .then(raw => {
+        const list = Array.isArray(raw) ? raw : (raw?.list || raw?.data?.list || []);
+        const normalized = list
+          .filter(d => (d.deal?.cut ?? 0) >= 35 && Number(d.deal?.regular?.amount ?? 0) >= 10)
+          .slice(0, 30)
+          .map(d => ({
+            title:       d.title || "",
+            image:       d.assets?.boxart || d.assets?.banner300 || d.assets?.banner145 || "",
+            salePrice:   Number(d.deal?.price?.amount ?? 0).toFixed(2),
+            normalPrice: Number(d.deal?.regular?.amount ?? 0).toFixed(2),
+            cut:         Math.round(d.deal?.cut ?? 0),
+            url:         d.deal?.url ?? "#",
+            store:       d.deal?.shop?.name ?? "Store",
+            storeId:     d.deal?.shop?.id   ?? "",
+          }));
+        setDeals(normalized);
+        setCache(c => ({ ...c, [tab]: normalized }));
       })
-      .catch(() => {});
-  }, []);
+      .catch(() => setDeals([]))
+      .finally(() => setLoading(false));
+  }, [tab]);
 
-  if (!deals.length) return null;
-
-  const catDef  = DEAL_CATS.find(c => c.key === cat);
-  const visible = cat === "all" ? deals.slice(0, 20) : deals.filter(catDef.test).slice(0, 20);
-  const maxSavings = visible.length ? Math.max(...visible.map(d => Math.round(Number(d.savings)))) : 0;
+  const maxCut = deals.length ? Math.max(...deals.map(d => d.cut)) : 0;
+  const storeColor = id => HOT_DEAL_TABS.find(t => t.shops === id)?.color ?? C.muted;
 
   return (
     <div style={{ marginBottom:"clamp(24px,5vh,36px)" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"clamp(10px,2vh,14px)" }}>
         <span style={{ fontSize:"clamp(15px,2.5vw,19px)", fontWeight:500, letterSpacing:"-0.2px" }}>Hot Deals</span>
-        {maxSavings > 0 && <span style={{ fontSize:11, color:C.green, fontWeight:500 }}>Up to {maxSavings}% off</span>}
+        {maxCut > 0 && !loading && <span style={{ fontSize:11, color:C.green, fontWeight:600 }}>Up to {maxCut}% off</span>}
       </div>
 
-      {/* Category tabs */}
-      <div style={{ display:"flex", gap:6, marginBottom:"clamp(10px,2vh,14px)" }}>
-        {DEAL_CATS.map(c => (
-          <button key={c.key} onClick={() => setCat(c.key)} style={{
+      {/* Platform tabs */}
+      <div style={{ display:"flex", gap:6, marginBottom:"clamp(10px,2vh,14px)", overflowX:"auto", paddingBottom:2 }}>
+        {HOT_DEAL_TABS.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)} style={{
             flexShrink:0, padding:"5px 14px", borderRadius:20, cursor:"pointer",
-            border:`0.5px solid ${cat===c.key ? C.green : C.border}`,
-            background: cat===c.key ? C.green : "transparent",
-            color: cat===c.key ? "#000" : C.muted,
+            border:`0.5px solid ${tab===t.key ? t.color : C.border}`,
+            background: tab===t.key ? `${t.color}22` : "transparent",
+            color: tab===t.key ? t.color : C.muted,
             fontSize:11, fontWeight:500, letterSpacing:"1px", textTransform:"uppercase", transition:"all .15s",
-          }}>{c.label}</button>
+          }}>{t.label}</button>
         ))}
       </div>
 
-      {visible.length > 0 ? (
+      {loading ? (
+        <div style={{ padding:"24px 0", fontSize:11, color:"#444", letterSpacing:"2px", textTransform:"uppercase" }}>Loading deals…</div>
+      ) : deals.length > 0 ? (
         <div style={{ display:"flex", gap:"clamp(10px,2vw,14px)", overflowX:"auto", paddingBottom:8, scrollSnapType:"x mandatory", marginLeft:"-clamp(18px,5vw,48px)", marginRight:"-clamp(18px,5vw,48px)", paddingLeft:"clamp(18px,5vw,48px)", paddingRight:"clamp(18px,5vw,48px)" }}>
-          {visible.map(d => (
-            <div key={d.dealID} style={{ width:"clamp(130px,20vw,170px)", flexShrink:0, scrollSnapAlign:"start" }}>
-              <DealCard deal={d} />
-            </div>
+          {deals.map((d,i) => (
+            <a key={i} href={d.url} target="_blank" rel="noopener noreferrer"
+              style={{ display:"block", width:"clamp(130px,20vw,165px)", flexShrink:0, scrollSnapAlign:"start", textDecoration:"none" }}>
+              <div style={{ position:"relative", borderRadius:8, overflow:"hidden", boxShadow:"0 4px 20px rgba(0,0,0,.6)", aspectRatio:"2/3", background:C.surface }}>
+                {d.image
+                  ? <Img src={d.image} style={{ width:"100%", height:"100%" }} />
+                  : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", padding:"12px" }}>
+                      <span style={{ fontSize:11, color:"#555", textAlign:"center", lineHeight:1.4 }}>{d.title}</span>
+                    </div>
+                }
+                <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(10,10,10,.97) 0%, rgba(10,10,10,.1) 55%, transparent 100%)" }} />
+                {/* Discount badge */}
+                <div style={{ position:"absolute", top:8, left:8, background:C.green, borderRadius:5, padding:"3px 7px", fontSize:10, fontWeight:700, color:"#000" }}>-{d.cut}%</div>
+                {/* Platform badge */}
+                <div style={{ position:"absolute", top:8, right:8, fontSize:13, lineHeight:1 }}>{PLATFORM_ICON[d.storeId] || "🎮"}</div>
+                <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"clamp(8px,2vw,11px)" }}>
+                  <div style={{ fontSize:"clamp(10px,1.5vw,12px)", fontWeight:500, color:C.text, lineHeight:1.3, marginBottom:5, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{d.title}</div>
+                  <div style={{ display:"flex", alignItems:"baseline", gap:6 }}>
+                    <span style={{ fontSize:14, fontWeight:700, color:C.green }}>${d.salePrice}</span>
+                    <span style={{ fontSize:10, color:"#555", textDecoration:"line-through" }}>${d.normalPrice}</span>
+                  </div>
+                  <div style={{ fontSize:9, marginTop:3, color:storeColor(d.storeId), fontWeight:500, textTransform:"uppercase", letterSpacing:"0.5px" }}>{d.store}</div>
+                </div>
+              </div>
+            </a>
           ))}
         </div>
       ) : (
-        <div style={{ padding:"24px 0", fontSize:11, color:"#444", letterSpacing:"2px", textTransform:"uppercase" }}>
-          No {catDef.label} deals right now
-        </div>
+        <div style={{ padding:"24px 0", fontSize:11, color:"#444", letterSpacing:"2px", textTransform:"uppercase" }}>No deals right now</div>
       )}
     </div>
   );
