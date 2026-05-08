@@ -578,7 +578,7 @@ function GotyRace({ onGameClick }) {
         <div key={i} onClick={()=>onGameClick({ id:`goty-${i}`, title:game.title, developer:game.developer, cover:game.cover, hero:game.cover, year:2026, rating:0, status:"", goty:false, desc:"", review:"", publisher:"", genre:"", playtime:0 })}
           style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 0", borderBottom:`0.5px solid ${C.border}`, cursor:"pointer" }}>
           <div style={{ width:18, fontSize:11, fontWeight:500, color:rankColor(i), textAlign:"right", flexShrink:0 }}>{i+1}</div>
-          <div style={{ width:32, height:44, borderRadius:4, overflow:"hidden", flexShrink:0, background:C.faint }}>
+          <div style={{ width:52, height:70, borderRadius:5, overflow:"hidden", flexShrink:0, background:C.faint, boxShadow:"0 2px 8px rgba(0,0,0,.5)" }}>
             <Img src={game.cover} style={{ width:"100%", height:"100%" }} />
           </div>
           <div style={{ flex:1, minWidth:0 }}>
@@ -683,7 +683,7 @@ function GotyHistory({ onGameClick }) {
       {TGA_WINNERS.map(w => (
         <div key={w.year} onClick={() => onGameClick({ id:`tga-${w.year}`, title:w.title, developer:w.developer, cover:covers[w.year]||"", hero:covers[w.year]||"", year:w.year, rating:0, status:"", goty:true, desc:"", review:"", publisher:"", genre:"", playtime:0 })}
           style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 0", borderBottom:`0.5px solid ${C.border}`, cursor:"pointer" }}>
-          <div style={{ width:42, height:56, borderRadius:5, overflow:"hidden", flexShrink:0, background:C.faint }}>
+          <div style={{ width:58, height:78, borderRadius:6, overflow:"hidden", flexShrink:0, background:C.faint, boxShadow:"0 2px 10px rgba(0,0,0,.6)" }}>
             <Img src={covers[w.year]||""} style={{ width:"100%", height:"100%" }} />
           </div>
           <div style={{ flex:1, minWidth:0 }}>
