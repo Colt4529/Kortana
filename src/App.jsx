@@ -126,14 +126,15 @@ function StripeBar({ height=3, style }) {
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 function AuthScreen() {
-  const [mode, setMode]       = useState("sign-in");
-  const [email, setEmail]     = useState("");
+  const [mode, setMode]           = useState("sign-in");
+  const [email, setEmail]         = useState("");
   const [password, setPassword]   = useState("");
   const [confirm, setConfirm]     = useState("");
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [loading, setLoading]     = useState(false);
+  const [message, setMessage]     = useState("");
+  const [sentTo, setSentTo]       = useState("");  // non-empty = show email-sent screen
 
-  const switchMode = m => { setMode(m); setMessage(""); setConfirm(""); };
+  const switchMode = m => { setMode(m); setMessage(""); setConfirm(""); setSentTo(""); };
 
   const submit = async () => {
     setMessage("");
@@ -149,8 +150,8 @@ function AuthScreen() {
       if (error) setMessage(error.message);
     } else {
       const { error } = await supabase.auth.signUp({ email: trimmedEmail, password });
-      if (error) setMessage(error.message);
-      else setMessage("Check your email to confirm your account.");
+      if (error) { setMessage(error.message); }
+      else { setSentTo(trimmedEmail); }
     }
     setLoading(false);
   };
@@ -166,6 +167,29 @@ function AuthScreen() {
 
   const mismatch = mode === "sign-up" && confirm.length > 0 && password !== confirm;
   const matched  = mode === "sign-up" && confirm.length > 0 && password === confirm;
+
+  if (sentTo) return (
+    <div style={{ minHeight:"100vh", background:C.bg, color:C.text, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"0 32px" }}>
+      <div style={{ width:"100%", maxWidth:340, textAlign:"center" }}>
+        <div style={{ fontSize:52, marginBottom:20 }}>📬</div>
+        <div style={{ fontSize:22, fontWeight:600, letterSpacing:"-0.5px", marginBottom:10 }}>Check your inbox</div>
+        <div style={{ fontSize:14, color:"#555", lineHeight:1.6, marginBottom:8 }}>
+          We sent a confirmation link to
+        </div>
+        <div style={{ fontSize:14, fontWeight:600, color:C.blue, marginBottom:28 }}>{sentTo}</div>
+        <div style={{ fontSize:13, color:"#444", lineHeight:1.6, marginBottom:36 }}>
+          Click the link in that email to verify your account — you only need to do this once. After confirming, come back here to sign in.
+        </div>
+        <button onClick={() => switchMode("sign-in")} style={{
+          width:"100%", padding:"15px 0", borderRadius:10, border:"none",
+          background:C.blue, color:"#fff", fontWeight:500, fontSize:15,
+          cursor:"pointer", letterSpacing:"0.04em",
+        }}>
+          Go to Sign In →
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"0 32px" }}>
