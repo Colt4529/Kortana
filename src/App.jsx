@@ -1123,7 +1123,7 @@ function SteamLibraryStats({ steamId }) {
 // ── DESKTOP PANELS ────────────────────────────────────────────────────────────
 function DesktopLeftPanel() {
   return (
-    <div style={{ width:260, flexShrink:0, position:"sticky", top:58, height:"calc(100vh - 58px - 62px)", overflowY:"auto", borderRight:`0.5px solid ${C.border}`, padding:"0 20px 20px" }}>
+    <div style={{ width:220, flexShrink:0, position:"sticky", top:58, height:"calc(100vh - 58px - 62px)", overflowY:"auto", borderRight:`0.5px solid ${C.border}`, padding:"0 16px 20px" }}>
       <NewsRow />
     </div>
   );
@@ -1136,7 +1136,7 @@ function DesktopRightPanel({ logs, onGameClick }) {
   const rated     = logs.filter(l=>l.rating>0);
   const avgRating = rated.length ? (rated.reduce((s,l)=>s+l.rating,0)/rated.length).toFixed(1) : "—";
   return (
-    <div style={{ width:260, flexShrink:0, position:"sticky", top:58, height:"calc(100vh - 58px - 62px)", overflowY:"auto", borderLeft:`0.5px solid ${C.border}`, padding:"20px 20px 20px" }}>
+    <div style={{ width:220, flexShrink:0, position:"sticky", top:58, height:"calc(100vh - 58px - 62px)", overflowY:"auto", borderLeft:`0.5px solid ${C.border}`, padding:"20px 16px 20px" }}>
       {/* Mini stats */}
       <div style={{ marginBottom:28 }}>
         <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:14, fontWeight:500 }}>Your Stats</div>
@@ -2565,10 +2565,10 @@ export default function Kortana() {
         {detail ? (
           <GameDetail game={games.find(g=>g.id===detail.id)||detail} user={user} onBack={()=>setDetail(null)} onUpdate={g=>{updateGame(g);setDetail(g);}} onLogSaved={handleLogSaved} />
         ) : (
-          <div style={{ display: isDesktop ? "flex" : "block", alignItems:"flex-start", maxWidth: isDesktop ? 1600 : "100%", margin:"0 auto" }}>
+          <div style={{ display: isDesktop && tab==="home" ? "flex" : "block", alignItems:"flex-start", width:"100%" }}>
 
-            {/* Left sidebar — desktop only */}
-            {isDesktop && !detail && <DesktopLeftPanel />}
+            {/* Left sidebar — home tab desktop only */}
+            {isDesktop && tab==="home" && <DesktopLeftPanel />}
 
             {/* Center column */}
             <div style={{ flex:1, minWidth:0, overflow:"hidden" }}>
@@ -2579,8 +2579,8 @@ export default function Kortana() {
               {tab==="profile" && <ProfileScreen user={user} logs={logs} displayName={displayName} photoUrl={photoUrl} />}
             </div>
 
-            {/* Right sidebar — desktop only */}
-            {isDesktop && !detail && <DesktopRightPanel logs={logs} onGameClick={setDetail} />}
+            {/* Right sidebar — home tab desktop only */}
+            {isDesktop && tab==="home" && <DesktopRightPanel logs={logs} onGameClick={setDetail} />}
 
           </div>
         )}
