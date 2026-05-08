@@ -1996,9 +1996,196 @@ function FriendsModal({ onClose }) {
   );
 }
 
+// ── FAVORITE PICKER ───────────────────────────────────────────────────────────
+function FavoritePicker({ onPick, onClose }) {
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const query = q.trim();
+    if (!query) { setResults([]); return; }
+    setLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const data = await igdb("games", `
+          search "${query.replace(/"/g, '\\"')}";
+          fields id, name, cover.image_id, first_release_date;
+          where cover != null & version_parent = null & (rating_count > 0 | hypes > 5);
+          limit 8;
+        `);
+        setResults(Array.isArray(data) ? data.filter(g => g.cover?.image_id) : []);
+      } catch {}
+      setLoading(false);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  return (
+    <div onClick={e=>e.target===e.currentTarget&&onClose()} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.88)", zIndex:500, display:"flex", alignItems:"flex-end", justifyContent:"center", backdropFilter:"blur(16px)" }}>
+      <div style={{ background:C.surface, borderRadius:"16px 16px 0 0", width:"100%", maxWidth:480, paddingBottom:40, border:`0.5px solid ${C.border}`, borderBottom:"none", animation:"slideUp .22s ease", overflow:"hidden", maxHeight:"85vh", display:"flex", flexDirection:"column" }}>
+        <StripeBar height={3} />
+        <div style={{ display:"flex", justifyContent:"center", padding:"12px 0 8px" }}>
+          <div style={{ width:36, height:3, borderRadius:2, background:C.border }} />
+        </div>
+        <div style={{ padding:"0 20px 14px" }}>
+          <div style={{ fontSize:13, fontWeight:500, color:"#666", letterSpacing:"2px", textTransform:"uppercase", marginBottom:14 }}>Add to Top 5</div>
+          <input autoFocus value={q} onChange={e=>setQ(e.target.value)} placeholder="Search any game…"
+            style={{ width:"100%", background:C.faint, border:`0.5px solid ${C.border}`, borderRadius:8, padding:"12px 14px", color:C.text, fontSize:14, outline:"none", boxSizing:"border-box" }} />
+        </div>
+        <div style={{ overflowY:"auto", flex:1 }}>
+          {loading && <div style={{ padding:"20px", textAlign:"center", fontSize:11, color:"#444", letterSpacing:"2px" }}>Searching…</div>}
+          {!loading && results.map(g => (
+            <div key={g.id} onClick={() => onPick({ id:g.id, title:g.name, cover:igdbImg(g.cover.image_id, "cover_big_2x") })}
+              style={{ display:"flex", gap:14, padding:"12px 20px", borderBottom:`0.5px solid ${C.border}`, cursor:"pointer", alignItems:"center", transition:"background .1s" }}
+              onMouseEnter={e=>e.currentTarget.style.background=C.faint}
+              onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <div style={{ width:38, height:50, borderRadius:4, overflow:"hidden", flexShrink:0, background:C.faint }}>
+                <img src={igdbImg(g.cover.image_id, "cover_big_2x")} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+              </div>
+              <div>
+                <div style={{ fontSize:13, fontWeight:500, color:C.text }}>{g.name}</div>
+                {g.first_release_date && <div style={{ fontSize:11, color:"#555", marginTop:2 }}>{new Date(g.first_release_date*1000).getFullYear()}</div>}
+              </div>
+            </div>
+          ))}
+          {!loading && q.trim() && !results.length && <div style={{ padding:"20px", textAlign:"center", fontSize:11, color:"#444", letterSpacing:"2px" }}>No results</div>}
+          {!q.trim() && <div style={{ padding:"20px", textAlign:"center", fontSize:11, color:"#333", letterSpacing:"1.5px" }}>Type a game title to search</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── ONBOARDING ────────────────────────────────────────────────────────────────
+function OnboardingFlow({ user, onDone }) {
+  const [step, setStep] = useState(0);
+  const [games, setGames] = useState([]);
+  const [ratings, setRatings] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (step !== 1) return;
+    setLoading(true);
+    igdb("games", `
+      fields id, name, cover.image_id, artworks.image_id, screenshots.image_id,
+        involved_companies.company.name, involved_companies.developer,
+        external_games.uid, external_games.category, rating, rating_count;
+      where rating_count > 1000 & platforms = (${IGDB_PLATFORMS}) & cover != null
+        & version_parent = null & rating > 85;
+      sort rating_count desc;
+      limit 15;
+    `).then(data => {
+      if (Array.isArray(data)) setGames(data.filter(g=>g.cover?.image_id).map(normalizeIgdbGame));
+      setLoading(false);
+    }).catch(()=>setLoading(false));
+  }, [step]);
+
+  const rated = Object.values(ratings).filter(v=>v>0).length;
+  const finish = () => {
+    localStorage.setItem(`kortana_onboarded_${user.id}`, "1");
+    onDone();
+  };
+
+  if (step === 0) return (
+    <div style={{ position:"fixed", inset:0, background:C.bg, zIndex:600, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"clamp(24px,6vw,60px)" }}>
+      <div style={{ position:"absolute", inset:0, backgroundImage:`linear-gradient(${C.border} 1px,transparent 1px),linear-gradient(90deg,${C.border} 1px,transparent 1px)`, backgroundSize:"60px 60px", opacity:0.2 }} />
+      <div style={{ position:"absolute", top:0, left:0, right:0, height:"50%", background:`radial-gradient(ellipse 80% 60% at 50% 0%, ${C.blue}30, transparent 70%)`, pointerEvents:"none" }} />
+      <div style={{ position:"relative", zIndex:1, textAlign:"center", maxWidth:400 }}>
+        <svg width="64" height="64" viewBox="0 0 110 110" fill="none" style={{ marginBottom:24 }}>
+          <path d="M16 10 L16 100 L34 100 L34 62 L68 100 L92 100 L54 55 L90 10 L66 10 L34 46 L34 10 Z" fill="none" stroke={C.blue} strokeWidth="5"/>
+          <path d="M90 10 L54 55" stroke={C.pink} strokeWidth="5" fill="none"/>
+          <path d="M34 62 L68 100 L92 100" stroke={C.yellow} strokeWidth="5" fill="none"/>
+          <path d="M54 55 L92 100" stroke={C.green} strokeWidth="5" fill="none"/>
+        </svg>
+        <div style={{ fontSize:"clamp(28px,6vw,40px)", fontWeight:600, letterSpacing:"-1px", marginBottom:12 }}>Welcome to Kortana</div>
+        <div style={{ fontSize:15, color:C.muted, lineHeight:1.7, marginBottom:40 }}>Your gaming life, all in one place. Track what you play, discover what's next, and build your collection.</div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:40, textAlign:"left" }}>
+          {[["📖","Diary","Log every game you play"],["⭐","Rate","Rate and review your games"],["🔍","Discover","Browse top games by genre"],["📋","Lists","Build custom game collections"]].map(([icon,title,desc])=>(
+            <div key={title} style={{ background:C.surface, borderRadius:12, padding:"16px 14px", border:`0.5px solid ${C.border}` }}>
+              <div style={{ fontSize:20, marginBottom:6 }}>{icon}</div>
+              <div style={{ fontSize:13, fontWeight:500, color:C.text, marginBottom:3 }}>{title}</div>
+              <div style={{ fontSize:11, color:"#555", lineHeight:1.4 }}>{desc}</div>
+            </div>
+          ))}
+        </div>
+        <button onClick={()=>setStep(1)} style={{ width:"100%", padding:"16px 0", borderRadius:12, border:"none", background:`linear-gradient(135deg,${C.blue},${C.pink})`, color:"#fff", fontWeight:600, fontSize:15, cursor:"pointer", letterSpacing:"0.5px" }}>
+          Let's Go →
+        </button>
+        <button onClick={finish} style={{ marginTop:14, background:"none", border:"none", color:"#444", fontSize:12, cursor:"pointer", letterSpacing:"1px" }}>Skip for now</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:C.bg, zIndex:600, overflowY:"auto" }}>
+      <div style={{ position:"absolute", top:0, left:0, right:0, height:"30%", background:`radial-gradient(ellipse 80% 60% at 50% 0%, ${C.pink}20, transparent 70%)`, pointerEvents:"none" }} />
+      <div style={{ position:"relative", zIndex:1, maxWidth:540, margin:"0 auto", padding:"clamp(24px,6vw,60px) clamp(20px,5vw,40px) 100px" }}>
+        <div style={{ marginBottom:32 }}>
+          <div style={{ fontSize:10, color:C.pink, fontWeight:600, letterSpacing:"3px", textTransform:"uppercase", marginBottom:8 }}>Step 2 of 2</div>
+          <div style={{ fontSize:"clamp(22px,4vw,30px)", fontWeight:600, letterSpacing:"-0.5px", marginBottom:8 }}>Rate some games</div>
+          <div style={{ fontSize:13, color:C.muted, lineHeight:1.6 }}>Rate at least 5 games you've played. This helps Kortana personalise your experience.</div>
+        </div>
+
+        <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:32 }}>
+          {loading && <div style={{ textAlign:"center", padding:40, fontSize:11, color:"#444", letterSpacing:"2px" }}>Loading games…</div>}
+          {!loading && games.map(g => {
+            const r = ratings[g.id] || 0;
+            return (
+              <div key={g.id} style={{ display:"flex", gap:14, padding:"14px", background:r>0?`${C.blue}12`:C.surface, borderRadius:12, border:`0.5px solid ${r>0?C.blue:C.border}`, alignItems:"center", transition:"all .15s" }}>
+                <div style={{ width:44, height:60, borderRadius:6, overflow:"hidden", flexShrink:0 }}>
+                  <Img src={g.cover} style={{ width:"100%", height:"100%" }} />
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:500, marginBottom:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{g.title}</div>
+                  <div style={{ fontSize:11, color:C.muted }}>{g.year}</div>
+                </div>
+                <Stars value={r} onChange={v=>setRatings(prev=>({...prev,[g.id]:v}))} size={22} />
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"16px clamp(20px,5vw,40px)", background:`${C.bg}ee`, backdropFilter:"blur(12px)", borderTop:`0.5px solid ${C.border}` }}>
+          <div style={{ maxWidth:540, margin:"0 auto", display:"flex", alignItems:"center", gap:16 }}>
+            <div style={{ fontSize:12, color:rated>=5?C.green:C.muted, flex:1 }}>{rated>=5?"Ready!" : `Rate ${5-rated} more to continue`}</div>
+            <button onClick={finish} disabled={rated<5} style={{ padding:"13px 28px", borderRadius:10, border:"none", background:rated>=5?`linear-gradient(135deg,${C.blue},${C.pink})`:"#1a1a1a", color:rated>=5?"#fff":C.muted, fontWeight:600, fontSize:14, cursor:rated>=5?"pointer":"default", transition:"all .2s" }}>
+              {rated>=5?"Finish Setup →":"Rate 5 to continue"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── PROFILE ───────────────────────────────────────────────────────────────────
 function ProfileScreen({ user, logs, displayName, photoUrl }) {
-  const [avatarErr, setAvatarErr] = useState(false);
+  const [avatarErr, setAvatarErr]   = useState(false);
+  const [pickerSlot, setPickerSlot] = useState(null); // 0-4
+  const [favorites, setFavorites]   = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`kortana_favs_${user.id}`)) || [null,null,null,null,null]; }
+    catch { return [null,null,null,null,null]; }
+  });
+
+  const saveFavs = favs => {
+    setFavorites(favs);
+    try { localStorage.setItem(`kortana_favs_${user.id}`, JSON.stringify(favs)); } catch {}
+  };
+
+  const pickGame = game => {
+    const next = [...favorites];
+    next[pickerSlot] = game;
+    saveFavs(next);
+    setPickerSlot(null);
+  };
+
+  const removeSlot = i => {
+    const next = [...favorites];
+    next[i] = null;
+    saveFavs(next);
+  };
+
   const initial   = (displayName || user.email)[0].toUpperCase();
   const joinYear  = user.created_at ? new Date(user.created_at).getFullYear() : "";
   const played    = logs.filter(l => l.status === "played").length;
@@ -2006,23 +2193,17 @@ function ProfileScreen({ user, logs, displayName, photoUrl }) {
   const backlog   = logs.filter(l => l.status === "want to play").length;
   const rated     = logs.filter(l => l.rating > 0);
   const avgRating = rated.length ? (rated.reduce((s, l) => s + l.rating, 0) / rated.length).toFixed(1) : "—";
-  const top5      = [...logs].filter(l => l.rating > 0 && l.cover).sort((a, b) => b.rating - a.rating).slice(0, 5);
   const recent    = [...logs].slice(0, 8);
-  const RANK_COL  = [C.yellow, "#b0b0b0", "#cd7f32", C.muted, C.muted];
 
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, paddingBottom:100 }}>
+      {pickerSlot !== null && <FavoritePicker onPick={pickGame} onClose={()=>setPickerSlot(null)} />}
 
-      {/* Grid-line sci-fi overlay */}
       <div style={{ position:"fixed", inset:0, zIndex:0, pointerEvents:"none",
         backgroundImage:`linear-gradient(${C.border} 1px,transparent 1px),linear-gradient(90deg,${C.border} 1px,transparent 1px)`,
         backgroundSize:"60px 60px", opacity:0.25 }} />
-
-      {/* Blue radial hero glow */}
       <div style={{ position:"absolute", top:0, left:0, right:0, height:420, zIndex:0, pointerEvents:"none",
         background:`radial-gradient(ellipse 90% 55% at 50% -5%, ${C.blue}35 0%, transparent 72%)` }} />
-
-      {/* Pink accent glow right */}
       <div style={{ position:"absolute", top:80, right:0, width:280, height:280, zIndex:0, pointerEvents:"none",
         background:`radial-gradient(circle at 100% 0%, ${C.pink}18 0%, transparent 65%)` }} />
 
@@ -2030,8 +2211,6 @@ function ProfileScreen({ user, logs, displayName, photoUrl }) {
 
         {/* ── Identity ── */}
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center", paddingTop:"clamp(90px,14vh,118px)", paddingBottom:28 }}>
-
-          {/* Conic-gradient avatar ring */}
           <div style={{ width:118, height:118, borderRadius:"50%", padding:3,
             background:`conic-gradient(${C.blue}, ${C.pink}, ${C.yellow}, ${C.green}, ${C.blue})`,
             boxShadow:`0 0 44px ${C.blue}55, 0 0 90px ${C.blue}22`,
@@ -2043,24 +2222,19 @@ function ProfileScreen({ user, logs, displayName, photoUrl }) {
               }
             </div>
           </div>
-
-          {/* Online indicator */}
           <div style={{ display:"flex", alignItems:"center", gap:5, marginBottom:6 }}>
             <div style={{ width:6, height:6, borderRadius:"50%", background:C.green, boxShadow:`0 0 8px ${C.green}` }} />
             <span style={{ fontSize:9, color:C.green, letterSpacing:"2.5px", textTransform:"uppercase", fontWeight:500 }}>Online</span>
           </div>
-
           <div style={{ fontSize:"clamp(24px,5vw,32px)", fontWeight:600, letterSpacing:"-0.5px", marginBottom:5, textAlign:"center" }}>
             {displayName || "Operative"}
           </div>
           <div style={{ fontSize:9, color:"#444", letterSpacing:"3px", textTransform:"uppercase", marginBottom:32 }}>
             Kortana{joinYear ? ` · Since ${joinYear}` : ""}
           </div>
-
-          {/* Stats row */}
           <div style={{ display:"flex", gap:0, background:C.surface, borderRadius:14, border:`0.5px solid ${C.border}`, overflow:"hidden" }}>
             {[["Played",played,C.green],["Playing",playing,C.blue],["Backlog",backlog,C.yellow],["Avg Rating",avgRating,C.pink]].map(([label,val,col],i,a)=>(
-              <div key={label} style={{ padding:"16px clamp(14px,3.5vw,26px)", textAlign:"center", borderRight: i<a.length-1 ? `0.5px solid ${C.border}` : "none" }}>
+              <div key={label} style={{ padding:"16px clamp(14px,3.5vw,26px)", textAlign:"center", borderRight:i<a.length-1?`0.5px solid ${C.border}`:"none" }}>
                 <div style={{ fontSize:"clamp(22px,4vw,30px)", fontWeight:700, color:col, letterSpacing:"-1.5px", lineHeight:1, textShadow:`0 0 20px ${col}66` }}>{val}</div>
                 <div style={{ fontSize:9, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginTop:6 }}>{label}</div>
               </div>
@@ -2068,39 +2242,36 @@ function ProfileScreen({ user, logs, displayName, photoUrl }) {
           </div>
         </div>
 
-        {/* ── Top Rated ── */}
-        {top5.length > 0 && (
-          <div style={{ padding:"0 clamp(18px,5vw,48px)", marginBottom:40 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:22 }}>
-              <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2px", color:"#444", textTransform:"uppercase" }}>Top Rated</span>
-              <div style={{ flex:1, height:"0.5px", background:C.border }} />
-            </div>
-            <div style={{ display:"flex", gap:14, overflowX:"auto", paddingBottom:8 }}>
-              {top5.map((game, i) => (
-                <div key={game.id||i} style={{ flexShrink:0, width:116, position:"relative" }}>
-                  {/* Rank badge */}
-                  <div style={{ position:"absolute", top:-10, left:-10, zIndex:2,
-                    width:30, height:30, borderRadius:"50%",
-                    background: i===0 ? C.yellow : C.surface,
-                    border:`2px solid ${RANK_COL[i]}`,
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                    fontSize:10, fontWeight:700, color: i===0 ? "#000" : RANK_COL[i],
-                    boxShadow: i===0 ? `0 0 18px ${C.yellow}77` : "none",
-                  }}>#{i+1}</div>
-                  {/* Cover */}
-                  <div style={{ width:116, height:155, borderRadius:8, overflow:"hidden",
-                    boxShadow: i===0 ? `0 0 0 1.5px ${C.yellow}66, 0 8px 32px ${C.yellow}22, 0 8px 28px rgba(0,0,0,.8)` : "0 4px 18px rgba(0,0,0,.7)" }}>
-                    <Img src={game.cover} style={{ width:"100%", height:"100%" }} />
-                  </div>
-                  <div style={{ marginTop:9, paddingLeft:2 }}>
-                    <div style={{ fontSize:11, fontWeight:500, color:C.text, lineHeight:1.3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{game.title}</div>
-                    <Stars value={game.rating} size={9} />
-                  </div>
-                </div>
-              ))}
-            </div>
+        {/* ── Top 5 (Letterboxd-style curated) ── */}
+        <div style={{ padding:"0 clamp(18px,5vw,48px)", marginBottom:40 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:18 }}>
+            <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2px", color:"#444", textTransform:"uppercase" }}>Top 5</span>
+            <div style={{ flex:1, height:"0.5px", background:C.border }} />
+            <span style={{ fontSize:10, color:"#444", letterSpacing:"1px" }}>Tap to add</span>
           </div>
-        )}
+          <div style={{ display:"flex", gap:10 }}>
+            {favorites.map((fav, i) => (
+              <div key={i} style={{ flex:1, position:"relative" }}>
+                {fav ? (
+                  <>
+                    <div onClick={()=>setPickerSlot(i)} style={{ aspectRatio:"2/3", borderRadius:8, overflow:"hidden", cursor:"pointer", boxShadow:"0 4px 18px rgba(0,0,0,.7)", border:`0.5px solid ${C.border}` }}>
+                      <img src={fav.cover} alt={fav.title} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                    </div>
+                    <button onClick={e=>{e.stopPropagation();removeSlot(i);}} style={{ position:"absolute", top:4, right:4, width:20, height:20, borderRadius:"50%", background:"rgba(0,0,0,.8)", border:"none", color:"#888", fontSize:10, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>✕</button>
+                    <div style={{ marginTop:6, fontSize:10, fontWeight:500, color:C.text, lineHeight:1.3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textAlign:"center" }}>{fav.title}</div>
+                  </>
+                ) : (
+                  <div onClick={()=>setPickerSlot(i)} style={{ aspectRatio:"2/3", borderRadius:8, border:`1px dashed ${C.border}`, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor:"pointer", background:C.faint, transition:"border-color .15s" }}
+                    onMouseEnter={e=>e.currentTarget.style.borderColor=C.blue}
+                    onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
+                    <div style={{ fontSize:20, color:"#333", marginBottom:4 }}>+</div>
+                    <div style={{ fontSize:9, color:"#333", letterSpacing:"1px", textTransform:"uppercase" }}>{i+1}</div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* ── Recent Activity ── */}
         {recent.length > 0 && (
@@ -2110,8 +2281,7 @@ function ProfileScreen({ user, logs, displayName, photoUrl }) {
               <div style={{ flex:1, height:"0.5px", background:C.border }} />
             </div>
             {recent.map((log, i) => {
-              const ts     = log.created_at ? new Date(log.created_at) : null;
-              const timeAgo = ts ? relTime(ts) : "";
+              const ts = log.created_at ? new Date(log.created_at) : null;
               return (
                 <div key={log.id||i} style={{ display:"flex", gap:14, padding:"13px 0", borderBottom:`0.5px solid ${C.border}`, alignItems:"center" }}>
                   <div style={{ width:40, height:54, borderRadius:5, overflow:"hidden", flexShrink:0, boxShadow:"0 2px 10px rgba(0,0,0,.6)" }}>
@@ -2124,17 +2294,14 @@ function ProfileScreen({ user, logs, displayName, photoUrl }) {
                       {log.rating > 0 && <Stars value={log.rating} size={9} />}
                     </div>
                   </div>
-                  <div style={{ fontSize:10, color:"#444", flexShrink:0 }}>{timeAgo}</div>
+                  <div style={{ fontSize:10, color:"#444", flexShrink:0 }}>{ts ? relTime(ts) : ""}</div>
                 </div>
               );
             })}
           </div>
         )}
 
-        {logs.length === 0 && (
-          <Empty label="Log some games to build your profile" />
-        )}
-
+        {logs.length === 0 && <Empty label="Log some games to build your profile" />}
       </div>
     </div>
   );
@@ -2164,6 +2331,7 @@ export default function Kortana() {
   const [photoUrl, setPhotoUrl]           = useState("");
   const [steamId, setSteamId]             = useState("");
   const [showConnectSteam, setShowConnectSteam] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -2176,6 +2344,7 @@ export default function Kortana() {
         setDisplayName(u.user_metadata?.display_name || "");
         setPhotoUrl(u.user_metadata?.avatar_url || "");
         setSteamId(u.user_metadata?.steam_id || "");
+        if (!localStorage.getItem(`kortana_onboarded_${u.id}`)) setShowOnboarding(true);
       }
       setAuthLoading(false);
     };
@@ -2315,6 +2484,9 @@ export default function Kortana() {
             ))}
           </div>
         )}
+
+        {/* ── Onboarding ── */}
+        {showOnboarding && <OnboardingFlow user={user} onDone={()=>setShowOnboarding(false)} />}
 
         {/* ── Modals ── */}
         {settingsModal === "account" && (
