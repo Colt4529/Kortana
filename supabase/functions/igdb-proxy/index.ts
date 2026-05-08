@@ -54,6 +54,16 @@ serve(async (req) => {
       });
     }
 
+    // ── RSS proxy ─────────────────────────────────────────────────────────────
+    if (endpoint === "rss") {
+      const { feedUrl } = body;
+      const res = await fetch(feedUrl, { headers: { "User-Agent": "Mozilla/5.0 (compatible; Kortana/1.0)" } });
+      const xml = await res.text();
+      return new Response(JSON.stringify({ xml }), {
+        headers: { ...CORS, "Content-Type": "application/json" },
+      });
+    }
+
     // ── ITAD deals ─────────────────────────────────────────────────────────────
     if (endpoint === "itad/deals") {
       const key = Deno.env.get("ITAD_KEY")!;

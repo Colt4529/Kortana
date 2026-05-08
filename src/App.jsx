@@ -126,16 +126,24 @@ function StripeBar({ height=3, style }) {
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 function AuthScreen() {
-  const [mode, setMode]         = useState("sign-in");
-  const [email, setEmail]       = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading]   = useState(false);
-  const [message, setMessage]   = useState("");
+  const [mode, setMode]       = useState("sign-in");
+  const [email, setEmail]     = useState("");
+  const [password, setPassword]   = useState("");
+  const [confirm, setConfirm]     = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const switchMode = m => { setMode(m); setMessage(""); setConfirm(""); };
 
   const submit = async () => {
-    setLoading(true); setMessage("");
+    setMessage("");
     const trimmedEmail = email.trim();
-    if (!trimmedEmail || !password) { setMessage("Enter both email and password."); setLoading(false); return; }
+    if (!trimmedEmail || !password) { setMessage("Enter both email and password."); return; }
+    if (mode === "sign-up") {
+      if (password.length < 6) { setMessage("Password must be at least 6 characters."); return; }
+      if (password !== confirm) { setMessage("Passwords don't match."); return; }
+    }
+    setLoading(true);
     if (mode === "sign-in") {
       const { error } = await supabase.auth.signInWithPassword({ email: trimmedEmail, password });
       if (error) setMessage(error.message);
@@ -156,6 +164,9 @@ function AuthScreen() {
     boxSizing:"border-box", letterSpacing:"0.01em",
   };
 
+  const mismatch = mode === "sign-up" && confirm.length > 0 && password !== confirm;
+  const matched  = mode === "sign-up" && confirm.length > 0 && password === confirm;
+
   return (
     <div style={{ minHeight:"100vh", background:C.bg, color:C.text, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"0 32px" }}>
       <div style={{ width:"100%", maxWidth:340 }}>
@@ -175,7 +186,7 @@ function AuthScreen() {
         {/* Mode toggle */}
         <div style={{ display:"flex", gap:0, marginBottom:36, background:C.faint, borderRadius:10, padding:3 }}>
           {[["sign-in","Sign In"],["sign-up","Sign Up"]].map(([m,l])=>(
-            <button key={m} onClick={()=>{setMode(m);setMessage("");}} style={{
+            <button key={m} onClick={()=>switchMode(m)} style={{
               flex:1, padding:"10px 0", borderRadius:8, border:"none", cursor:"pointer",
               background: mode===m ? C.surface : "transparent",
               color: mode===m ? C.text : C.muted,
@@ -186,7 +197,7 @@ function AuthScreen() {
         </div>
 
         {/* Inputs */}
-        <div style={{ display:"grid", gap:0, marginBottom:28 }}>
+        <div style={{ marginBottom:28 }}>
           <input
             value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={onKey}
             placeholder="Email" type="email" autoComplete="email"
@@ -197,6 +208,17 @@ function AuthScreen() {
             placeholder="Password" autoComplete={mode==="sign-in"?"current-password":"new-password"}
             style={{ ...inp, marginTop:6 }}
           />
+          {mode === "sign-up" && (
+            <div style={{ position:"relative" }}>
+              <input
+                type="password" value={confirm} onChange={e=>setConfirm(e.target.value)} onKeyDown={onKey}
+                placeholder="Confirm password" autoComplete="new-password"
+                style={{ ...inp, marginTop:6, borderBottomColor: mismatch ? C.pink : matched ? C.green : C.border }}
+              />
+              {matched  && <span style={{ position:"absolute", right:0, top:"50%", transform:"translateY(-50%)", color:C.green, fontSize:16 }}>✓</span>}
+              {mismatch && <span style={{ position:"absolute", right:0, top:"50%", transform:"translateY(-50%)", color:C.pink,  fontSize:13 }}>✗</span>}
+            </div>
+          )}
         </div>
 
         {/* Error / success */}
@@ -205,11 +227,11 @@ function AuthScreen() {
         )}
 
         {/* CTA */}
-        <button onClick={submit} disabled={loading} style={{
+        <button onClick={submit} disabled={loading || (mode==="sign-up" && mismatch)} style={{
           width:"100%", padding:"15px 0", borderRadius:10, border:"none",
-          background: loading ? C.faint : C.pink,
-          color: loading ? C.muted : "#fff",
-          fontWeight:500, fontSize:15, cursor: loading ? "default" : "pointer",
+          background: loading || (mode==="sign-up" && mismatch) ? C.faint : C.pink,
+          color: loading || (mode==="sign-up" && mismatch) ? C.muted : "#fff",
+          fontWeight:500, fontSize:15, cursor: loading || (mode==="sign-up" && mismatch) ? "default" : "pointer",
           letterSpacing:"0.04em", transition:"background .2s",
         }}>
           {loading ? "Working…" : mode==="sign-in" ? "Sign In" : "Create Account"}
@@ -218,7 +240,7 @@ function AuthScreen() {
         {/* Swap mode */}
         <div style={{ textAlign:"center", marginTop:28 }}>
           <span style={{ fontSize:13, color:"#444" }}>{mode==="sign-in" ? "Don't have an account? " : "Already have an account? "}</span>
-          <button onClick={()=>{setMode(mode==="sign-in"?"sign-up":"sign-in");setMessage("");}} style={{ background:"none", border:"none", color:C.blue, fontSize:13, cursor:"pointer", fontWeight:500, padding:0 }}>
+          <button onClick={()=>switchMode(mode==="sign-in"?"sign-up":"sign-in")} style={{ background:"none", border:"none", color:C.blue, fontSize:13, cursor:"pointer", fontWeight:500, padding:0 }}>
             {mode==="sign-in" ? "Sign up" : "Sign in"}
           </button>
         </div>
@@ -784,26 +806,48 @@ function ConnectSteamSheet({ onConnect, onClose }) {
 // ── STEAM COMPONENTS ─────────────────────────────────────────────────────────
 // ── GAMING NEWS ───────────────────────────────────────────────────────────────
 const NEWS_FEEDS = [
-  { url:"https://gamerant.com/feed",          name:"Game Rant",  color:C.pink  },
-  { url:"https://www.eurogamer.net/feed",     name:"Eurogamer",  color:C.blue  },
-  { url:"https://www.pcgamer.com/rss/",       name:"PC Gamer",   color:C.green },
+  { url:"https://feeds.ign.com/ign/all-articles",  name:"IGN",        color:C.pink  },
+  { url:"https://gamerant.com/feed",               name:"Game Rant",  color:C.yellow },
+  { url:"https://www.eurogamer.net/feed",          name:"Eurogamer",  color:C.blue  },
+  { url:"https://www.pcgamer.com/rss/",            name:"PC Gamer",   color:C.green },
 ];
+
+function parseRSSXml(xml) {
+  const doc = new DOMParser().parseFromString(xml, "text/xml");
+  return Array.from(doc.querySelectorAll("item")).map(item => {
+    const get = tag => item.querySelector(tag)?.textContent?.trim() || "";
+    // thumbnail from media:content, enclosure, or og in description
+    const mediaUrl  = item.querySelector("content")?.getAttribute("url")
+                   || item.querySelector("enclosure")?.getAttribute("url")
+                   || "";
+    const descHtml  = get("description");
+    const imgMatch  = descHtml.match(/<img[^>]+src=["']([^"']+)["']/i);
+    const thumb     = mediaUrl || (imgMatch?.[1] ?? "");
+    return {
+      title:   get("title"),
+      link:    get("link") || item.querySelector("link")?.getAttribute("href") || "",
+      pubDate: get("pubDate") || get("published") || "",
+      thumbnail: thumb && !thumb.includes("1x1") && !thumb.includes("pixel") ? thumb : "",
+    };
+  });
+}
+
+async function fetchFeed(feed) {
+  const res = await fetch(IGDB_PROXY, {
+    method: "POST",
+    headers: PROXY_HEADERS,
+    body: JSON.stringify({ endpoint: "rss", feedUrl: feed.url }),
+  });
+  const { xml } = await res.json();
+  return parseRSSXml(xml).map(item => ({ ...item, _source: feed.name, _color: feed.color }));
+}
 
 function NewsRow() {
   const [articles, setArticles] = useState([]);
 
   useEffect(() => {
-    const RSS2JSON = "https://api.rss2json.com/v1/api.json?rss_url=";
-    Promise.allSettled(
-      NEWS_FEEDS.map(feed =>
-        fetch(`${RSS2JSON}${encodeURIComponent(feed.url)}`)
-          .then(r => r.json())
-          .then(d => (d.items || []).map(item => ({ ...item, _source: feed.name, _color: feed.color })))
-          .catch(() => [])
-      )
-    ).then(results => {
+    Promise.allSettled(NEWS_FEEDS.map(fetchFeed)).then(results => {
       const all = results.flatMap(r => r.status === "fulfilled" ? r.value : []);
-      // Sort by pubDate descending, dedupe by title
       const seen = new Set();
       const deduped = all
         .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
@@ -812,7 +856,7 @@ function NewsRow() {
           seen.add(a.title);
           return true;
         });
-      setArticles(deduped.slice(0, 24));
+      setArticles(deduped.slice(0, 30));
     });
   }, []);
 
@@ -835,22 +879,19 @@ function NewsRow() {
       <div style={{ display:"flex", flexDirection:"column" }}>
         {articles.map((a, i) => {
           const ts = a.pubDate ? relTime(new Date(a.pubDate)) : "";
-          const thumb = a.thumbnail && !a.thumbnail.includes("1x1") ? a.thumbnail : null;
           return (
             <a key={i} href={a.link} target="_blank" rel="noopener noreferrer"
               style={{ display:"flex", gap:12, padding:"12px 0", borderBottom:`0.5px solid ${C.border}`, textDecoration:"none", alignItems:"center", transition:"opacity .15s" }}
               onMouseEnter={e=>e.currentTarget.style.opacity="0.7"}
               onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
-              {/* Thumbnail */}
-              <div style={{ width:76, height:54, borderRadius:6, overflow:"hidden", flexShrink:0, background:C.faint }}>
-                {thumb
-                  ? <img src={thumb} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e=>{ e.target.style.display="none"; }} />
+              <div style={{ width:76, height:54, borderRadius:6, overflow:"hidden", flexShrink:0, background:C.faint, flexShrink:0 }}>
+                {a.thumbnail
+                  ? <img src={a.thumbnail} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e=>{ e.target.parentNode.style.background=`${a._color}18`; e.target.style.display="none"; }} />
                   : <div style={{ width:"100%", height:"100%", background:`${a._color}18`, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                      <span style={{ fontSize:9, color:a._color, fontWeight:700, letterSpacing:"1px" }}>{a._source?.[0]}</span>
+                      <span style={{ fontSize:11, color:a._color, fontWeight:700 }}>{a._source?.[0]}</span>
                     </div>
                 }
               </div>
-              {/* Text */}
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:4 }}>
                   <span style={{ fontSize:8, fontWeight:700, color:a._color, letterSpacing:"1.5px", textTransform:"uppercase" }}>{a._source}</span>
