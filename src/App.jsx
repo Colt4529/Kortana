@@ -1036,11 +1036,44 @@ function SteamLibraryStats({ steamId }) {
   );
 }
 
+// ── DESKTOP PANELS ────────────────────────────────────────────────────────────
+function DesktopLeftPanel() {
+  return (
+    <div style={{ width:260, flexShrink:0, position:"sticky", top:58, height:"calc(100vh - 58px - 62px)", overflowY:"auto", borderRight:`0.5px solid ${C.border}`, padding:"0 20px 20px" }}>
+      <NewsRow />
+    </div>
+  );
+}
+
+function DesktopRightPanel({ logs, onGameClick }) {
+  const played    = logs.filter(l=>l.status==="played").length;
+  const playing   = logs.filter(l=>l.status==="playing").length;
+  const backlog   = logs.filter(l=>l.status==="want to play").length;
+  const rated     = logs.filter(l=>l.rating>0);
+  const avgRating = rated.length ? (rated.reduce((s,l)=>s+l.rating,0)/rated.length).toFixed(1) : "—";
+  return (
+    <div style={{ width:260, flexShrink:0, position:"sticky", top:58, height:"calc(100vh - 58px - 62px)", overflowY:"auto", borderLeft:`0.5px solid ${C.border}`, padding:"20px 20px 20px" }}>
+      {/* Mini stats */}
+      <div style={{ marginBottom:28 }}>
+        <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:14, fontWeight:500 }}>Your Stats</div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+          {[["Played",played,C.green],["Playing",playing,C.blue],["Backlog",backlog,C.yellow],["Avg",avgRating,C.pink]].map(([label,val,col])=>(
+            <div key={label} style={{ background:C.surface, borderRadius:8, padding:"12px 10px", textAlign:"center", border:`0.5px solid ${C.border}` }}>
+              <div style={{ fontSize:20, fontWeight:600, color:col, letterSpacing:"-0.5px", lineHeight:1 }}>{val}</div>
+              <div style={{ fontSize:8, color:"#444", letterSpacing:"1.5px", textTransform:"uppercase", marginTop:5 }}>{label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* GOTY Race */}
+      <GotyRace onGameClick={onGameClick} />
+    </div>
+  );
+}
+
 // ── HOME ──────────────────────────────────────────────────────────────────────
-function HomeScreen({ games, logs, onGameClick, steamId, onConnectSteam }) {
+function HomeScreen({ games, logs, onGameClick, steamId, onConnectSteam, isDesktop }) {
   const vw      = useWindowWidth();
-  const wide    = vw >= 860;
-  const xl      = vw >= 1280;
   const hasLogs = logs.length > 0;
   const played  = hasLogs ? logs.filter(g=>g.status==="played") : [];
   const playing = hasLogs ? logs.filter(g=>g.status==="playing") : [];
@@ -1089,84 +1122,66 @@ function HomeScreen({ games, logs, onGameClick, steamId, onConnectSteam }) {
         ))}
       </div>
 
-      {/* Body — responsive columns */}
-      <div style={{
-        display: wide ? "grid" : "block",
-        gridTemplateColumns: xl ? "1fr 300px 280px" : wide ? "1fr 280px" : "1fr",
-        gap: wide ? "clamp(24px,3vw,48px)" : 0,
-        padding: "0 clamp(18px,5vw,48px)",
-        alignItems: "start",
-      }}>
-
-        {/* Main column */}
-        <div>
-          <div style={{ paddingTop:32 }}>
-            <SectionHead label="Recently Logged" />
-            {hasLogs ? (
-              <div style={{ display:"flex", gap:"clamp(10px,2vw,14px)", overflowX:"auto", paddingBottom:4, scrollSnapType:"x mandatory", marginLeft:"-clamp(18px,5vw,48px)", marginRight:"-clamp(18px,5vw,48px)", paddingLeft:"clamp(18px,5vw,48px)", paddingRight:"clamp(18px,5vw,48px)" }}>
-                {[...logs].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).slice(0,8).map(g=>(
-                  <div key={g.id} style={{ width:"clamp(180px,32vw,260px)", flexShrink:0, scrollSnapAlign:"start" }}>
-                    <PosterCard game={g} onClick={onGameClick} />
-                  </div>
-                ))}
-              </div>
-            ) : <Empty label="No games logged yet" />}
-          </div>
-
-          {playing.length > 0 && (
-            <div style={{ paddingTop:32 }}>
-              <SectionHead label="Currently Playing" />
-              {playing.map((g,i)=><DiaryRow key={g.id} game={g} index={i} onClick={onGameClick} />)}
-            </div>
-          )}
-
-          {/* Steam section */}
-          {steamId ? (
-            <div style={{ paddingTop:32 }}>
-              <SectionHead label="Steam Library" />
-              <SteamLibraryStats steamId={steamId} />
-            </div>
-          ) : (
-            <div style={{ paddingTop:32 }}>
-              <div onClick={onConnectSteam} style={{ display:"flex", alignItems:"center", gap:16, padding:"clamp(16px,3vw,20px)", background:"linear-gradient(135deg, rgba(27,40,56,.9) 0%, rgba(13,17,23,.95) 100%)", borderRadius:12, border:"0.5px solid #2a475e44", cursor:"pointer", transition:"opacity .15s" }}>
-                <div style={{ width:44, height:44, borderRadius:10, background:"rgba(27,40,56,1)", border:"0.5px solid #2a475e", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489l3.075-3.739A3.5 3.5 0 0 1 15.5 11h.5l3.739-3.075A9.956 9.956 0 0 0 12 2z" fill="#1b9af0" opacity=".9"/>
-                    <path d="M11.97 14.5A2.5 2.5 0 1 0 9.47 12" stroke="#fff" strokeWidth="1.5" fill="none"/>
-                  </svg>
+      {/* Body — single column (sidebars handled globally on desktop) */}
+      <div style={{ padding:"0 clamp(18px,5vw,48px)" }}>
+        <div style={{ paddingTop:32 }}>
+          <SectionHead label="Recently Logged" />
+          {hasLogs ? (
+            <div style={{ display:"flex", gap:"clamp(10px,2vw,14px)", overflowX:"auto", paddingBottom:4, scrollSnapType:"x mandatory", marginLeft:"-clamp(18px,5vw,48px)", marginRight:"-clamp(18px,5vw,48px)", paddingLeft:"clamp(18px,5vw,48px)", paddingRight:"clamp(18px,5vw,48px)" }}>
+              {[...logs].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).slice(0,8).map(g=>(
+                <div key={g.id} style={{ width:"clamp(180px,32vw,260px)", flexShrink:0, scrollSnapAlign:"start" }}>
+                  <PosterCard game={g} onClick={onGameClick} />
                 </div>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:14, fontWeight:500, color:C.text, marginBottom:3 }}>Connect Steam</div>
-                  <div style={{ fontSize:12, color:C.muted }}>Sync your library, playtime & recently played</div>
-                </div>
-                <div style={{ color:"#2a475e", fontSize:20, flexShrink:0 }}>›</div>
-              </div>
+              ))}
             </div>
-          )}
-
-          {/* News on mobile/tablet only — on xl it moves to 2nd column */}
-          {!xl && <NewsRow />}
-
-          <div style={{ paddingTop:32 }}>
-            <SectionHead label="New & Hot" />
-            <NewAndHot onGameClick={onGameClick} />
-          </div>
-
-          <SteamRecentRow steamId={steamId} onGameClick={onGameClick} />
+          ) : <Empty label="No games logged yet" />}
         </div>
 
-        {/* News column — only on xl (1280px+) */}
-        {xl && (
-          <div style={{ paddingTop:32, position:"sticky", top:80 }}>
-            <NewsRow />
+        {playing.length > 0 && (
+          <div style={{ paddingTop:32 }}>
+            <SectionHead label="Currently Playing" />
+            {playing.map((g,i)=><DiaryRow key={g.id} game={g} index={i} onClick={onGameClick} />)}
           </div>
         )}
 
-        {/* GOTY Race sidebar */}
-        <div style={{ paddingTop:32, position: wide ? "sticky" : "static", top:80 }}>
-          <GotyRace onGameClick={onGameClick} />
+        {steamId ? (
+          <div style={{ paddingTop:32 }}>
+            <SectionHead label="Steam Library" />
+            <SteamLibraryStats steamId={steamId} />
+          </div>
+        ) : (
+          <div style={{ paddingTop:32 }}>
+            <div onClick={onConnectSteam} style={{ display:"flex", alignItems:"center", gap:16, padding:"clamp(16px,3vw,20px)", background:"linear-gradient(135deg, rgba(27,40,56,.9) 0%, rgba(13,17,23,.95) 100%)", borderRadius:12, border:"0.5px solid #2a475e44", cursor:"pointer", transition:"opacity .15s" }}>
+              <div style={{ width:44, height:44, borderRadius:10, background:"rgba(27,40,56,1)", border:"0.5px solid #2a475e", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489l3.075-3.739A3.5 3.5 0 0 1 15.5 11h.5l3.739-3.075A9.956 9.956 0 0 0 12 2z" fill="#1b9af0" opacity=".9"/>
+                  <path d="M11.97 14.5A2.5 2.5 0 1 0 9.47 12" stroke="#fff" strokeWidth="1.5" fill="none"/>
+                </svg>
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:14, fontWeight:500, color:C.text, marginBottom:3 }}>Connect Steam</div>
+                <div style={{ fontSize:12, color:C.muted }}>Sync your library, playtime & recently played</div>
+              </div>
+              <div style={{ color:"#2a475e", fontSize:20, flexShrink:0 }}>›</div>
+            </div>
+          </div>
+        )}
+
+        {/* News + GOTY inline on mobile only */}
+        {!isDesktop && <NewsRow />}
+
+        <div style={{ paddingTop:32 }}>
+          <SectionHead label="New & Hot" />
+          <NewAndHot onGameClick={onGameClick} />
         </div>
 
+        <SteamRecentRow steamId={steamId} onGameClick={onGameClick} />
+
+        {!isDesktop && (
+          <div style={{ paddingTop:32 }}>
+            <GotyRace onGameClick={onGameClick} />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2332,6 +2347,8 @@ export default function Kortana() {
   const [steamId, setSteamId]             = useState("");
   const [showConnectSteam, setShowConnectSteam] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const vw        = useWindowWidth();
+  const isDesktop = vw >= 960;
 
   useEffect(() => {
     let mounted = true;
@@ -2464,13 +2481,24 @@ export default function Kortana() {
         {detail ? (
           <GameDetail game={games.find(g=>g.id===detail.id)||detail} user={user} onBack={()=>setDetail(null)} onUpdate={g=>{updateGame(g);setDetail(g);}} onLogSaved={handleLogSaved} />
         ) : (
-          <>
-            {tab==="home"    && <HomeScreen    games={games} logs={logs} onGameClick={setDetail} steamId={steamId} onConnectSteam={()=>setShowConnectSteam(true)} />}
-            {tab==="diary"   && <DiaryScreen   logs={logs} onGameClick={setDetail} />}
-            {tab==="browse"  && <BrowseScreen  games={games} onGameClick={setDetail} />}
-            {tab==="lists"   && <ListsScreen   lists={lists} games={[...new Map(logs.map(l=>[l.game_id||l.id,{...l,id:l.game_id||l.id,hero:l.cover}])).values()]} setLists={setLists} onGameClick={setDetail} />}
-            {tab==="profile" && <ProfileScreen user={user} logs={logs} displayName={displayName} photoUrl={photoUrl} />}
-          </>
+          <div style={{ display: isDesktop ? "flex" : "block", alignItems:"flex-start", maxWidth: isDesktop ? 1600 : "100%", margin:"0 auto" }}>
+
+            {/* Left sidebar — desktop only */}
+            {isDesktop && !detail && <DesktopLeftPanel />}
+
+            {/* Center column */}
+            <div style={{ flex:1, minWidth:0, overflow:"hidden" }}>
+              {tab==="home"    && <HomeScreen    games={games} logs={logs} onGameClick={setDetail} steamId={steamId} onConnectSteam={()=>setShowConnectSteam(true)} isDesktop={isDesktop} />}
+              {tab==="diary"   && <DiaryScreen   logs={logs} onGameClick={setDetail} />}
+              {tab==="browse"  && <BrowseScreen  games={games} onGameClick={setDetail} />}
+              {tab==="lists"   && <ListsScreen   lists={lists} games={[...new Map(logs.map(l=>[l.game_id||l.id,{...l,id:l.game_id||l.id,hero:l.cover}])).values()]} setLists={setLists} onGameClick={setDetail} />}
+              {tab==="profile" && <ProfileScreen user={user} logs={logs} displayName={displayName} photoUrl={photoUrl} />}
+            </div>
+
+            {/* Right sidebar — desktop only */}
+            {isDesktop && !detail && <DesktopRightPanel logs={logs} onGameClick={setDetail} />}
+
+          </div>
         )}
 
         {/* ── Bottom tab bar ── */}
