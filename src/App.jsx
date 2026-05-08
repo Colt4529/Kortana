@@ -445,7 +445,7 @@ function GameDetail({ game, onBack, onUpdate, user }) {
         <button onClick={onBack} style={{ position:"absolute", top:"clamp(54px,10vh,84px)", left:"clamp(16px,3vw,32px)", background:"rgba(10,10,10,.75)", border:`0.5px solid ${C.border}`, color:C.text, width:34, height:34, borderRadius:8, fontSize:18, cursor:"pointer", backdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"center" }}>‹</button>
       </div>
 
-      <div style={{ display:"flex", gap:"clamp(16px,3vw,24px)", padding:"0 clamp(18px,5vw,48px)", marginTop:"-clamp(60px,12vh,100px)", position:"relative", zIndex:2, maxWidth:"1200px", margin:"0 auto" }}>
+      <div style={{ display:"flex", gap:"clamp(16px,3vw,24px)", padding:"0 clamp(18px,5vw,48px)", marginTop:"-clamp(60px,12vh,100px)", position:"relative", zIndex:2 }}>
         <div style={{ width:"clamp(80px,15vw,130px)", height:"clamp(105px,22vw,175px)", borderRadius:8, overflow:"hidden", flexShrink:0, boxShadow:"0 14px 44px rgba(0,0,0,.9)" }}>
           <Img src={game.cover} style={{ width:"100%", height:"100%" }} />
         </div>
@@ -456,7 +456,7 @@ function GameDetail({ game, onBack, onUpdate, user }) {
         </div>
       </div>
 
-      <div style={{ padding:"clamp(26px,5vh,40px) clamp(18px,5vw,48px) 0", maxWidth:"1200px", margin:"0 auto", width:"100%" }}>
+      <div style={{ padding:"clamp(26px,5vh,40px) clamp(18px,5vw,48px) 0" }}>
         {game.tagline && <div style={{ fontSize:10, fontWeight:500, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:"clamp(22px,4vh,32px)" }}>{game.tagline}</div>}
 
         <div style={{ marginBottom:"clamp(24px,4vh,36px)" }}>
@@ -505,7 +505,7 @@ function GameDetail({ game, onBack, onUpdate, user }) {
         <div style={{ height:100 }} />
       </div>
 
-      <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:"calc(1200px + 24px)", padding:"12px clamp(18px,5vw,48px) clamp(24px,4vh,40px)", background:`linear-gradient(to top, ${C.bg} 65%, transparent)`, zIndex:50 }}>
+      <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px clamp(18px,5vw,48px) clamp(24px,4vh,40px)", background:`linear-gradient(to top, ${C.bg} 65%, transparent)`, zIndex:50 }}>
         <button onClick={()=>setSheet(true)} style={{
           width:"100%", padding:"clamp(14px,2vh,17px)", borderRadius:8,
           border: game.status==="want to play"?`0.5px solid ${C.border}`:"none", cursor:"pointer",
@@ -958,7 +958,9 @@ function SteamLibraryStats({ steamId }) {
 
 // ── HOME ──────────────────────────────────────────────────────────────────────
 function HomeScreen({ games, logs, onGameClick, steamId, onConnectSteam }) {
-  const wide    = useWindowWidth() >= 860;
+  const vw      = useWindowWidth();
+  const wide    = vw >= 860;
+  const xl      = vw >= 1280;
   const hasLogs = logs.length > 0;
   const played  = hasLogs ? logs.filter(g=>g.status==="played") : [];
   const playing = hasLogs ? logs.filter(g=>g.status==="playing") : [];
@@ -1007,11 +1009,11 @@ function HomeScreen({ games, logs, onGameClick, steamId, onConnectSteam }) {
         ))}
       </div>
 
-      {/* Body — 2-col on wide screens */}
+      {/* Body — responsive columns */}
       <div style={{
         display: wide ? "grid" : "block",
-        gridTemplateColumns: wide ? "1fr 256px" : "1fr",
-        gap: wide ? 40 : 0,
+        gridTemplateColumns: xl ? "1fr 300px 280px" : wide ? "1fr 280px" : "1fr",
+        gap: wide ? "clamp(24px,3vw,48px)" : 0,
         padding: "0 clamp(18px,5vw,48px)",
         alignItems: "start",
       }}>
@@ -1062,7 +1064,8 @@ function HomeScreen({ games, logs, onGameClick, steamId, onConnectSteam }) {
             </div>
           )}
 
-          <NewsRow />
+          {/* News on mobile/tablet only — on xl it moves to 2nd column */}
+          {!xl && <NewsRow />}
 
           <div style={{ paddingTop:32 }}>
             <SectionHead label="New & Hot" />
@@ -1071,6 +1074,13 @@ function HomeScreen({ games, logs, onGameClick, steamId, onConnectSteam }) {
 
           <SteamRecentRow steamId={steamId} onGameClick={onGameClick} />
         </div>
+
+        {/* News column — only on xl (1280px+) */}
+        {xl && (
+          <div style={{ paddingTop:32, position:"sticky", top:80 }}>
+            <NewsRow />
+          </div>
+        )}
 
         {/* GOTY Race sidebar */}
         <div style={{ paddingTop:32, position: wide ? "sticky" : "static", top:80 }}>
@@ -1694,7 +1704,7 @@ function ListsScreen({ lists, games, setLists, onGameClick }) {
             </div>
           )}
         </div>
-        <div style={{ padding:"clamp(8px,1.5vh,12px) clamp(18px,5vw,48px) 0", maxWidth:"1200px", margin:"0 auto", width:"100%" }}>
+        <div style={{ padding:"clamp(8px,1.5vh,12px) clamp(18px,5vw,48px) 0" }}>
           {listGames.map((g,i)=>(
             <div key={g.id} style={{ display:"flex", alignItems:"center" }}>
               <div style={{ flex:1 }}><DiaryRow game={g} index={i} onClick={onGameClick} /></div>
@@ -1703,7 +1713,7 @@ function ListsScreen({ lists, games, setLists, onGameClick }) {
           ))}
           {listGames.length===0 && <Empty label="No games in this list" />}
         </div>
-        <div style={{ padding:"0 clamp(18px,5vw,48px)", maxWidth:"1200px", margin:"16px auto 0" }}>
+        <div style={{ padding:"0 clamp(18px,5vw,48px)", marginTop:16 }}>
           {!adding ? (
             <button onClick={()=>setAdding(true)} style={{ width:"100%", padding:"clamp(12px,2vh,15px)", borderRadius:8, border:`0.5px dashed ${C.border}`, background:"transparent", color:C.muted, fontSize:13, fontWeight:500, cursor:"pointer", letterSpacing:"1px", textTransform:"uppercase" }}>+ Add a Game</button>
           ) : (
@@ -1749,7 +1759,7 @@ function ListsScreen({ lists, games, setLists, onGameClick }) {
           </div>
         )}
       </div>
-      <div style={{ display: wide?"grid":"block", gridTemplateColumns: wide?"1fr 240px":"1fr", gap: wide?40:0, padding:"0 clamp(18px,5vw,48px)", alignItems:"start", maxWidth:"1200px", margin:"0 auto", width:"100%" }}>
+      <div style={{ display: wide?"grid":"block", gridTemplateColumns: wide?"1fr 240px":"1fr", gap: wide?40:0, padding:"0 clamp(18px,5vw,48px)", alignItems:"start" }}>
         <div>
           {lists.length===0&&!adding && <Empty label="Create your first list" />}
           {lists.map(list=>{
@@ -2008,7 +2018,6 @@ export default function Kortana() {
         ::-webkit-scrollbar{display:none}
         input,textarea,select{color-scheme:dark}
         input::placeholder,textarea::placeholder{color:#444444!important}
-        @media(min-width:768px){body{padding:0 12px}}
       `}</style>
 
       <div style={{ width:"100%" }}>
