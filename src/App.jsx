@@ -2161,7 +2161,7 @@ function DealsRow() {
       .then(raw => {
         const list = Array.isArray(raw) ? raw : (raw?.list || raw?.data?.list || []);
         const normalized = list
-          .filter(d => (d.deal?.cut ?? 0) >= 35 && Number(d.deal?.regular?.amount ?? 0) >= 10)
+          .filter(d => (d.deal?.cut ?? 0) >= 25)
           .slice(0, 30)
           .map(d => ({
             title:       d.title || "",
