@@ -46,6 +46,30 @@ async function steamApi(type, steamId) {
   return res.json();
 }
 
+async function psnConnect(npsso) {
+  const res = await fetch(IGDB_PROXY, {
+    method: "POST", headers: PROXY_HEADERS,
+    body: JSON.stringify({ endpoint: "psn/connect", npsso }),
+  });
+  return res.json();
+}
+
+async function psnGetGames(accessToken) {
+  const res = await fetch(IGDB_PROXY, {
+    method: "POST", headers: PROXY_HEADERS,
+    body: JSON.stringify({ endpoint: "psn/games", accessToken }),
+  });
+  return res.json();
+}
+
+async function xboxApi(path, xboxKey) {
+  const res = await fetch(IGDB_PROXY, {
+    method: "POST", headers: PROXY_HEADERS,
+    body: JSON.stringify({ endpoint: `xbox/${path}`, xboxKey }),
+  });
+  return res.json();
+}
+
 function parseSteamInput(raw) {
   const s = raw.trim();
   if (/^\d{17}$/.test(s)) return { type: "id", value: s };
@@ -827,6 +851,303 @@ function ConnectSteamSheet({ onConnect, onClose }) {
   );
 }
 
+// ── CONNECT PSN SHEET ────────────────────────────────────────────────────────
+function ConnectPSNSheet({ onConnect, onClose }) {
+  const [npsso,   setNpsso]   = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState("");
+  const [preview, setPreview] = useState(null);
+
+  const verify = async () => {
+    const token = npsso.trim();
+    if (!token) { setError("Paste your NPSSO token above."); return; }
+    setLoading(true); setError(""); setPreview(null);
+    const data = await psnConnect(token);
+    if (data.error) setError(data.error);
+    else setPreview(data);
+    setLoading(false);
+  };
+
+  const sheetStyle = { background:C.surface, borderRadius:"16px 16px 0 0", width:"100%", maxWidth:440, paddingBottom:40, border:`0.5px solid ${C.border}`, borderBottom:"none", animation:"slideUp .22s ease", overflow:"hidden" };
+  const inp = { width:"100%", background:C.faint, border:`0.5px solid ${error ? C.pink : C.border}`, borderRadius:8, padding:"12px 14px", color:C.text, fontSize:13, outline:"none", boxSizing:"border-box", fontFamily:"monospace" };
+
+  return (
+    <div onClick={e=>e.target===e.currentTarget&&onClose()} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.87)", zIndex:400, display:"flex", alignItems:"flex-end", justifyContent:"center", backdropFilter:"blur(14px)" }}>
+      <div style={sheetStyle}>
+        <StripeBar height={3} />
+        <div style={{ display:"flex", justifyContent:"center", padding:"14px 0 6px" }}>
+          <div style={{ width:36, height:3, borderRadius:2, background:C.border }} />
+        </div>
+        <div style={{ padding:"4px 24px 0" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
+            <span style={{ fontSize:24 }}>🎮</span>
+            <div style={{ fontSize:17, fontWeight:500, letterSpacing:"-0.3px" }}>Connect PlayStation</div>
+          </div>
+          <div style={{ fontSize:13, color:C.muted, marginBottom:20, lineHeight:1.6 }}>Sync your trophy library and games using your NPSSO session token.</div>
+
+          <div style={{ background:C.faint, borderRadius:10, padding:"14px 16px", marginBottom:20, border:`0.5px solid ${C.border}` }}>
+            <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:10, fontWeight:600 }}>How to get your NPSSO token</div>
+            <div style={{ fontSize:12, color:C.muted, lineHeight:1.8 }}>
+              1. Sign in at <span style={{ color:C.blue }}>playstation.com</span><br/>
+              2. Open DevTools → F12 (or right-click → Inspect)<br/>
+              3. Go to <b>Application</b> → <b>Cookies</b> → <b>www.playstation.com</b><br/>
+              4. Find the cookie named <span style={{ fontFamily:"monospace", color:C.text, background:"rgba(255,255,255,.06)", padding:"1px 5px", borderRadius:3 }}>npsso</span> and copy its Value
+            </div>
+          </div>
+
+          <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:8 }}>NPSSO Token</div>
+          <input value={npsso} onChange={e=>{ setNpsso(e.target.value); setPreview(null); setError(""); }}
+            placeholder="Paste token here…" style={{ ...inp, marginBottom:10 }} />
+
+          {error && <div style={{ fontSize:12, color:C.pink, marginBottom:14, padding:"10px 14px", background:"rgba(204,51,119,.08)", borderRadius:8 }}>{error}</div>}
+
+          {preview ? (
+            <>
+              <div style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", background:C.faint, borderRadius:10, marginBottom:16, border:`0.5px solid ${C.green}44` }}>
+                {preview.avatarUrl && <img src={preview.avatarUrl} style={{ width:46, height:46, borderRadius:"50%", objectFit:"cover" }} alt="" />}
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:14, fontWeight:500, color:C.text, marginBottom:2 }}>{preview.onlineId || "PlayStation Account"}</div>
+                  <div style={{ fontSize:11, color:C.green }}>Account verified ✓</div>
+                </div>
+              </div>
+              <button onClick={() => onConnect(npsso.trim(), preview)} style={{ width:"100%", padding:14, borderRadius:8, border:"none", background:C.blue, color:"#fff", fontWeight:500, fontSize:14, cursor:"pointer", textTransform:"uppercase", letterSpacing:"1.5px" }}>
+                Connect PlayStation
+              </button>
+            </>
+          ) : (
+            <button onClick={verify} disabled={loading || !npsso.trim()} style={{ width:"100%", padding:14, borderRadius:8, border:"none", background:npsso.trim() ? C.pink : C.faint, color:npsso.trim() ? "#fff" : C.muted, fontWeight:500, fontSize:14, cursor:npsso.trim()?"pointer":"default", textTransform:"uppercase", letterSpacing:"1.5px", transition:"all .15s" }}>
+              {loading ? "Verifying…" : "Verify Token"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── CONNECT XBOX SHEET ────────────────────────────────────────────────────────
+function ConnectXboxSheet({ onConnect, onClose }) {
+  const [key,     setKey]     = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState("");
+  const [preview, setPreview] = useState(null);
+
+  const verify = async () => {
+    const k = key.trim();
+    if (!k) { setError("Paste your OpenXBL API key above."); return; }
+    setLoading(true); setError(""); setPreview(null);
+    const data = await xboxApi("profile", k);
+    const pu = data?.profileUsers?.[0];
+    if (!pu) { setError("Invalid API key. Make sure you copied it from openxbl.com."); setLoading(false); return; }
+    const gamertag = pu.settings?.find(s => s.id === "Gamertag")?.value || "";
+    const avatar   = pu.settings?.find(s => s.id === "GameDisplayPicRaw")?.value || "";
+    if (!gamertag) { setError("Couldn't read Gamertag. Try again."); setLoading(false); return; }
+    setPreview({ gamertag, avatar });
+    setLoading(false);
+  };
+
+  const sheetStyle = { background:C.surface, borderRadius:"16px 16px 0 0", width:"100%", maxWidth:440, paddingBottom:40, border:`0.5px solid ${C.border}`, borderBottom:"none", animation:"slideUp .22s ease", overflow:"hidden" };
+  const inp = { width:"100%", background:C.faint, border:`0.5px solid ${error ? C.pink : C.border}`, borderRadius:8, padding:"12px 14px", color:C.text, fontSize:13, outline:"none", boxSizing:"border-box", fontFamily:"monospace" };
+
+  return (
+    <div onClick={e=>e.target===e.currentTarget&&onClose()} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.87)", zIndex:400, display:"flex", alignItems:"flex-end", justifyContent:"center", backdropFilter:"blur(14px)" }}>
+      <div style={sheetStyle}>
+        <StripeBar height={3} />
+        <div style={{ display:"flex", justifyContent:"center", padding:"14px 0 6px" }}>
+          <div style={{ width:36, height:3, borderRadius:2, background:C.border }} />
+        </div>
+        <div style={{ padding:"4px 24px 0" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
+            <span style={{ fontSize:24 }}>🎮</span>
+            <div style={{ fontSize:17, fontWeight:500, letterSpacing:"-0.3px" }}>Connect Xbox</div>
+          </div>
+          <div style={{ fontSize:13, color:C.muted, marginBottom:20, lineHeight:1.6 }}>Sync your Xbox game library and achievements using a free OpenXBL API key.</div>
+
+          <div style={{ background:C.faint, borderRadius:10, padding:"14px 16px", marginBottom:20, border:`0.5px solid ${C.border}` }}>
+            <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:10, fontWeight:600 }}>How to get your free API key</div>
+            <div style={{ fontSize:12, color:C.muted, lineHeight:1.8 }}>
+              1. Go to <span style={{ color:C.green }}>openxbl.com</span><br/>
+              2. Click <b>Sign In</b> and connect your Microsoft / Xbox account<br/>
+              3. After signing in, copy your <b>API Key</b> from the dashboard<br/>
+              4. Paste it below — it's free, no credit card needed
+            </div>
+          </div>
+
+          <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:8 }}>OpenXBL API Key</div>
+          <input value={key} onChange={e=>{ setKey(e.target.value); setPreview(null); setError(""); }}
+            placeholder="Paste API key here…" style={{ ...inp, marginBottom:10 }} />
+
+          {error && <div style={{ fontSize:12, color:C.pink, marginBottom:14, padding:"10px 14px", background:"rgba(204,51,119,.08)", borderRadius:8 }}>{error}</div>}
+
+          {preview ? (
+            <>
+              <div style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", background:C.faint, borderRadius:10, marginBottom:16, border:`0.5px solid ${C.green}44` }}>
+                {preview.avatar && <img src={preview.avatar} style={{ width:46, height:46, borderRadius:"50%", objectFit:"cover" }} alt="" />}
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:14, fontWeight:500, color:C.text, marginBottom:2 }}>{preview.gamertag}</div>
+                  <div style={{ fontSize:11, color:C.green }}>Xbox account verified ✓</div>
+                </div>
+              </div>
+              <button onClick={() => onConnect(key.trim(), preview)} style={{ width:"100%", padding:14, borderRadius:8, border:"none", background:C.green, color:"#fff", fontWeight:500, fontSize:14, cursor:"pointer", textTransform:"uppercase", letterSpacing:"1.5px" }}>
+                Connect Xbox
+              </button>
+            </>
+          ) : (
+            <button onClick={verify} disabled={loading || !key.trim()} style={{ width:"100%", padding:14, borderRadius:8, border:"none", background:key.trim() ? C.green : C.faint, color:key.trim() ? "#fff" : C.muted, fontWeight:500, fontSize:14, cursor:key.trim()?"pointer":"default", textTransform:"uppercase", letterSpacing:"1.5px", transition:"all .15s" }}>
+              {loading ? "Verifying…" : "Verify Key"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── PSN GAMES ROW ─────────────────────────────────────────────────────────────
+function parsePsnDuration(iso) {
+  if (!iso) return null;
+  const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
+  if (!m) return null;
+  const h = parseInt(m[1] || "0"), min = parseInt(m[2] || "0");
+  if (h > 0 && min > 0) return `${h}h ${min}m`;
+  if (h > 0) return `${h}h`;
+  if (min > 0) return `${min}m`;
+  return null;
+}
+
+function PSNGamesRow({ accessToken, onGameClick }) {
+  const [games, setGames] = useState([]);
+  useEffect(() => {
+    if (!accessToken) return;
+    psnGetGames(accessToken).then(data => {
+      // Gamelist API format (preferred — has playtime)
+      if (data.titles) {
+        setGames(data.titles.slice(0, 20).map(t => {
+          const img = t.imageURLs?.find(i => i.type === "BACKGROUND_IMAGE_DARK")?.url
+                   || t.imageURLs?.find(i => i.type === "MASTER")?.url
+                   || t.imageURLs?.[0]?.url || "";
+          return {
+            id:       `psn-${t.titleId}`,
+            title:    t.name || t.localizedName,
+            cover:    img,
+            hero:     img,
+            platform: (t.categories || []).includes("ps5_native_game") ? "PS5" : "PS4",
+            playtime: parsePsnDuration(t.playDuration),
+            playCount: t.playCount || 0,
+            lastPlayed: t.lastPlayedDateTime,
+            status:   "played",
+            year:     t.lastPlayedDateTime ? new Date(t.lastPlayedDateTime).getFullYear() : null,
+          };
+        }));
+      } else {
+        // Trophy titles fallback
+        const titles = data.trophyTitles || [];
+        setGames(titles.slice(0, 20).map(t => ({
+          id:       `psn-${t.npCommunicationId}`,
+          title:    t.trophyTitleName,
+          cover:    t.trophyTitleIconUrl || "",
+          hero:     t.trophyTitleIconUrl || "",
+          platform: t.trophyTitlePlatform || "PlayStation",
+          progress: t.progress || 0,
+          playtime: null,
+          status:   "played",
+          year:     t.lastUpdatedDateTime ? new Date(t.lastUpdatedDateTime).getFullYear() : null,
+        })));
+      }
+    }).catch(() => {});
+  }, [accessToken]);
+
+  if (!games.length) return null;
+  return (
+    <div style={{ display:"flex", gap:"clamp(10px,2vw,14px)", overflowX:"auto", paddingBottom:4, scrollSnapType:"x mandatory", marginLeft:"-clamp(18px,5vw,48px)", marginRight:"-clamp(18px,5vw,48px)", paddingLeft:"clamp(18px,5vw,48px)", paddingRight:"clamp(18px,5vw,48px)" }}>
+      {games.map(g => (
+        <div key={g.id} onClick={() => onGameClick(g)} style={{ width:"clamp(100px,18vw,130px)", flexShrink:0, scrollSnapAlign:"start", cursor:"pointer" }}>
+          <div style={{ width:"100%", aspectRatio:"1/1", borderRadius:10, overflow:"hidden", background:C.faint, marginBottom:6, border:`0.5px solid ${C.border}` }}>
+            <Img src={g.cover} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+          </div>
+          <div style={{ fontSize:10, fontWeight:500, color:C.text, lineHeight:1.3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{g.title}</div>
+          <div style={{ display:"flex", gap:5, marginTop:1 }}>
+            {g.playtime && <div style={{ fontSize:9, color:C.blue }}>{g.playtime}</div>}
+            {!g.playtime && g.progress > 0 && <div style={{ fontSize:9, color:C.blue }}>{g.progress}% trophies</div>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── XBOX GAMES ROW ────────────────────────────────────────────────────────────
+function parseXboxMinutes(stats) {
+  if (!Array.isArray(stats)) return 0;
+  const s = stats.find(s => s.id === "MinutesPlayed" || s.name === "MinutesPlayed");
+  return s ? Math.round(parseInt(s.value || "0") / 60) : 0;
+}
+
+function XboxGamesRow({ xboxKey, onGameClick }) {
+  const [games, setGames] = useState([]);
+  useEffect(() => {
+    if (!xboxKey) return;
+    // Use /titles for full game library (not /achievements which is just recent activity)
+    xboxApi("titles", xboxKey).then(data => {
+      const titles = data.titles || [];
+      setGames(
+        titles
+          .filter(t => t.name && t.type === "Game")
+          .slice(0, 20)
+          .map(t => {
+            const hours = parseXboxMinutes(t.stats);
+            const boxart = t.images?.find(i => i.type === "BoxArt")?.url || t.displayImage || "";
+            return {
+              id:           `xbox-${t.titleId}`,
+              title:        t.name,
+              cover:        boxart,
+              hero:         t.displayImage || boxart,
+              platform:     "Xbox",
+              gamerscore:   t.achievement?.currentGamerscore ?? 0,
+              totalScore:   t.achievement?.totalGamerscore ?? 0,
+              achievements: t.achievement?.currentAchievements ?? 0,
+              totalAch:     t.achievement?.totalAchievements ?? 0,
+              hours,
+              status:       "played",
+            };
+          })
+      );
+    }).catch(() => {
+      // Fall back to achievements endpoint for older OpenXBL keys
+      xboxApi("achievements", xboxKey).then(data => {
+        const raw = data.titles || data.achievements || [];
+        const seen = new Map();
+        raw.forEach(item => {
+          const name  = item.name || item.titleName || item.title;
+          const img   = item.displayImage || item.titleImage || item.images?.[0]?.url || "";
+          const id    = item.titleId || item.id || name;
+          const score = item.achievement?.currentGamerscore ?? item.gamerscore ?? 0;
+          if (name && !seen.has(name)) seen.set(name, { id:`xbox-${id}`, title:name, cover:img, hero:img, platform:"Xbox", gamerscore:score, hours:0, status:"played" });
+        });
+        setGames([...seen.values()].slice(0, 20));
+      }).catch(() => {});
+    });
+  }, [xboxKey]);
+
+  if (!games.length) return null;
+  return (
+    <div style={{ display:"flex", gap:"clamp(10px,2vw,14px)", overflowX:"auto", paddingBottom:4, scrollSnapType:"x mandatory", marginLeft:"-clamp(18px,5vw,48px)", marginRight:"-clamp(18px,5vw,48px)", paddingLeft:"clamp(18px,5vw,48px)", paddingRight:"clamp(18px,5vw,48px)" }}>
+      {games.map(g => (
+        <div key={g.id} onClick={() => onGameClick(g)} style={{ width:"clamp(100px,18vw,130px)", flexShrink:0, scrollSnapAlign:"start", cursor:"pointer" }}>
+          <div style={{ width:"100%", aspectRatio:"1/1", borderRadius:10, overflow:"hidden", background:C.faint, marginBottom:6, border:`0.5px solid ${C.border}` }}>
+            <Img src={g.cover} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+          </div>
+          <div style={{ fontSize:10, fontWeight:500, color:C.text, lineHeight:1.3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{g.title}</div>
+          <div style={{ display:"flex", gap:5, marginTop:1 }}>
+            {g.hours > 0 && <div style={{ fontSize:9, color:C.blue }}>{g.hours}h</div>}
+            {g.gamerscore > 0 && <div style={{ fontSize:9, color:C.green }}>{g.gamerscore}G</div>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── STEAM COMPONENTS ─────────────────────────────────────────────────────────
 // ── GAMING NEWS ───────────────────────────────────────────────────────────────
 const NEWS_FEEDS = [
@@ -1179,8 +1500,262 @@ function DesktopRightPanel({ logs, onGameClick }) {
   );
 }
 
+// ── MONTHLY WRAPPED ───────────────────────────────────────────────────────────
+function WrappedModal({ user, logs, steamId, psnToken, xboxKey, onClose }) {
+  const [slide,       setSlide]       = useState(0);
+  const [steamGames,  setSteamGames]  = useState([]);
+  const [psnTitles,   setPsnTitles]   = useState([]);
+  const [xboxTitles,  setXboxTitles]  = useState([]);
+  const [loading,     setLoading]     = useState(true);
+
+  const now        = new Date();
+  const monthName  = now.toLocaleString("default", { month: "long" });
+  const year       = now.getFullYear();
+  const monthStart = new Date(year, now.getMonth(), 1);
+
+  // Logs for this month
+  const monthLogs    = logs.filter(l => l.created_at && new Date(l.created_at) >= monthStart);
+  const played       = monthLogs.filter(l => l.status === "played");
+  const playing      = monthLogs.filter(l => l.status === "playing");
+  const backlog      = monthLogs.filter(l => l.status === "want to play");
+  const rated        = monthLogs.filter(l => l.rating > 0);
+  const avgRating    = rated.length ? (rated.reduce((s,l)=>s+l.rating,0)/rated.length).toFixed(1) : null;
+  const topGame      = rated.length ? [...rated].sort((a,b)=>b.rating-a.rating)[0] : monthLogs[0] || null;
+  const genres       = [...new Set(monthLogs.map(l=>l.genre).filter(Boolean))];
+
+  // Playtime from connected platforms
+  const steamHours   = steamGames.reduce((s,g)=>s+(g.playtime_2weeks||0),0) / 60;
+
+  const psnMonthGames = psnTitles.filter(t => {
+    const d = t.lastPlayedDateTime ? new Date(t.lastPlayedDateTime) : null;
+    return d && d >= monthStart;
+  });
+  const psnHours = psnMonthGames.reduce((s,t)=>{
+    if (!t.playDuration) return s;
+    const m = t.playDuration.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
+    if (!m) return s;
+    return s + parseInt(m[1]||"0") + parseInt(m[2]||"0")/60;
+  }, 0);
+
+  const xboxScore   = xboxTitles.reduce((s,t)=>s+(t.achievement?.currentGamerscore||0), 0);
+  const totalHours  = Math.round(steamHours + psnHours);
+
+  const platformBreakdown = [
+    steamHours > 0    && { name:"Steam",        hours:Math.round(steamHours*10)/10,   color:C.blue  },
+    psnHours   > 0    && { name:"PlayStation",  hours:Math.round(psnHours*10)/10,     color:"#003791" },
+  ].filter(Boolean);
+
+  useEffect(() => {
+    const tasks = [];
+    if (steamId) tasks.push(
+      steamApi("recentlyplayed", steamId)
+        .then(d => setSteamGames(d?.response?.games || []))
+        .catch(()=>{})
+    );
+    if (psnToken) tasks.push(
+      psnGetGames(psnToken)
+        .then(d => setPsnTitles(d.titles || d.trophyTitles || []))
+        .catch(()=>{})
+    );
+    if (xboxKey) tasks.push(
+      xboxApi("titles", xboxKey)
+        .then(d => setXboxTitles(d.titles || []))
+        .catch(()=>{})
+    );
+    Promise.allSettled(tasks).then(()=>setLoading(false));
+    if (!tasks.length) setLoading(false);
+  }, []);
+
+  const SLIDE_COUNT = 5;
+  const SLIDE_BG = [
+    `radial-gradient(ellipse 80% 50% at 50% 0%, ${C.blue}40, transparent 70%)`,
+    `radial-gradient(ellipse 80% 50% at 50% 0%, ${C.green}35, transparent 70%)`,
+    `radial-gradient(ellipse 80% 50% at 50% 0%, ${C.yellow}35, transparent 70%)`,
+    `radial-gradient(ellipse 80% 50% at 50% 0%, ${C.blue}35, transparent 70%)`,
+    `radial-gradient(ellipse 80% 50% at 50% 0%, ${C.pink}35, transparent 70%)`,
+  ];
+
+  function SlideContent() {
+    switch (slide) {
+      case 0:
+        return (
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100%", textAlign:"center", padding:"40px 28px" }}>
+            <div style={{ fontSize:11, color:C.blue, letterSpacing:"3px", textTransform:"uppercase", marginBottom:18, fontWeight:600 }}>Monthly Recap</div>
+            <div style={{ fontSize:"clamp(48px,12vw,80px)", fontWeight:700, letterSpacing:"-3px", lineHeight:0.95, marginBottom:10,
+              background:`linear-gradient(135deg,${C.blue},${C.pink},${C.yellow})`,
+              WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>
+              {monthName}
+            </div>
+            <div style={{ fontSize:20, fontWeight:500, color:"#666", marginBottom:8 }}>{year}</div>
+            <div style={{ fontSize:13, color:C.muted, lineHeight:1.7, marginBottom:48 }}>Your gaming life, this month.</div>
+            <button onClick={()=>setSlide(1)} style={{ padding:"15px 40px", borderRadius:100, border:"none",
+              background:`linear-gradient(135deg,${C.blue},${C.pink})`, color:"#fff",
+              fontWeight:600, fontSize:14, cursor:"pointer", letterSpacing:"0.5px" }}>
+              See Your Stats →
+            </button>
+          </div>
+        );
+
+      case 1: {
+        const bar = (val, max, color) => (
+          <div style={{ flex:1, height:4, borderRadius:2, background:C.faint, overflow:"hidden" }}>
+            <div style={{ width:`${max>0 ? (val/max)*100 : 0}%`, height:"100%", background:color, borderRadius:2, transition:"width .6s ease" }} />
+          </div>
+        );
+        const maxVal = Math.max(played.length, playing.length, backlog.length, 1);
+        return (
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100%", textAlign:"center", padding:"40px 28px" }}>
+            <div style={{ fontSize:10, color:C.muted, letterSpacing:"3px", textTransform:"uppercase", marginBottom:16 }}>Games Logged</div>
+            <div style={{ fontSize:"clamp(80px,20vw,128px)", fontWeight:700, letterSpacing:"-5px", lineHeight:0.85, color:monthLogs.length>0?C.text:"#333", marginBottom:8 }}>
+              {monthLogs.length}
+            </div>
+            <div style={{ fontSize:16, color:C.muted, marginBottom:36 }}>game{monthLogs.length!==1?"s":""} this month</div>
+            <div style={{ width:"100%", display:"flex", flexDirection:"column", gap:14 }}>
+              {[["Completed", played.length, C.green],["Playing", playing.length, C.blue],["Backlog", backlog.length, C.yellow]].map(([l,v,col])=>(
+                <div key={l} style={{ display:"flex", alignItems:"center", gap:12 }}>
+                  <div style={{ fontSize:10, color:col, fontWeight:600, letterSpacing:"1.5px", textTransform:"uppercase", width:72, textAlign:"right", flexShrink:0 }}>{l}</div>
+                  {bar(v, maxVal, col)}
+                  <div style={{ fontSize:20, fontWeight:700, color:col, width:28, textAlign:"left", flexShrink:0 }}>{v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+
+      case 2:
+        return (
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100%", textAlign:"center", padding:"40px 28px" }}>
+            <div style={{ fontSize:10, color:C.yellow, letterSpacing:"3px", textTransform:"uppercase", marginBottom:18, fontWeight:600 }}>
+              {topGame ? "Top Game" : "No games yet"}
+            </div>
+            {topGame ? (
+              <>
+                <div style={{ width:100, height:134, borderRadius:12, overflow:"hidden", marginBottom:20, boxShadow:`0 16px 48px ${C.blue}55, 0 0 0 1px ${C.border}` }}>
+                  <Img src={topGame.cover} style={{ width:"100%", height:"100%" }} />
+                </div>
+                <div style={{ fontSize:"clamp(18px,4vw,24px)", fontWeight:600, letterSpacing:"-0.3px", marginBottom:8, maxWidth:260, lineHeight:1.2 }}>{topGame.title}</div>
+                {topGame.rating > 0 && <div style={{ marginBottom:10 }}><Stars value={topGame.rating} size={20} /></div>}
+                <div style={{ fontSize:11, color:C.muted }}>{topGame.year}{topGame.developer&&topGame.developer!=="Unknown"?` · ${topGame.developer}`:""}</div>
+                {genres.length > 0 && (
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap", justifyContent:"center", marginTop:16 }}>
+                    {genres.slice(0,3).map(g=>(
+                      <span key={g} style={{ fontSize:9, color:C.blue, background:`${C.blue}18`, border:`0.5px solid ${C.blue}33`, borderRadius:20, padding:"3px 10px", letterSpacing:"1px", textTransform:"uppercase" }}>{g}</span>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{ fontSize:14, color:C.muted, lineHeight:1.7 }}>Log and rate games<br/>to see your top pick.</div>
+            )}
+          </div>
+        );
+
+      case 3:
+        return (
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100%", textAlign:"center", padding:"40px 28px" }}>
+            <div style={{ fontSize:10, color:C.muted, letterSpacing:"3px", textTransform:"uppercase", marginBottom:16 }}>Time Played</div>
+            {loading ? (
+              <div style={{ fontSize:11, color:"#444", letterSpacing:"2px" }}>Loading…</div>
+            ) : platformBreakdown.length > 0 ? (
+              <>
+                <div style={{ fontSize:"clamp(64px,16vw,100px)", fontWeight:700, letterSpacing:"-4px", lineHeight:0.85,
+                  background:`linear-gradient(135deg,${C.blue},${C.green})`,
+                  WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", marginBottom:8 }}>
+                  {totalHours}
+                </div>
+                <div style={{ fontSize:16, color:C.muted, marginBottom:40 }}>hours this month</div>
+                <div style={{ display:"flex", gap:12, justifyContent:"center", flexWrap:"wrap" }}>
+                  {platformBreakdown.map(p=>(
+                    <div key={p.name} style={{ background:C.surface, border:`0.5px solid ${C.border}`, borderRadius:12, padding:"14px 20px" }}>
+                      <div style={{ fontSize:24, fontWeight:700, color:p.color, letterSpacing:"-1px" }}>{p.hours}h</div>
+                      <div style={{ fontSize:9, color:"#555", letterSpacing:"1.5px", textTransform:"uppercase", marginTop:4 }}>{p.name}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize:44, marginBottom:16 }}>⏱️</div>
+                <div style={{ fontSize:14, color:C.muted, lineHeight:1.7 }}>Connect Steam or PlayStation<br/>to track playtime.</div>
+              </>
+            )}
+          </div>
+        );
+
+      case 4: {
+        const hasXbox = xboxScore > 0;
+        return (
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100%", textAlign:"center", padding:"40px 28px" }}>
+            <div style={{ fontSize:10, color:C.pink, letterSpacing:"3px", textTransform:"uppercase", marginBottom:18, fontWeight:600 }}>Your Ratings</div>
+            {avgRating ? (
+              <>
+                <div style={{ fontSize:"clamp(72px,18vw,112px)", fontWeight:700, letterSpacing:"-4px", lineHeight:0.85,
+                  background:`linear-gradient(135deg,${C.yellow},${C.pink})`,
+                  WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", marginBottom:8 }}>
+                  {avgRating}
+                </div>
+                <div style={{ fontSize:16, color:C.muted, marginBottom:16 }}>avg rating out of 5</div>
+                <div style={{ marginBottom:36 }}><Stars value={Math.round(Number(avgRating))} size={26} /></div>
+              </>
+            ) : (
+              <div style={{ fontSize:14, color:C.muted, marginBottom:40 }}>Rate games to see your score!</div>
+            )}
+            {hasXbox && (
+              <div style={{ background:C.surface, border:`0.5px solid rgba(16,124,16,.3)`, borderRadius:12, padding:"14px 28px" }}>
+                <div style={{ fontSize:24, fontWeight:700, color:"#107c10", letterSpacing:"-0.5px" }}>{xboxScore.toLocaleString()}G</div>
+                <div style={{ fontSize:9, color:"#555", letterSpacing:"1.5px", textTransform:"uppercase", marginTop:4 }}>Xbox Gamerscore</div>
+              </div>
+            )}
+            <div style={{ position:"absolute", bottom:90, left:0, right:0, textAlign:"center" }}>
+              <div style={{ fontSize:12, color:"#444" }}>That's your {monthName} in gaming 🎮</div>
+            </div>
+          </div>
+        );
+      }
+
+      default: return null;
+    }
+  }
+
+  return (
+    <div onClick={e=>e.target===e.currentTarget&&onClose()}
+      style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.92)", zIndex:500, display:"flex", alignItems:"center", justifyContent:"center", backdropFilter:"blur(20px)", padding:"0 16px" }}>
+      <div style={{ width:"100%", maxWidth:400, height:"min(680px,92vh)", background:"#080808", borderRadius:24, border:`0.5px solid ${C.border}`, overflow:"hidden", position:"relative", display:"flex", flexDirection:"column" }}>
+        <StripeBar height={3} />
+
+        <button onClick={onClose} style={{ position:"absolute", top:14, right:14, background:"rgba(255,255,255,.07)", border:"none", color:C.muted, width:30, height:30, borderRadius:"50%", cursor:"pointer", fontSize:13, zIndex:10, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+
+        {/* Ambient gradient per slide */}
+        <div style={{ position:"absolute", inset:0, pointerEvents:"none", background:SLIDE_BG[slide], opacity:0.6, transition:"background .4s ease" }} />
+
+        {/* Content */}
+        <div style={{ flex:1, position:"relative", overflow:"hidden" }}>
+          <SlideContent />
+        </div>
+
+        {/* Dot nav + prev/next */}
+        <div style={{ padding:"12px 24px 22px", display:"flex", alignItems:"center", gap:10, position:"relative" }}>
+          {slide > 0 && (
+            <button onClick={()=>setSlide(s=>s-1)} style={{ background:"transparent", border:`0.5px solid ${C.border}`, color:C.muted, width:32, height:32, borderRadius:"50%", cursor:"pointer", fontSize:14, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>‹</button>
+          )}
+          <div style={{ display:"flex", gap:5, flex:1, justifyContent:"center" }}>
+            {Array.from({length:SLIDE_COUNT}).map((_,i)=>(
+              <div key={i} onClick={()=>setSlide(i)}
+                style={{ width:i===slide?18:6, height:6, borderRadius:3, background:i===slide?C.blue:C.border, transition:"all .2s", cursor:"pointer" }} />
+            ))}
+          </div>
+          {slide < SLIDE_COUNT-1 && (
+            <button onClick={()=>setSlide(s=>s+1)} style={{ background:C.blue, border:"none", color:"#fff", width:32, height:32, borderRadius:"50%", cursor:"pointer", fontSize:14, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>›</button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── HOME ──────────────────────────────────────────────────────────────────────
-function HomeScreen({ games, logs, onGameClick, steamId, onConnectSteam, isDesktop }) {
+function HomeScreen({ games, logs, onGameClick, steamId, onConnectSteam, psnToken, onConnectPSN, xboxKey, onConnectXbox, isDesktop, user, onOpenWrapped }) {
   const vw      = useWindowWidth();
   const hasLogs = logs.length > 0;
   const played  = hasLogs ? logs.filter(g=>g.status==="played") : [];
@@ -1232,6 +1807,26 @@ function HomeScreen({ games, logs, onGameClick, steamId, onConnectSteam, isDeskt
 
       {/* Body — single column (sidebars handled globally on desktop) */}
       <div style={{ padding:"0 clamp(18px,5vw,48px)" }}>
+
+        {/* Monthly Wrapped banner */}
+        <div style={{ paddingTop:28, marginBottom:0 }}>
+          <div onClick={onOpenWrapped}
+            style={{ display:"flex", alignItems:"center", gap:14, padding:"clamp(14px,2.5vw,18px)", borderRadius:12, cursor:"pointer", overflow:"hidden", position:"relative",
+              background:`linear-gradient(135deg, ${C.blue}22 0%, ${C.pink}18 50%, ${C.yellow}14 100%)`,
+              border:`0.5px solid ${C.blue}33`, transition:"opacity .15s" }}
+            onMouseEnter={e=>e.currentTarget.style.opacity="0.8"}
+            onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
+            <div style={{ fontSize:28, flexShrink:0 }}>🎮</div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:13, fontWeight:600, color:C.text, marginBottom:2 }}>
+                {new Date().toLocaleString("default",{month:"long"})} Wrapped
+              </div>
+              <div style={{ fontSize:11, color:C.muted }}>Your monthly gaming recap is ready</div>
+            </div>
+            <div style={{ fontSize:18, color:C.blue, flexShrink:0 }}>›</div>
+          </div>
+        </div>
+
         <div style={{ paddingTop:32 }}>
           <SectionHead label="Recently Logged" />
           {hasLogs ? (
@@ -1275,10 +1870,55 @@ function HomeScreen({ games, logs, onGameClick, steamId, onConnectSteam, isDeskt
           </div>
         )}
 
+        {/* PlayStation */}
+        {psnToken ? (
+          <div style={{ paddingTop:32 }}>
+            <SectionHead label="PlayStation Library" />
+            <PSNGamesRow accessToken={psnToken} onGameClick={onGameClick} />
+          </div>
+        ) : (
+          <div style={{ paddingTop:16 }}>
+            <div onClick={onConnectPSN} style={{ display:"flex", alignItems:"center", gap:16, padding:"clamp(14px,2.5vw,18px)", background:"linear-gradient(135deg, rgba(0,36,80,.85) 0%, rgba(10,10,20,.95) 100%)", borderRadius:12, border:"0.5px solid rgba(0,120,255,.2)", cursor:"pointer", transition:"opacity .15s" }}
+              onMouseEnter={e=>e.currentTarget.style.opacity="0.8"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
+              <div style={{ width:44, height:44, borderRadius:10, background:"rgba(0,36,80,1)", border:"0.5px solid rgba(0,120,255,.3)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:22 }}>🎮</div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:14, fontWeight:500, color:C.text, marginBottom:3 }}>Connect PlayStation</div>
+                <div style={{ fontSize:12, color:C.muted }}>Sync your trophy library & games</div>
+              </div>
+              <div style={{ color:"rgba(0,120,255,.6)", fontSize:20, flexShrink:0 }}>›</div>
+            </div>
+          </div>
+        )}
+
+        {/* Xbox */}
+        {xboxKey ? (
+          <div style={{ paddingTop:16 }}>
+            <SectionHead label="Xbox Library" />
+            <XboxGamesRow xboxKey={xboxKey} onGameClick={onGameClick} />
+          </div>
+        ) : (
+          <div style={{ paddingTop:16 }}>
+            <div onClick={onConnectXbox} style={{ display:"flex", alignItems:"center", gap:16, padding:"clamp(14px,2.5vw,18px)", background:"linear-gradient(135deg, rgba(16,124,16,.2) 0%, rgba(10,10,20,.95) 100%)", borderRadius:12, border:"0.5px solid rgba(16,124,16,.3)", cursor:"pointer", transition:"opacity .15s" }}
+              onMouseEnter={e=>e.currentTarget.style.opacity="0.8"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
+              <div style={{ width:44, height:44, borderRadius:10, background:"rgba(16,124,16,.25)", border:"0.5px solid rgba(16,124,16,.4)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:22 }}>🎮</div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:14, fontWeight:500, color:C.text, marginBottom:3 }}>Connect Xbox</div>
+                <div style={{ fontSize:12, color:C.muted }}>Sync your game library & achievements via OpenXBL</div>
+              </div>
+              <div style={{ color:"rgba(16,124,16,.7)", fontSize:20, flexShrink:0 }}>›</div>
+            </div>
+          </div>
+        )}
+
         {/* News + GOTY inline on mobile only */}
         {!isDesktop && <NewsRow />}
 
+        {/* Storefront Deals — personalised by connected platforms */}
         <div style={{ paddingTop:32 }}>
+          <StorefrontDeals />
+        </div>
+
+        <div style={{ paddingTop:8 }}>
           <SectionHead label="New & Hot" />
           <NewAndHot onGameClick={onGameClick} />
         </div>
@@ -1408,6 +2048,118 @@ function DealCard({ deal }) {
         <div style={{ fontSize:9, color:"#444", marginTop:3 }}>{store}</div>
       </div>
     </a>
+  );
+}
+
+// ── STOREFRONT DEALS (ITAD multi-platform) ────────────────────────────────────
+async function fetchItadDeals(shops) {
+  const res = await fetch(IGDB_PROXY, {
+    method: "POST", headers: PROXY_HEADERS,
+    body: JSON.stringify({ endpoint: "itad/deals", shops }),
+  });
+  return res.json();
+}
+
+const STOREFRONT_TABS = [
+  { key:"all",      label:"All",          shops:"",             color:C.muted    },
+  { key:"steam",    label:"Steam",        shops:"steam",        color:"#1b9af0"  },
+  { key:"psn",      label:"PlayStation",  shops:"psn",          color:"#003791"  },
+  { key:"xbox",     label:"Xbox",         shops:"xboxgames",    color:"#107c10"  },
+  { key:"nintendo", label:"Nintendo",     shops:"nintendo",     color:"#e60012"  },
+  { key:"epic",     label:"Epic",         shops:"epicgames",    color:"#c7c7c7"  },
+  { key:"gog",      label:"GOG",          shops:"gog",          color:"#86328a"  },
+];
+
+function StorefrontDeals() {
+  // PSN is the default — best console deals; all tabs always visible regardless of account connection
+  const [tab,     setTab]     = useState("psn");
+  const [deals,   setDeals]   = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [cache,   setCache]   = useState({});
+
+  const activeTab = STOREFRONT_TABS.find(t => t.key === tab) || STOREFRONT_TABS[0];
+
+  useEffect(() => {
+    if (cache[tab]) { setDeals(cache[tab]); return; }
+    setLoading(true);
+    fetchItadDeals(activeTab.shops)
+      .then(raw => {
+        const list = Array.isArray(raw) ? raw : (raw?.list || raw?.data?.list || []);
+        const normalized = list
+          .filter(d => (d.deal?.cut ?? d.price_cut ?? 0) >= 20)
+          .slice(0, 24)
+          .map(d => ({
+            title:       d.title || d.plain || "",
+            image:       d.assets?.banner300 || d.assets?.boxart || d.image || "",
+            salePrice:   Number(d.deal?.price?.amount ?? d.price_new ?? 0).toFixed(2),
+            normalPrice: Number(d.deal?.regular?.amount ?? d.price_old ?? 0).toFixed(2),
+            cut:         Math.round(d.deal?.cut ?? d.price_cut ?? 0),
+            url:         d.deal?.url ?? d.url ?? "#",
+            store:       d.deal?.shop?.name ?? d.shop?.name ?? "Store",
+            storeId:     d.deal?.shop?.id   ?? d.shop?.id   ?? "",
+          }));
+        setDeals(normalized);
+        setCache(c => ({ ...c, [tab]: normalized }));
+      })
+      .catch(() => setDeals([]))
+      .finally(() => setLoading(false));
+  }, [tab]);
+
+  const storeColor = id => ({
+    steam: "#1b9af0", psn: "#003791", xboxgames: "#107c10",
+    nintendo: "#e60012", epicgames: "#c7c7c7", gog: "#86328a",
+  }[id] || C.muted);
+
+  return (
+    <div style={{ marginBottom:"clamp(24px,5vh,36px)" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"clamp(10px,2vh,14px)" }}>
+        <span style={{ fontSize:"clamp(15px,2.5vw,19px)", fontWeight:500, letterSpacing:"-0.2px" }}>Storefront Deals</span>
+      </div>
+
+      <div style={{ display:"flex", gap:6, marginBottom:"clamp(10px,2vh,14px)", overflowX:"auto", paddingBottom:2 }}>
+        {STOREFRONT_TABS.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)} style={{
+            flexShrink:0, padding:"5px 14px", borderRadius:20, cursor:"pointer",
+            border:`0.5px solid ${tab===t.key ? t.color : C.border}`,
+            background: tab===t.key ? `${t.color}22` : "transparent",
+            color: tab===t.key ? t.color : C.muted,
+            fontSize:11, fontWeight:500, letterSpacing:"1px", textTransform:"uppercase", transition:"all .15s",
+          }}>{t.label}</button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div style={{ padding:"24px 0", fontSize:11, color:"#444", letterSpacing:"2px", textTransform:"uppercase" }}>Loading deals…</div>
+      ) : deals.length > 0 ? (
+        <div style={{ display:"flex", gap:"clamp(10px,2vw,14px)", overflowX:"auto", paddingBottom:8, scrollSnapType:"x mandatory", marginLeft:"-clamp(18px,5vw,48px)", marginRight:"-clamp(18px,5vw,48px)", paddingLeft:"clamp(18px,5vw,48px)", paddingRight:"clamp(18px,5vw,48px)" }}>
+          {deals.map((d,i) => (
+            <a key={i} href={d.url} target="_blank" rel="noopener noreferrer"
+              style={{ display:"block", width:"clamp(130px,20vw,165px)", flexShrink:0, scrollSnapAlign:"start", textDecoration:"none" }}>
+              <div style={{ position:"relative", borderRadius:8, overflow:"hidden", boxShadow:"0 4px 20px rgba(0,0,0,.6)", aspectRatio:"2/3", background:C.surface }}>
+                {d.image
+                  ? <Img src={d.image} style={{ width:"100%", height:"100%" }} />
+                  : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", padding:12 }}>
+                      <span style={{ fontSize:10, color:"#555", textAlign:"center", lineHeight:1.4 }}>{d.title}</span>
+                    </div>
+                }
+                <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(10,10,10,.96) 0%, rgba(10,10,10,.15) 55%, transparent 100%)" }} />
+                <div style={{ position:"absolute", top:8, left:8, background:C.green, borderRadius:5, padding:"3px 7px", fontSize:10, fontWeight:700, color:"#000" }}>-{d.cut}%</div>
+                <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"clamp(8px,2vw,11px)" }}>
+                  <div style={{ fontSize:"clamp(10px,1.5vw,12px)", fontWeight:500, color:C.text, lineHeight:1.3, marginBottom:4, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{d.title}</div>
+                  <div style={{ display:"flex", alignItems:"baseline", gap:6 }}>
+                    <span style={{ fontSize:14, fontWeight:700, color:C.green }}>${d.salePrice}</span>
+                    <span style={{ fontSize:10, color:"#555", textDecoration:"line-through" }}>${d.normalPrice}</span>
+                  </div>
+                  <div style={{ fontSize:9, marginTop:3, color:storeColor(d.storeId), fontWeight:500 }}>{d.store}</div>
+                </div>
+              </div>
+            </a>
+          ))}
+        </div>
+      ) : (
+        <div style={{ padding:"24px 0", fontSize:11, color:"#444", letterSpacing:"2px", textTransform:"uppercase" }}>No deals right now</div>
+      )}
+    </div>
   );
 }
 
@@ -1686,19 +2438,31 @@ function BrowseScreen({ games, onGameClick }) {
             limit 20;
           `);
         } else {
-          const companies = await igdb("companies", `
-            search "${filterMode.name.replace(/"/g, '\\"')}";
+          const escaped = filterMode.name.replace(/"/g, '\\"');
+          // Try exact name match first; fall back to fuzzy search
+          let companies = await igdb("companies", `
             fields id, name;
-            limit 3;
+            where name = "${escaped}";
+            limit 1;
           `);
-          const devId = Array.isArray(companies) ? companies[0]?.id : null;
+          if (!Array.isArray(companies) || !companies.length) {
+            companies = await igdb("companies", `
+              search "${escaped}";
+              fields id, name;
+              limit 5;
+            `);
+          }
+          // Pick best match: exact or first result
+          const exactMatch = Array.isArray(companies) && companies.find(
+            c => c.name?.toLowerCase() === filterMode.name.toLowerCase()
+          );
+          const devId = exactMatch?.id ?? (Array.isArray(companies) ? companies[0]?.id : null);
           data = devId ? await igdb("games", `
             fields id, name, first_release_date, cover.image_id, artworks.image_id,
               screenshots.image_id, genres.name,
               involved_companies.company.name, involved_companies.developer,
               external_games.uid, external_games.category, rating;
-            where involved_companies.company = ${devId} & involved_companies.developer = true
-              & cover != null & version_parent = null;
+            where involved_companies.company = ${devId} & cover != null;
             sort rating desc;
             limit 20;
           `) : [];
@@ -2430,6 +3194,154 @@ function ProfileScreen({ user, logs, displayName, photoUrl }) {
   );
 }
 
+// ── PLATFORMS SCREEN ─────────────────────────────────────────────────────────
+function PlatformsScreen({
+  steamId,   onConnectSteam,   onDisconnectSteam,
+  psnNpsso,  psnProfile,       onConnectPSN,     onDisconnectPSN,
+  xboxKey,   xboxProfile,      onConnectXbox,    onDisconnectXbox,
+}) {
+  const PLATFORMS = [
+    {
+      key:        "steam",
+      name:       "Steam",
+      desc:       "Sync your library, playtime & recently played games",
+      connected:  !!steamId,
+      identity:   steamId ? steamId : null,
+      avatar:     null,
+      accentBg:   "linear-gradient(135deg, rgba(27,40,56,.9) 0%, rgba(13,17,23,.95) 100%)",
+      accentBorder: "rgba(27,154,240,.25)",
+      accentText: "#1b9af0",
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489l3.075-3.739A3.5 3.5 0 0 1 15.5 11h.5l3.739-3.075A9.956 9.956 0 0 0 12 2z" fill="#1b9af0" opacity=".9"/>
+          <path d="M11.97 14.5A2.5 2.5 0 1 0 9.47 12" stroke="#fff" strokeWidth="1.5" fill="none"/>
+        </svg>
+      ),
+      onConnect:    onConnectSteam,
+      onDisconnect: onDisconnectSteam,
+    },
+    {
+      key:        "psn",
+      name:       "PlayStation",
+      desc:       "Sync your trophy library, playtime & PS4/PS5 games",
+      connected:  !!psnNpsso,
+      identity:   psnProfile?.onlineId || null,
+      avatar:     psnProfile?.avatarUrl || null,
+      accentBg:   "linear-gradient(135deg, rgba(0,36,80,.85) 0%, rgba(10,10,20,.95) 100%)",
+      accentBorder: "rgba(0,120,255,.25)",
+      accentText: "#0070d1",
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M9 4v13.5l3.3 1.1c2.2.7 3.7.5 3.7-1V6.5c0-1.5-1-2.2-2.2-1.7L9 4zm8.5 11.5c.5-.6.5-1.3.5-2h-1.8v1c0 .5-.3.9-.8.7l-1.9-.6v1.8l1.9.6c1.2.4 2.1.1 2.1-1.5z" fill="#0070d1"/>
+        </svg>
+      ),
+      onConnect:    onConnectPSN,
+      onDisconnect: onDisconnectPSN,
+    },
+    {
+      key:        "xbox",
+      name:       "Xbox",
+      desc:       "Sync your game library, achievements & gamerscore via OpenXBL",
+      connected:  !!xboxKey,
+      identity:   xboxProfile?.gamertag || null,
+      avatar:     xboxProfile?.avatar || null,
+      accentBg:   "linear-gradient(135deg, rgba(16,124,16,.25) 0%, rgba(10,10,20,.95) 100%)",
+      accentBorder: "rgba(16,124,16,.35)",
+      accentText: "#107c10",
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="9.5" stroke="#107c10" strokeWidth="1.5"/>
+          <path d="M8.5 8.5C9.8 7 11.3 6 12 6c.7 0 2.2 1 3.5 2.5" stroke="#107c10" strokeWidth="1.4" strokeLinecap="round"/>
+          <path d="M6 10.5C7.5 9 9 7.5 10 7l4 10c-1.5 1-4 1.5-5.5.5L6 10.5z" fill="#107c10" opacity=".7"/>
+          <path d="M18 10.5c-1.5-1.5-3-3-4-3.5l-4 10c1.5 1 4 1.5 5.5.5L18 10.5z" fill="#107c10" opacity=".5"/>
+        </svg>
+      ),
+      onConnect:    onConnectXbox,
+      onDisconnect: onDisconnectXbox,
+    },
+  ];
+
+  return (
+    <div style={{ paddingBottom:90, color:C.text }}>
+      <div style={{ padding:"clamp(52px,12vh,72px) clamp(18px,5vw,48px) clamp(20px,4vh,28px)", position:"sticky", top:0, background:C.bg, zIndex:10, borderBottom:`0.5px solid ${C.border}` }}>
+        <div style={{ fontSize:"clamp(20px,4vw,28px)", fontWeight:500, letterSpacing:"-0.3px", marginBottom:4 }}>Platforms</div>
+        <div style={{ fontSize:13, color:C.muted }}>Connect your gaming accounts to sync your library.</div>
+      </div>
+
+      <div style={{ padding:"clamp(14px,3vh,20px) clamp(18px,5vw,48px) 0", display:"flex", flexDirection:"column", gap:14 }}>
+        {PLATFORMS.map(p => (
+          <div key={p.key} style={{ borderRadius:14, overflow:"hidden", border:`0.5px solid ${p.accentBorder}`, background:p.accentBg }}>
+            {/* Header row */}
+            <div style={{ display:"flex", alignItems:"center", gap:14, padding:"clamp(16px,3vw,20px)" }}>
+              <div style={{ width:46, height:46, borderRadius:12, background:`${p.accentText}18`, border:`0.5px solid ${p.accentText}33`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                {p.icon}
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <div style={{ fontSize:15, fontWeight:500, color:C.text }}>{p.name}</div>
+                  {p.connected && (
+                    <div style={{ fontSize:9, fontWeight:600, color:C.green, background:`${C.green}18`, border:`0.5px solid ${C.green}44`, borderRadius:20, padding:"2px 8px", letterSpacing:"1.5px", textTransform:"uppercase" }}>Connected</div>
+                  )}
+                </div>
+                <div style={{ fontSize:12, color:C.muted, marginTop:2, lineHeight:1.4 }}>{p.desc}</div>
+              </div>
+            </div>
+
+            {/* Connected identity row */}
+            {p.connected && p.identity && (
+              <div style={{ display:"flex", alignItems:"center", gap:12, padding:"12px clamp(16px,3vw,20px)", borderTop:`0.5px solid ${p.accentBorder}`, background:"rgba(0,0,0,.25)" }}>
+                {p.avatar && (
+                  <img src={p.avatar} style={{ width:34, height:34, borderRadius:"50%", objectFit:"cover", border:`0.5px solid ${p.accentText}44` }} alt="" onError={e=>e.target.style.display="none"} />
+                )}
+                {!p.avatar && (
+                  <div style={{ width:34, height:34, borderRadius:"50%", background:`${p.accentText}22`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14 }}>
+                    {p.key === "steam" ? "🎮" : p.key === "psn" ? "🎮" : "🎮"}
+                  </div>
+                )}
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:500, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.identity}</div>
+                  <div style={{ fontSize:10, color:p.accentText, marginTop:1 }}>
+                    {p.key === "steam" ? "Steam ID" : p.key === "psn" ? "PSN Online ID" : "Gamertag"}
+                  </div>
+                </div>
+                <button
+                  onClick={p.onDisconnect}
+                  style={{ padding:"6px 14px", borderRadius:8, border:`0.5px solid ${C.pink}44`, background:`${C.pink}12`, color:C.pink, fontSize:11, fontWeight:500, cursor:"pointer", flexShrink:0, letterSpacing:"0.5px" }}>
+                  Disconnect
+                </button>
+              </div>
+            )}
+
+            {/* Connect / already connected CTA */}
+            <div style={{ padding:"0 clamp(16px,3vw,20px) clamp(16px,3vw,20px)" }}>
+              {p.connected ? (
+                <div style={{ fontSize:11, color:C.muted, textAlign:"center", padding:"8px 0" }}>
+                  Library synced automatically
+                </div>
+              ) : (
+                <button
+                  onClick={p.onConnect}
+                  style={{ width:"100%", padding:"12px 0", borderRadius:10, border:`0.5px solid ${p.accentText}44`, background:`${p.accentText}18`, color:p.accentText, fontSize:13, fontWeight:600, cursor:"pointer", letterSpacing:"0.5px", transition:"all .15s" }}
+                  onMouseEnter={e=>e.currentTarget.style.background=`${p.accentText}2e`}
+                  onMouseLeave={e=>e.currentTarget.style.background=`${p.accentText}18`}>
+                  Connect {p.name} →
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {/* Info note */}
+        <div style={{ padding:"clamp(14px,2vh,18px)", background:C.surface, borderRadius:12, border:`0.5px solid ${C.border}`, marginTop:4 }}>
+          <div style={{ fontSize:11, color:"#444", lineHeight:1.7 }}>
+            Your credentials are stored securely in your account and only used to sync your gaming data. Kortana never stores your passwords.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── ROOT ──────────────────────────────────────────────────────────────────────
 export default function Kortana() {
   const [games,    setGames]    = useState(INIT_GAMES);
@@ -2453,8 +3365,16 @@ export default function Kortana() {
   const [displayName, setDisplayName]     = useState("");
   const [photoUrl, setPhotoUrl]           = useState("");
   const [steamId, setSteamId]             = useState("");
+  const [psnNpsso,    setPsnNpsso]    = useState("");
+  const [psnToken,    setPsnToken]    = useState("");
+  const [psnProfile,  setPsnProfile]  = useState(null);
+  const [xboxKey,     setXboxKey]     = useState("");
+  const [xboxProfile, setXboxProfile] = useState(null);
   const [showConnectSteam, setShowConnectSteam] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showConnectPSN,   setShowConnectPSN]   = useState(false);
+  const [showConnectXbox,  setShowConnectXbox]  = useState(false);
+  const [showOnboarding,   setShowOnboarding]   = useState(false);
+  const [showWrapped,      setShowWrapped]      = useState(false);
   const vw        = useWindowWidth();
   const isDesktop = vw >= 960;
 
@@ -2469,6 +3389,8 @@ export default function Kortana() {
         setDisplayName(u.user_metadata?.display_name || "");
         setPhotoUrl(u.user_metadata?.avatar_url || "");
         setSteamId(u.user_metadata?.steam_id || "");
+        setPsnNpsso(u.user_metadata?.psn_npsso || "");
+        setXboxKey(u.user_metadata?.xbox_key || "");
         if (!localStorage.getItem(`kortana_onboarded_${u.id}`)) setShowOnboarding(true);
       }
       setAuthLoading(false);
@@ -2482,6 +3404,8 @@ export default function Kortana() {
         setDisplayName(u.user_metadata?.display_name || "");
         setPhotoUrl(u.user_metadata?.avatar_url || "");
         setSteamId(u.user_metadata?.steam_id || "");
+        setPsnNpsso(u.user_metadata?.psn_npsso || "");
+        setXboxKey(u.user_metadata?.xbox_key || "");
       }
     });
     return () => { mounted = false; subscription?.subscription?.unsubscribe?.(); };
@@ -2516,12 +3440,67 @@ export default function Kortana() {
     if (!error) { setSteamId(newSteamId); setShowConnectSteam(false); }
   };
 
+  const connectPSN = async (npsso, profile) => {
+    const { error } = await supabase.auth.updateUser({ data: { psn_npsso: npsso } });
+    if (!error) {
+      setPsnNpsso(npsso);
+      setPsnToken(profile.access_token);
+      setPsnProfile({ onlineId: profile.onlineId, avatarUrl: profile.avatarUrl });
+      setShowConnectPSN(false);
+    }
+  };
+
+  const connectXbox = async (key, profile) => {
+    const { error } = await supabase.auth.updateUser({ data: { xbox_key: key } });
+    if (!error) {
+      setXboxKey(key);
+      setXboxProfile(profile);
+      setShowConnectXbox(false);
+    }
+  };
+
+  const disconnectSteam = async () => {
+    await supabase.auth.updateUser({ data: { steam_id: "" } });
+    setSteamId("");
+  };
+  const disconnectPSN = async () => {
+    await supabase.auth.updateUser({ data: { psn_npsso: "" } });
+    setPsnNpsso(""); setPsnToken(""); setPsnProfile(null);
+  };
+  const disconnectXbox = async () => {
+    await supabase.auth.updateUser({ data: { xbox_key: "" } });
+    setXboxKey(""); setXboxProfile(null);
+  };
+
+  // Auto-reconnect PSN using stored NPSSO when session loads
+  useEffect(() => {
+    if (!psnNpsso || psnToken) return;
+    psnConnect(psnNpsso).then(data => {
+      if (data.access_token) {
+        setPsnToken(data.access_token);
+        setPsnProfile({ onlineId: data.onlineId, avatarUrl: data.avatarUrl });
+      }
+    }).catch(() => {});
+  }, [psnNpsso]);
+
+  // Auto-load Xbox profile when key loads
+  useEffect(() => {
+    if (!xboxKey || xboxProfile) return;
+    xboxApi("profile", xboxKey).then(data => {
+      const pu = data?.profileUsers?.[0];
+      const gamertag = pu?.settings?.find(s => s.id === "Gamertag")?.value || "";
+      const avatar   = pu?.settings?.find(s => s.id === "GameDisplayPicRaw")?.value || "";
+      if (gamertag) setXboxProfile({ gamertag, avatar });
+    }).catch(() => {});
+  }, [xboxKey]);
+
   const TABS = [
-    { key:"home",    label:"Home"    },
-    { key:"diary",   label:"Diary"   },
-    { key:"browse",  label:"Browse"  },
-    { key:"lists",   label:"Lists"   },
-    { key:"profile", label:"Profile" },
+    { key:"home",      label:"Home"      },
+    { key:"diary",     label:"Diary"     },
+    { key:"browse",    label:"Browse"    },
+    { key:"lists",     label:"Lists"     },
+    { key:"platforms", label:"Platforms" },
+    { key:"profile",   label:"Profile"   },
   ];
 
   if (authLoading) return (
@@ -2596,10 +3575,15 @@ export default function Kortana() {
 
             {/* Center column */}
             <div style={{ flex:1, minWidth:0, overflow:"hidden" }}>
-              {tab==="home"    && <HomeScreen    games={games} logs={logs} onGameClick={setDetail} steamId={steamId} onConnectSteam={()=>setShowConnectSteam(true)} isDesktop={isDesktop} />}
+              {tab==="home"    && <HomeScreen    games={games} logs={logs} onGameClick={setDetail} steamId={steamId} onConnectSteam={()=>setShowConnectSteam(true)} psnToken={psnToken} onConnectPSN={()=>setShowConnectPSN(true)} xboxKey={xboxKey} onConnectXbox={()=>setShowConnectXbox(true)} isDesktop={isDesktop} user={user} onOpenWrapped={()=>setShowWrapped(true)} />}
               {tab==="diary"   && <DiaryScreen   logs={logs} onGameClick={setDetail} />}
               {tab==="browse"  && <BrowseScreen  games={games} onGameClick={setDetail} />}
               {tab==="lists"   && <ListsScreen   lists={lists} games={[...new Map(logs.map(l=>[l.game_id||l.id,{...l,id:l.game_id||l.id,hero:l.cover}])).values()]} setLists={setLists} onGameClick={setDetail} />}
+              {tab==="platforms" && <PlatformsScreen
+                steamId={steamId}   onConnectSteam={()=>setShowConnectSteam(true)}   onDisconnectSteam={disconnectSteam}
+                psnNpsso={psnNpsso} psnProfile={psnProfile} onConnectPSN={()=>setShowConnectPSN(true)} onDisconnectPSN={disconnectPSN}
+                xboxKey={xboxKey}   xboxProfile={xboxProfile} onConnectXbox={()=>setShowConnectXbox(true)} onDisconnectXbox={disconnectXbox}
+              />}
               {tab==="profile" && <ProfileScreen user={user} logs={logs} displayName={displayName} photoUrl={photoUrl} />}
             </div>
 
@@ -2633,6 +3617,20 @@ export default function Kortana() {
         )}
         {showConnectSteam && (
           <ConnectSteamSheet onConnect={connectSteam} onClose={()=>setShowConnectSteam(false)} />
+        )}
+        {showConnectPSN && (
+          <ConnectPSNSheet onConnect={connectPSN} onClose={()=>setShowConnectPSN(false)} />
+        )}
+        {showConnectXbox && (
+          <ConnectXboxSheet onConnect={connectXbox} onClose={()=>setShowConnectXbox(false)} />
+        )}
+
+        {showWrapped && (
+          <WrappedModal
+            user={user} logs={logs}
+            steamId={steamId} psnToken={psnToken} xboxKey={xboxKey}
+            onClose={()=>setShowWrapped(false)}
+          />
         )}
 
       </div>
