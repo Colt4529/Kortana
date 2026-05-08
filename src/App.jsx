@@ -1765,74 +1765,136 @@ function HomeScreen({ games, logs, onGameClick, steamId, onConnectSteam, psnToke
   const heroGame = hasLogs ? logs[0] : null;
 
   const SectionHead = ({ label }) => (
-    <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16 }}>
-      <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2px", color:"#444", textTransform:"uppercase", flexShrink:0 }}>{label}</span>
-      <div style={{ flex:1, height:"0.5px", background:C.border }} />
+    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
+      <div style={{ width:3, height:14, borderRadius:2, background:`linear-gradient(to bottom, ${C.blue}, ${C.pink})`, flexShrink:0 }} />
+      <span style={{ fontSize:10, fontWeight:600, letterSpacing:"2.5px", color:"#666", textTransform:"uppercase" }}>{label}</span>
     </div>
   );
+
+  const PLATFORM_CONNECT = [
+    !steamId  && { label:"Steam",       desc:"Library & playtime",              color:"#1b9af0", bg:"rgba(27,40,56,.8)",     border:"#2a475e55", onClick:onConnectSteam,
+      icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489l3.075-3.739A3.5 3.5 0 0 1 15.5 11h.5l3.739-3.075A9.956 9.956 0 0 0 12 2z" fill="#1b9af0"/><path d="M11.97 14.5A2.5 2.5 0 1 0 9.47 12" stroke="#fff" strokeWidth="1.5" fill="none"/></svg> },
+    !psnToken && { label:"PlayStation",  desc:"Trophies & PS4/PS5 games",        color:"#0070d1", bg:"rgba(0,36,80,.7)",      border:"rgba(0,120,255,.2)", onClick:onConnectPSN,
+      icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 4v13.5l3.3 1.1c2.2.7 3.7.5 3.7-1V6.5c0-1.5-1-2.2-2.2-1.7L9 4zm8.5 11.5c.5-.6.5-1.3.5-2h-1.8v1c0 .5-.3.9-.8.7l-1.9-.6v1.8l1.9.6c1.2.4 2.1.1 2.1-1.5z" fill="#0070d1"/></svg> },
+    !xboxKey  && { label:"Xbox",         desc:"Game library & achievements",      color:"#107c10", bg:"rgba(16,60,16,.5)",     border:"rgba(16,124,16,.25)", onClick:onConnectXbox,
+      icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#107c10" strokeWidth="1.5"/><path d="M8.5 8.5C9.8 7 11 6 12 6s2.2 1 3.5 2.5" stroke="#107c10" strokeWidth="1.3" strokeLinecap="round"/><path d="M6 10.5C7.5 9 9 7.5 10 7l4 10c-1.5 1-4 1.5-5.5.5L6 10.5z" fill="#107c10" opacity=".7"/><path d="M18 10.5c-1.5-1.5-3-3-4-3.5l-4 10c1.5 1 4 1.5 5.5.5L18 10.5z" fill="#107c10" opacity=".5"/></svg> },
+  ].filter(Boolean);
 
   return (
     <div style={{ paddingBottom:90, color:C.text }}>
 
-      {/* Hero */}
+      {/* ── Cinematic Hero ── */}
       {hasLogs && heroGame ? (
-        <div onClick={()=>onGameClick(heroGame)} style={{ position:"relative", height:"clamp(280px,45vh,480px)", overflow:"hidden", cursor:"pointer", marginBottom:32 }}>
-          <Img src={heroGame.hero||heroGame.cover} style={{ width:"100%", height:"100%", filter:"brightness(.3) saturate(.6)" }} />
-          <div style={{ position:"absolute", inset:0, background:`linear-gradient(to bottom, transparent 20%, ${C.bg} 100%)` }} />
-          <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"0 clamp(18px,5vw,48px) clamp(22px,6vh,42px)" }}>
-            <div style={{ fontSize:10, letterSpacing:"2px", color:"#444", marginBottom:"clamp(8px,2vh,14px)", textTransform:"uppercase", fontWeight:500 }}>Featured</div>
-            <div style={{ fontSize:"clamp(28px,6vw,48px)", fontWeight:500, lineHeight:1.05, letterSpacing:"-0.5px" }}>{heroGame.title}</div>
-            <div style={{ fontSize:13, color:C.muted, marginTop:"clamp(5px,1vh,10px)" }}>{heroGame.year} · {heroGame.developer}</div>
+        <div onClick={() => onGameClick(heroGame)} style={{ position:"relative", height:"clamp(400px,62vh,620px)", overflow:"hidden", cursor:"pointer" }}>
+          <Img src={heroGame.hero || heroGame.cover} style={{ width:"100%", height:"115%", marginTop:"-5%", objectFit:"cover", filter:"brightness(.22) saturate(.9) contrast(1.15)" }} />
+          {/* Side vignette + bottom fade */}
+          <div style={{ position:"absolute", inset:0, background:"linear-gradient(to right, rgba(6,8,15,.92) 0%, rgba(6,8,15,.4) 55%, transparent 100%)" }} />
+          <div style={{ position:"absolute", inset:0, background:`linear-gradient(to bottom, transparent 35%, ${C.bg} 100%)` }} />
+          {/* Subtle top fade */}
+          <div style={{ position:"absolute", top:0, left:0, right:0, height:120, background:"linear-gradient(to bottom, rgba(6,8,15,.6) 0%, transparent 100%)" }} />
+
+          {/* Content */}
+          <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"0 clamp(18px,5vw,48px) clamp(32px,7vh,56px)", maxWidth:620 }}>
+            {/* Status glow badge */}
+            {heroGame.status && (
+              <div style={{ display:"inline-flex", alignItems:"center", gap:7, marginBottom:"clamp(10px,2vh,16px)" }}>
+                <div style={{ width:6, height:6, borderRadius:"50%", background: SC[heroGame.status] || C.muted, boxShadow:`0 0 10px ${SC[heroGame.status] || C.muted}` }} />
+                <span style={{ fontSize:9, letterSpacing:"3px", color: SC[heroGame.status] || C.muted, textTransform:"uppercase", fontWeight:600 }}>
+                  {heroGame.status === "played" ? "Completed" : heroGame.status === "playing" ? "Now Playing" : heroGame.status === "want to play" ? "On Backlog" : heroGame.status}
+                </span>
+              </div>
+            )}
+            <div style={{ fontSize:"clamp(34px,7vw,60px)", fontWeight:600, lineHeight:1, letterSpacing:"-1.5px", marginBottom:"clamp(10px,2vh,18px)", textShadow:"0 2px 20px rgba(0,0,0,.5)" }}>
+              {heroGame.title}
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+              {heroGame.year && <span style={{ fontSize:12, color:"#666" }}>{heroGame.year}</span>}
+              {heroGame.developer && heroGame.developer !== "Unknown" && (
+                <><span style={{ color:"#2a2a2a" }}>·</span><span style={{ fontSize:12, color:"#666" }}>{heroGame.developer}</span></>
+              )}
+              {heroGame.rating > 0 && (
+                <><span style={{ color:"#2a2a2a" }}>·</span><Stars value={heroGame.rating} size={12} /></>
+              )}
+            </div>
           </div>
         </div>
       ) : !hasLogs && (
-        <div style={{ padding:"32px clamp(18px,5vw,48px)", marginBottom:32, borderRadius:12, background:C.surface, border:`0.5px solid ${C.border}` }}>
-          <div style={{ fontSize:"clamp(20px,4vw,28px)", fontWeight:500, marginBottom:12, letterSpacing:"-0.3px" }}>Welcome to Kortana</div>
-          <div style={{ fontSize:15, color:C.muted, lineHeight:1.7 }}>Start browsing games and save your first log to build your library.</div>
+        <div style={{ position:"relative", height:"clamp(340px,55vh,500px)", display:"flex", alignItems:"flex-end", overflow:"hidden" }}>
+          <div style={{ position:"absolute", inset:0, background:`radial-gradient(ellipse 90% 60% at 50% 0%, ${C.blue}18 0%, transparent 70%), radial-gradient(ellipse 60% 40% at 80% 80%, ${C.pink}12 0%, transparent 70%)` }} />
+          <div style={{ position:"relative", padding:"0 clamp(18px,5vw,48px) clamp(36px,8vh,60px)" }}>
+            <div style={{ fontSize:9, letterSpacing:"3px", color:"#444", textTransform:"uppercase", fontWeight:600, marginBottom:14 }}>Welcome</div>
+            <div style={{ fontSize:"clamp(30px,6vw,52px)", fontWeight:600, lineHeight:1.05, letterSpacing:"-1px", marginBottom:12 }}>Your game journal<br/>starts here.</div>
+            <div style={{ fontSize:13, color:"#555", lineHeight:1.7 }}>Browse games and save your first log to build your library.</div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Stats strip ── */}
+      {hasLogs && (
+        <div style={{ display:"flex", borderBottom:`0.5px solid ${C.border}`, margin:"0 clamp(18px,5vw,48px)", paddingBottom:24, marginBottom:32 }}>
+          {[["Played", played.length, C.green], ["Playing", playing.length, C.blue], ["Avg", avgR === "—" ? "—" : avgR + " ★", C.yellow]].map(([l, v, col]) => (
+            <div key={l} style={{ flex:1, textAlign:"center" }}>
+              <div style={{ fontSize:"clamp(24px,5vw,34px)", fontWeight:500, color:col, letterSpacing:"-0.5px", lineHeight:1 }}>{v}</div>
+              <div style={{ fontSize:9, color:"#444", marginTop:6, letterSpacing:"2.5px", textTransform:"uppercase", fontWeight:500 }}>{l}</div>
+            </div>
+          ))}
         </div>
       )}
 
       {/* Steam Now Playing */}
-      <NowPlayingCard steamId={steamId} />
-
-      {/* Stats */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", margin:"0 clamp(18px,5vw,48px) 32px", gap:"clamp(8px,2vw,12px)" }}>
-        {[["Played",played.length,C.green],["Playing",playing.length,C.blue],["Avg Rating",avgR==="—"?avgR:avgR+" / 5",C.text]].map(([l,v,col])=>(
-          <div key={l} style={{ background:C.surface, borderRadius:12, padding:"clamp(14px,3vw,20px)", textAlign:"center", border:`0.5px solid ${C.border}` }}>
-            <div style={{ fontSize:"clamp(18px,4vw,28px)", fontWeight:500, color:col, letterSpacing:"-0.3px" }}>{v}</div>
-            <div style={{ fontSize:10, color:"#444", marginTop:6, letterSpacing:"2px", textTransform:"uppercase", fontWeight:500 }}>{l}</div>
-          </div>
-        ))}
+      <div style={{ padding:"0 clamp(18px,5vw,48px)" }}>
+        <NowPlayingCard steamId={steamId} />
       </div>
 
-      {/* Body — single column (sidebars handled globally on desktop) */}
+      {/* ── Body ── */}
       <div style={{ padding:"0 clamp(18px,5vw,48px)" }}>
 
-        {/* Monthly Wrapped banner */}
-        <div style={{ paddingTop:28, marginBottom:0 }}>
-          <div onClick={onOpenWrapped}
-            style={{ display:"flex", alignItems:"center", gap:14, padding:"clamp(14px,2.5vw,18px)", borderRadius:12, cursor:"pointer", overflow:"hidden", position:"relative",
-              background:`linear-gradient(135deg, ${C.blue}22 0%, ${C.pink}18 50%, ${C.yellow}14 100%)`,
-              border:`0.5px solid ${C.blue}33`, transition:"opacity .15s" }}
-            onMouseEnter={e=>e.currentTarget.style.opacity="0.8"}
-            onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
-            <div style={{ fontSize:28, flexShrink:0 }}>🎮</div>
-            <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:13, fontWeight:600, color:C.text, marginBottom:2 }}>
-                {new Date().toLocaleString("default",{month:"long"})} Wrapped
-              </div>
-              <div style={{ fontSize:11, color:C.muted }}>Your monthly gaming recap is ready</div>
+        {/* Now Playing spotlight */}
+        {playing.length > 0 && (
+          <div style={{ marginBottom:36 }}>
+            <SectionHead label="Now Playing" />
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              {playing.map(g => (
+                <div key={g.id} onClick={() => onGameClick(g)} style={{ position:"relative", height:"clamp(100px,16vw,130px)", borderRadius:14, overflow:"hidden", cursor:"pointer" }}>
+                  <Img src={g.hero || g.cover} style={{ width:"100%", height:"140%", marginTop:"-10%", objectFit:"cover", filter:"brightness(.3) saturate(.8)" }} />
+                  <div style={{ position:"absolute", inset:0, background:"linear-gradient(to right, rgba(6,8,15,.95) 0%, rgba(6,8,15,.5) 50%, transparent 100%)" }} />
+                  <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", padding:"0 20px" }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:9, letterSpacing:"2.5px", color:C.blue, textTransform:"uppercase", fontWeight:600, marginBottom:6 }}>Playing</div>
+                      <div style={{ fontSize:"clamp(15px,3vw,20px)", fontWeight:600, letterSpacing:"-0.3px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{g.title}</div>
+                      <div style={{ fontSize:11, color:"#555", marginTop:4 }}>{g.year}{g.developer && g.developer !== "Unknown" ? ` · ${g.developer}` : ""}</div>
+                    </div>
+                    {g.rating > 0 && <div style={{ flexShrink:0, marginLeft:12 }}><Stars value={g.rating} size={14} /></div>}
+                  </div>
+                </div>
+              ))}
             </div>
-            <div style={{ fontSize:18, color:C.blue, flexShrink:0 }}>›</div>
+          </div>
+        )}
+
+        {/* Monthly Wrapped */}
+        <div style={{ marginBottom:36 }}>
+          <div onClick={onOpenWrapped} style={{ position:"relative", borderRadius:16, overflow:"hidden", cursor:"pointer", padding:"clamp(18px,3vw,26px)", background:"linear-gradient(135deg, #0d0a22 0%, #0a1020 50%, #0a150d 100%)", border:"0.5px solid rgba(255,255,255,.05)", transition:"transform .15s" }}
+            onMouseEnter={e=>e.currentTarget.style.transform="scale(1.01)"} onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>
+            <div style={{ position:"absolute", top:-30, right:-20, width:140, height:140, borderRadius:"50%", background:`radial-gradient(circle, ${C.pink}35 0%, transparent 70%)`, pointerEvents:"none" }} />
+            <div style={{ position:"absolute", bottom:-40, left:10, width:120, height:120, borderRadius:"50%", background:`radial-gradient(circle, ${C.blue}28 0%, transparent 70%)`, pointerEvents:"none" }} />
+            <div style={{ position:"relative" }}>
+              <div style={{ fontSize:9, color:"#555", letterSpacing:"3px", textTransform:"uppercase", fontWeight:600, marginBottom:8 }}>
+                {new Date().toLocaleString("default", { month:"long" })} · Monthly Recap
+              </div>
+              <div style={{ fontSize:"clamp(18px,3.5vw,24px)", fontWeight:600, letterSpacing:"-0.4px", marginBottom:5 }}>Your Gaming Wrapped</div>
+              <div style={{ fontSize:12, color:"#555" }}>Stats, top games & highlights →</div>
+            </div>
           </div>
         </div>
 
-        <div style={{ paddingTop:32 }}>
+        {/* Recently Logged */}
+        <div style={{ marginBottom:36 }}>
           <SectionHead label="Recently Logged" />
           {hasLogs ? (
             <div style={{ display:"flex", gap:"clamp(10px,2vw,14px)", overflowX:"auto", paddingBottom:4, scrollSnapType:"x mandatory", marginLeft:"-clamp(18px,5vw,48px)", marginRight:"-clamp(18px,5vw,48px)", paddingLeft:"clamp(18px,5vw,48px)", paddingRight:"clamp(18px,5vw,48px)" }}>
-              {[...logs].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).slice(0,8).map(g=>(
-                <div key={g.id} style={{ width:"clamp(180px,32vw,260px)", flexShrink:0, scrollSnapAlign:"start" }}>
+              {[...logs].sort((a,b) => new Date(b.created_at||0)-new Date(a.created_at||0)).slice(0,10).map(g => (
+                <div key={g.id} style={{ width:"clamp(160px,28vw,240px)", flexShrink:0, scrollSnapAlign:"start" }}>
                   <PosterCard game={g} onClick={onGameClick} />
                 </div>
               ))}
@@ -1840,85 +1902,57 @@ function HomeScreen({ games, logs, onGameClick, steamId, onConnectSteam, psnToke
           ) : <Empty label="No games logged yet" />}
         </div>
 
-        {playing.length > 0 && (
-          <div style={{ paddingTop:32 }}>
-            <SectionHead label="Currently Playing" />
-            {playing.map((g,i)=><DiaryRow key={g.id} game={g} index={i} onClick={onGameClick} />)}
+        {/* Platform connect row — compact, only unconnected */}
+        {PLATFORM_CONNECT.length > 0 && (
+          <div style={{ marginBottom:36 }}>
+            <SectionHead label="Connect Platforms" />
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {PLATFORM_CONNECT.map(p => (
+                <div key={p.label} onClick={p.onClick} style={{ display:"flex", alignItems:"center", gap:14, padding:"clamp(13px,2.5vw,16px)", background:p.bg, borderRadius:12, border:`0.5px solid ${p.border}`, cursor:"pointer", transition:"opacity .15s" }}
+                  onMouseEnter={e=>e.currentTarget.style.opacity="0.75"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
+                  <div style={{ width:36, height:36, borderRadius:9, background:"rgba(255,255,255,.05)", border:`0.5px solid ${p.color}33`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{p.icon}</div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:13, fontWeight:500, color:C.text, marginBottom:2 }}>{p.label}</div>
+                    <div style={{ fontSize:11, color:"#555" }}>{p.desc}</div>
+                  </div>
+                  <div style={{ fontSize:16, color:p.color, opacity:.6, flexShrink:0 }}>›</div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
-        {steamId ? (
-          <div style={{ paddingTop:32 }}>
+        {/* Steam Library */}
+        {steamId && (
+          <div style={{ marginBottom:36 }}>
             <SectionHead label="Steam Library" />
             <SteamLibraryStats steamId={steamId} />
           </div>
-        ) : (
-          <div style={{ paddingTop:32 }}>
-            <div onClick={onConnectSteam} style={{ display:"flex", alignItems:"center", gap:16, padding:"clamp(16px,3vw,20px)", background:"linear-gradient(135deg, rgba(27,40,56,.9) 0%, rgba(13,17,23,.95) 100%)", borderRadius:12, border:"0.5px solid #2a475e44", cursor:"pointer", transition:"opacity .15s" }}>
-              <div style={{ width:44, height:44, borderRadius:10, background:"rgba(27,40,56,1)", border:"0.5px solid #2a475e", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489l3.075-3.739A3.5 3.5 0 0 1 15.5 11h.5l3.739-3.075A9.956 9.956 0 0 0 12 2z" fill="#1b9af0" opacity=".9"/>
-                  <path d="M11.97 14.5A2.5 2.5 0 1 0 9.47 12" stroke="#fff" strokeWidth="1.5" fill="none"/>
-                </svg>
-              </div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:14, fontWeight:500, color:C.text, marginBottom:3 }}>Connect Steam</div>
-                <div style={{ fontSize:12, color:C.muted }}>Sync your library, playtime & recently played</div>
-              </div>
-              <div style={{ color:"#2a475e", fontSize:20, flexShrink:0 }}>›</div>
-            </div>
-          </div>
         )}
 
-        {/* PlayStation */}
-        {psnToken ? (
-          <div style={{ paddingTop:32 }}>
+        {/* PlayStation Library */}
+        {psnToken && (
+          <div style={{ marginBottom:36 }}>
             <SectionHead label="PlayStation Library" />
             <PSNGamesRow accessToken={psnToken} onGameClick={onGameClick} />
           </div>
-        ) : (
-          <div style={{ paddingTop:16 }}>
-            <div onClick={onConnectPSN} style={{ display:"flex", alignItems:"center", gap:16, padding:"clamp(14px,2.5vw,18px)", background:"linear-gradient(135deg, rgba(0,36,80,.85) 0%, rgba(10,10,20,.95) 100%)", borderRadius:12, border:"0.5px solid rgba(0,120,255,.2)", cursor:"pointer", transition:"opacity .15s" }}
-              onMouseEnter={e=>e.currentTarget.style.opacity="0.8"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
-              <div style={{ width:44, height:44, borderRadius:10, background:"rgba(0,36,80,1)", border:"0.5px solid rgba(0,120,255,.3)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:22 }}>🎮</div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:14, fontWeight:500, color:C.text, marginBottom:3 }}>Connect PlayStation</div>
-                <div style={{ fontSize:12, color:C.muted }}>Sync your trophy library & games</div>
-              </div>
-              <div style={{ color:"rgba(0,120,255,.6)", fontSize:20, flexShrink:0 }}>›</div>
-            </div>
-          </div>
         )}
 
-        {/* Xbox */}
-        {xboxKey ? (
-          <div style={{ paddingTop:16 }}>
+        {/* Xbox Library */}
+        {xboxKey && (
+          <div style={{ marginBottom:36 }}>
             <SectionHead label="Xbox Library" />
             <XboxGamesRow xboxKey={xboxKey} onGameClick={onGameClick} />
           </div>
-        ) : (
-          <div style={{ paddingTop:16 }}>
-            <div onClick={onConnectXbox} style={{ display:"flex", alignItems:"center", gap:16, padding:"clamp(14px,2.5vw,18px)", background:"linear-gradient(135deg, rgba(16,124,16,.2) 0%, rgba(10,10,20,.95) 100%)", borderRadius:12, border:"0.5px solid rgba(16,124,16,.3)", cursor:"pointer", transition:"opacity .15s" }}
-              onMouseEnter={e=>e.currentTarget.style.opacity="0.8"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
-              <div style={{ width:44, height:44, borderRadius:10, background:"rgba(16,124,16,.25)", border:"0.5px solid rgba(16,124,16,.4)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:22 }}>🎮</div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:14, fontWeight:500, color:C.text, marginBottom:3 }}>Connect Xbox</div>
-                <div style={{ fontSize:12, color:C.muted }}>Sync your game library & achievements via OpenXBL</div>
-              </div>
-              <div style={{ color:"rgba(16,124,16,.7)", fontSize:20, flexShrink:0 }}>›</div>
-            </div>
-          </div>
         )}
 
-        {/* News + GOTY inline on mobile only */}
         {!isDesktop && <NewsRow />}
 
-        {/* Storefront Deals — personalised by connected platforms */}
-        <div style={{ paddingTop:32 }}>
+        <div style={{ marginBottom:36 }}>
           <StorefrontDeals />
         </div>
 
-        <div style={{ paddingTop:8 }}>
+        <div style={{ marginBottom:36 }}>
           <SectionHead label="New & Hot" />
           <NewAndHot onGameClick={onGameClick} />
         </div>
@@ -1926,7 +1960,7 @@ function HomeScreen({ games, logs, onGameClick, steamId, onConnectSteam, psnToke
         <SteamRecentRow steamId={steamId} onGameClick={onGameClick} />
 
         {!isDesktop && (
-          <div style={{ paddingTop:32 }}>
+          <div style={{ marginTop:36 }}>
             <GotyRace onGameClick={onGameClick} />
           </div>
         )}
@@ -2161,8 +2195,8 @@ function DealsRow() {
       .then(raw => {
         const list = Array.isArray(raw) ? raw : (raw?.list || raw?.data?.list || []);
         const normalized = list
-          .filter(d => (d.deal?.cut ?? 0) >= 25)
-          .slice(0, 30)
+          .filter(d => (d.deal?.cut ?? 0) > 0)
+          .slice(0, 50)
           .map(d => ({
             title:       d.title || "",
             image:       d.assets?.boxart || d.assets?.banner300 || d.assets?.banner145 || "",

@@ -68,7 +68,7 @@ serve(async (req) => {
     if (endpoint === "itad/deals") {
       const key = Deno.env.get("ITAD_KEY")!;
       const { shops } = body; // optional slug: "steam" | "psn" | "xboxgames" | "nintendo" | "epicgames" | "gog"
-      const params = new URLSearchParams({ key, country: "US", sort: "cut:desc", limit: "40" });
+      const params = new URLSearchParams({ key, country: "US", sort: "cut:desc", limit: "200" });
       if (shops) params.set("shops", shops);
       const res = await fetch(`https://api.isthereanydeal.com/deals/v2?${params}`);
       const data = await res.json();
