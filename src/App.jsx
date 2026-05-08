@@ -68,13 +68,16 @@ function steamHero(appId) {
 }
 
 function getIgdbCover(raw) {
+  // Always use official IGDB box art as cover (portrait)
+  const cover = igdbImg(raw.cover?.image_id, "cover_big_2x");
+  // Hero: prefer high-res artworks → screenshots → fall back to cover
+  const artId = raw.artworks?.[0]?.image_id;
+  const ssId  = raw.screenshots?.[0]?.image_id;
+  const hero  = artId ? igdbImg(artId, "1080p")
+              : ssId  ? igdbImg(ssId,  "1080p")
+              : igdbImg(raw.cover?.image_id, "screenshot_big");
   const steamEntry = (raw.external_games || []).find(e => e.category === 1);
-  const steamId = steamEntry?.uid || null;
-  return {
-    cover:   steamId ? steamCover(steamId) : igdbImg(raw.cover?.image_id),
-    hero:    steamId ? steamHero(steamId)  : igdbImg(raw.screenshots?.[0]?.image_id || raw.artworks?.[0]?.image_id || raw.cover?.image_id, "screenshot_big"),
-    steamId,
-  };
+  return { cover, hero, steamId: steamEntry?.uid || null };
 }
 
 function normalizeIgdbGame(raw) {
@@ -278,7 +281,7 @@ function PosterCard({ game, onClick }) {
       position:"relative", aspectRatio:"16/9", borderRadius:8, overflow:"hidden", cursor:"pointer",
       boxShadow:"0 4px 20px rgba(0,0,0,.6)", transition:"transform 0.2s ease",
     }}>
-      <Img src={game.cover} style={{ width:"100%", height:"100%" }} />
+      <Img src={game.hero || game.cover} style={{ width:"100%", height:"100%" }} />
       <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(10,10,10,.92) 0%, transparent 60%)" }} />
       <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"clamp(8px,2vw,12px)" }}>
         <div style={{ fontSize:"clamp(10px,1.5vw,12px)", fontWeight:500, color:C.text, lineHeight:1.3, marginBottom:2 }}>{game.title}</div>
@@ -589,7 +592,8 @@ function NewAndHot({ onGameClick }) {
   useEffect(() => {
     const oneYearAgo = Math.floor(Date.now() / 1000) - 86400 * 365;
     igdb("games", `
-      fields id, name, first_release_date, cover.image_id, summary, genres.name,
+      fields id, name, first_release_date, cover.image_id, artworks.image_id,
+        screenshots.image_id, summary, genres.name,
         involved_companies.company.name, involved_companies.developer,
         external_games.uid, external_games.category, rating, hypes;
       where hypes > 0 & platforms = (6,48,49,130,167,169) & cover != null
@@ -1049,7 +1053,8 @@ function GenreRow({ genre, onGameClick, onBrowseGenre }) {
   const [games, setGames] = useState([]);
   useEffect(() => {
     igdb("games", `
-      fields id, name, first_release_date, cover.image_id, genres.name,
+      fields id, name, first_release_date, cover.image_id, artworks.image_id,
+        screenshots.image_id, genres.name,
         involved_companies.company.name, involved_companies.developer,
         external_games.uid, external_games.category, rating;
       where ${genre.filter} & platforms = (${IGDB_PLATFORMS}) & cover != null
@@ -1193,8 +1198,8 @@ function RecommendFlow({ onClose, onGameClick }) {
     if (step !== 1) return;
     setLoading(true);
     igdb("games", `
-      fields id, name, first_release_date, cover.image_id,
-        involved_companies.company.name, involved_companies.developer,
+      fields id, name, first_release_date, cover.image_id, artworks.image_id,
+        screenshots.image_id, involved_companies.company.name, involved_companies.developer,
         external_games.uid, external_games.category, rating, rating_count;
       where rating_count > 500 & platforms = (${IGDB_PLATFORMS}) & cover != null
         & category = (0,8,9) & rating > 85;
@@ -1215,7 +1220,8 @@ function RecommendFlow({ onClose, onGameClick }) {
       ? pickedGenres[0].filter
       : `(${pickedGenres.map(g => g.filter).join(" | ")})`;
     igdb("games", `
-      fields id, name, first_release_date, cover.image_id, genres.name,
+      fields id, name, first_release_date, cover.image_id, artworks.image_id,
+        screenshots.image_id, genres.name,
         involved_companies.company.name, involved_companies.developer,
         external_games.uid, external_games.category, rating;
       where ${combined} & platforms = (${IGDB_PLATFORMS}) & cover != null
@@ -1351,10 +1357,11 @@ function BrowseScreen({ games, onGameClick }) {
           : "";
         const data = await igdb("games", `
           search "${query.replace(/"/g, '\\"')}";
-          fields id, name, first_release_date, cover.image_id, summary, genres.name,
+          fields id, name, first_release_date, cover.image_id, artworks.image_id,
+            screenshots.image_id, summary, genres.name,
             involved_companies.company.name, involved_companies.developer, involved_companies.publisher,
             external_games.uid, external_games.category,
-            screenshots.image_id, rating, aggregated_rating, rating_count;
+            rating, aggregated_rating, rating_count;
           where cover != null & category = (0,8,9) ${yearClause};
           sort first_release_date desc;
           limit 10;
@@ -1380,7 +1387,8 @@ function BrowseScreen({ games, onGameClick }) {
         let data;
         if (filterMode.type === "genre") {
           data = await igdb("games", `
-            fields id, name, first_release_date, cover.image_id, genres.name,
+            fields id, name, first_release_date, cover.image_id, artworks.image_id,
+              screenshots.image_id, genres.name,
               involved_companies.company.name, involved_companies.developer,
               external_games.uid, external_games.category, rating;
             where ${filterMode.filter} & platforms = (${IGDB_PLATFORMS}) & cover != null
@@ -1396,7 +1404,8 @@ function BrowseScreen({ games, onGameClick }) {
           `);
           const devId = Array.isArray(companies) ? companies[0]?.id : null;
           data = devId ? await igdb("games", `
-            fields id, name, first_release_date, cover.image_id, genres.name,
+            fields id, name, first_release_date, cover.image_id, artworks.image_id,
+              screenshots.image_id, genres.name,
               involved_companies.company.name, involved_companies.developer,
               external_games.uid, external_games.category, rating;
             where involved_companies.company = ${devId} & involved_companies.developer = true
