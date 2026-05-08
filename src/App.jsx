@@ -99,6 +99,15 @@ function normalizeIgdbGame(raw) {
   };
 }
 
+function relTime(date) {
+  const secs = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (secs < 60)      return "just now";
+  if (secs < 3600)    return `${Math.floor(secs / 60)}m ago`;
+  if (secs < 86400)   return `${Math.floor(secs / 3600)}h ago`;
+  if (secs < 2592000) return `${Math.floor(secs / 86400)}d ago`;
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 const YEAR_OPTS = [
   { label:"All Time", value:null  },
   { label:"2020+",    value:2020  },
@@ -1918,6 +1927,150 @@ function FriendsModal({ onClose }) {
   );
 }
 
+// ── PROFILE ───────────────────────────────────────────────────────────────────
+function ProfileScreen({ user, logs, displayName, photoUrl }) {
+  const [avatarErr, setAvatarErr] = useState(false);
+  const initial   = (displayName || user.email)[0].toUpperCase();
+  const joinYear  = user.created_at ? new Date(user.created_at).getFullYear() : "";
+  const played    = logs.filter(l => l.status === "played").length;
+  const playing   = logs.filter(l => l.status === "playing").length;
+  const backlog   = logs.filter(l => l.status === "want to play").length;
+  const rated     = logs.filter(l => l.rating > 0);
+  const avgRating = rated.length ? (rated.reduce((s, l) => s + l.rating, 0) / rated.length).toFixed(1) : "—";
+  const top5      = [...logs].filter(l => l.rating > 0 && l.cover).sort((a, b) => b.rating - a.rating).slice(0, 5);
+  const recent    = [...logs].slice(0, 8);
+  const RANK_COL  = [C.yellow, "#b0b0b0", "#cd7f32", C.muted, C.muted];
+
+  return (
+    <div style={{ minHeight:"100vh", background:C.bg, color:C.text, paddingBottom:100 }}>
+
+      {/* Grid-line sci-fi overlay */}
+      <div style={{ position:"fixed", inset:0, zIndex:0, pointerEvents:"none",
+        backgroundImage:`linear-gradient(${C.border} 1px,transparent 1px),linear-gradient(90deg,${C.border} 1px,transparent 1px)`,
+        backgroundSize:"60px 60px", opacity:0.25 }} />
+
+      {/* Blue radial hero glow */}
+      <div style={{ position:"absolute", top:0, left:0, right:0, height:420, zIndex:0, pointerEvents:"none",
+        background:`radial-gradient(ellipse 90% 55% at 50% -5%, ${C.blue}35 0%, transparent 72%)` }} />
+
+      {/* Pink accent glow right */}
+      <div style={{ position:"absolute", top:80, right:0, width:280, height:280, zIndex:0, pointerEvents:"none",
+        background:`radial-gradient(circle at 100% 0%, ${C.pink}18 0%, transparent 65%)` }} />
+
+      <div style={{ position:"relative", zIndex:1 }}>
+
+        {/* ── Identity ── */}
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", paddingTop:"clamp(90px,14vh,118px)", paddingBottom:28 }}>
+
+          {/* Conic-gradient avatar ring */}
+          <div style={{ width:118, height:118, borderRadius:"50%", padding:3,
+            background:`conic-gradient(${C.blue}, ${C.pink}, ${C.yellow}, ${C.green}, ${C.blue})`,
+            boxShadow:`0 0 44px ${C.blue}55, 0 0 90px ${C.blue}22`,
+            marginBottom:22, flexShrink:0 }}>
+            <div style={{ width:"100%", height:"100%", borderRadius:"50%", overflow:"hidden", background:C.bg }}>
+              {photoUrl && !avatarErr
+                ? <img src={photoUrl} onError={()=>setAvatarErr(true)} style={{ width:"100%", height:"100%", objectFit:"cover" }} alt="" />
+                : <div style={{ width:"100%", height:"100%", background:`linear-gradient(135deg,${C.blue},${C.pink})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:42, fontWeight:600, color:"#fff" }}>{initial}</div>
+              }
+            </div>
+          </div>
+
+          {/* Online indicator */}
+          <div style={{ display:"flex", alignItems:"center", gap:5, marginBottom:6 }}>
+            <div style={{ width:6, height:6, borderRadius:"50%", background:C.green, boxShadow:`0 0 8px ${C.green}` }} />
+            <span style={{ fontSize:9, color:C.green, letterSpacing:"2.5px", textTransform:"uppercase", fontWeight:500 }}>Online</span>
+          </div>
+
+          <div style={{ fontSize:"clamp(24px,5vw,32px)", fontWeight:600, letterSpacing:"-0.5px", marginBottom:5, textAlign:"center" }}>
+            {displayName || "Operative"}
+          </div>
+          <div style={{ fontSize:9, color:"#444", letterSpacing:"3px", textTransform:"uppercase", marginBottom:32 }}>
+            Kortana{joinYear ? ` · Since ${joinYear}` : ""}
+          </div>
+
+          {/* Stats row */}
+          <div style={{ display:"flex", gap:0, background:C.surface, borderRadius:14, border:`0.5px solid ${C.border}`, overflow:"hidden" }}>
+            {[["Played",played,C.green],["Playing",playing,C.blue],["Backlog",backlog,C.yellow],["Avg Rating",avgRating,C.pink]].map(([label,val,col],i,a)=>(
+              <div key={label} style={{ padding:"16px clamp(14px,3.5vw,26px)", textAlign:"center", borderRight: i<a.length-1 ? `0.5px solid ${C.border}` : "none" }}>
+                <div style={{ fontSize:"clamp(22px,4vw,30px)", fontWeight:700, color:col, letterSpacing:"-1.5px", lineHeight:1, textShadow:`0 0 20px ${col}66` }}>{val}</div>
+                <div style={{ fontSize:9, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginTop:6 }}>{label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Top Rated ── */}
+        {top5.length > 0 && (
+          <div style={{ padding:"0 clamp(18px,5vw,48px)", marginBottom:40 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:22 }}>
+              <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2px", color:"#444", textTransform:"uppercase" }}>Top Rated</span>
+              <div style={{ flex:1, height:"0.5px", background:C.border }} />
+            </div>
+            <div style={{ display:"flex", gap:14, overflowX:"auto", paddingBottom:8 }}>
+              {top5.map((game, i) => (
+                <div key={game.id||i} style={{ flexShrink:0, width:116, position:"relative" }}>
+                  {/* Rank badge */}
+                  <div style={{ position:"absolute", top:-10, left:-10, zIndex:2,
+                    width:30, height:30, borderRadius:"50%",
+                    background: i===0 ? C.yellow : C.surface,
+                    border:`2px solid ${RANK_COL[i]}`,
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    fontSize:10, fontWeight:700, color: i===0 ? "#000" : RANK_COL[i],
+                    boxShadow: i===0 ? `0 0 18px ${C.yellow}77` : "none",
+                  }}>#{i+1}</div>
+                  {/* Cover */}
+                  <div style={{ width:116, height:155, borderRadius:8, overflow:"hidden",
+                    boxShadow: i===0 ? `0 0 0 1.5px ${C.yellow}66, 0 8px 32px ${C.yellow}22, 0 8px 28px rgba(0,0,0,.8)` : "0 4px 18px rgba(0,0,0,.7)" }}>
+                    <Img src={game.cover} style={{ width:"100%", height:"100%" }} />
+                  </div>
+                  <div style={{ marginTop:9, paddingLeft:2 }}>
+                    <div style={{ fontSize:11, fontWeight:500, color:C.text, lineHeight:1.3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{game.title}</div>
+                    <Stars value={game.rating} size={9} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Recent Activity ── */}
+        {recent.length > 0 && (
+          <div style={{ padding:"0 clamp(18px,5vw,48px)" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:4 }}>
+              <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2px", color:"#444", textTransform:"uppercase" }}>Recent Activity</span>
+              <div style={{ flex:1, height:"0.5px", background:C.border }} />
+            </div>
+            {recent.map((log, i) => {
+              const ts     = log.created_at ? new Date(log.created_at) : null;
+              const timeAgo = ts ? relTime(ts) : "";
+              return (
+                <div key={log.id||i} style={{ display:"flex", gap:14, padding:"13px 0", borderBottom:`0.5px solid ${C.border}`, alignItems:"center" }}>
+                  <div style={{ width:40, height:54, borderRadius:5, overflow:"hidden", flexShrink:0, boxShadow:"0 2px 10px rgba(0,0,0,.6)" }}>
+                    <Img src={log.cover} style={{ width:"100%", height:"100%" }} />
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:13, fontWeight:500, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginBottom:4 }}>{log.title}</div>
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      <span style={{ fontSize:9, fontWeight:500, color:SC[log.status]||C.muted, letterSpacing:"1px", textTransform:"uppercase" }}>{log.status}</span>
+                      {log.rating > 0 && <Stars value={log.rating} size={9} />}
+                    </div>
+                  </div>
+                  <div style={{ fontSize:10, color:"#444", flexShrink:0 }}>{timeAgo}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {logs.length === 0 && (
+          <Empty label="Log some games to build your profile" />
+        )}
+
+      </div>
+    </div>
+  );
+}
+
 // ── ROOT ──────────────────────────────────────────────────────────────────────
 export default function Kortana() {
   const [games,    setGames]    = useState(INIT_GAMES);
@@ -1996,11 +2149,11 @@ export default function Kortana() {
   };
 
   const TABS = [
-    { key:"home",   label:"Home"   },
-    { key:"diary",  label:"Diary"  },
-    { key:"browse", label:"Browse" },
-    { key:"logs",   label:"Saved"  },
-    { key:"lists",  label:"Lists"  },
+    { key:"home",    label:"Home"    },
+    { key:"diary",   label:"Diary"   },
+    { key:"browse",  label:"Browse"  },
+    { key:"lists",   label:"Lists"   },
+    { key:"profile", label:"Profile" },
   ];
 
   if (authLoading) return (
@@ -2069,11 +2222,11 @@ export default function Kortana() {
           <GameDetail game={games.find(g=>g.id===detail.id)||detail} user={user} onBack={()=>setDetail(null)} onUpdate={g=>{updateGame(g);setDetail(g);}} />
         ) : (
           <>
-            {tab==="home"   && <HomeScreen   games={games} logs={logs} onGameClick={setDetail} steamId={steamId} onConnectSteam={()=>setShowConnectSteam(true)} />}
-            {tab==="diary"  && <DiaryScreen  logs={logs} onGameClick={setDetail} />}
-            {tab==="browse" && <BrowseScreen games={games} onGameClick={setDetail} />}
-            {tab==="logs"   && <LogsScreen   logs={logs} loading={logsLoading} />}
-            {tab==="lists"  && <ListsScreen  lists={lists} games={[...new Map(logs.map(l=>[l.game_id||l.id,{...l,id:l.game_id||l.id,hero:l.cover}])).values()]} setLists={setLists} onGameClick={setDetail} />}
+            {tab==="home"    && <HomeScreen    games={games} logs={logs} onGameClick={setDetail} steamId={steamId} onConnectSteam={()=>setShowConnectSteam(true)} />}
+            {tab==="diary"   && <DiaryScreen   logs={logs} onGameClick={setDetail} />}
+            {tab==="browse"  && <BrowseScreen  games={games} onGameClick={setDetail} />}
+            {tab==="lists"   && <ListsScreen   lists={lists} games={[...new Map(logs.map(l=>[l.game_id||l.id,{...l,id:l.game_id||l.id,hero:l.cover}])).values()]} setLists={setLists} onGameClick={setDetail} />}
+            {tab==="profile" && <ProfileScreen user={user} logs={logs} displayName={displayName} photoUrl={photoUrl} />}
           </>
         )}
 
