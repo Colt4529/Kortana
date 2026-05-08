@@ -522,7 +522,16 @@ function GameDetail({ game, onBack, onUpdate, user }) {
 
 // ── GOTY RACE SIDEBAR — update this list weekly ────────────────────────────────
 const GOTY_2026 = [
-  // { title:"Game Title", developer:"Studio Name" },
+  { title:"Resident Evil Requiem",  developer:"Capcom"               },
+  { title:"Crimson Desert",         developer:"Pearl Abyss"          },
+  { title:"Marathon",               developer:"Bungie"               },
+  { title:"Pragmata",               developer:"Capcom"               },
+  { title:"Saros",                  developer:"Housemarque"          },
+  { title:"Mixtape",                developer:"Beethoven & Dinosaur" },
+  { title:"Mewgenics",              developer:"Team Meat"            },
+  { title:"Pokemon Pokopia",        developer:"Game Freak"           },
+  { title:"Mouse",                  developer:"Fury Studios"         },
+  { title:"Cairn",                  developer:"Shedworks"            },
 ];
 
 function GotyRace({ onGameClick }) {
@@ -547,7 +556,7 @@ function GotyRace({ onGameClick }) {
           } catch { return { ...game, cover:"", mc:0 }; }
         })
       );
-      if (mounted) setList(fetched);
+      if (mounted) setList(fetched.sort((a, b) => (b.mc || 0) - (a.mc || 0)));
     })();
     return () => { mounted = false; };
   }, []);
@@ -758,6 +767,68 @@ function ConnectSteamSheet({ onConnect, onClose }) {
 }
 
 // ── STEAM COMPONENTS ─────────────────────────────────────────────────────────
+// ── GAMING NEWS ───────────────────────────────────────────────────────────────
+const NEWS_FEEDS = [
+  "https://feeds.ign.com/ign/all",
+  "https://www.gamespot.com/feeds/news",
+];
+
+function NewsRow() {
+  const [articles, setArticles] = useState([]);
+
+  useEffect(() => {
+    const RSS2JSON = "https://api.rss2json.com/v1/api.json?rss_url=";
+    Promise.allSettled(
+      NEWS_FEEDS.map(url =>
+        fetch(`${RSS2JSON}${encodeURIComponent(url)}&api_key=&count=8`)
+          .then(r => r.json())
+          .then(d => d.items || [])
+          .catch(() => [])
+      )
+    ).then(results => {
+      const all = results.flatMap(r => r.status === "fulfilled" ? r.value : []);
+      const seen = new Set();
+      const deduped = all.filter(a => {
+        if (!a.title || seen.has(a.title)) return false;
+        seen.add(a.title);
+        return true;
+      });
+      setArticles(deduped.slice(0, 16));
+    });
+  }, []);
+
+  if (!articles.length) return null;
+
+  return (
+    <div style={{ paddingTop:32 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:"clamp(10px,2vh,14px)" }}>
+        <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2px", color:"#444", textTransform:"uppercase", flexShrink:0 }}>Gaming News</span>
+        <div style={{ flex:1, height:"0.5px", background:C.border }} />
+      </div>
+      <div style={{ display:"flex", gap:"clamp(10px,2vw,14px)", overflowX:"auto", paddingBottom:8, scrollSnapType:"x mandatory", marginLeft:"-clamp(18px,5vw,48px)", marginRight:"-clamp(18px,5vw,48px)", paddingLeft:"clamp(18px,5vw,48px)", paddingRight:"clamp(18px,5vw,48px)" }}>
+        {articles.map((a, i) => (
+          <a key={i} href={a.link} target="_blank" rel="noopener noreferrer"
+            style={{ display:"block", width:"clamp(220px,36vw,300px)", flexShrink:0, scrollSnapAlign:"start", textDecoration:"none", borderRadius:10, overflow:"hidden", background:C.surface, border:`0.5px solid ${C.border}` }}>
+            {a.thumbnail && (
+              <div style={{ height:130, overflow:"hidden", background:C.faint }}>
+                <img src={a.thumbnail} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e=>e.target.style.display="none"} />
+              </div>
+            )}
+            <div style={{ padding:"clamp(10px,2vw,14px)" }}>
+              <div style={{ fontSize:9, color:C.blue, fontWeight:500, letterSpacing:"1.5px", textTransform:"uppercase", marginBottom:6 }}>
+                {a.author || (a.link?.includes("ign") ? "IGN" : "GameSpot")}
+              </div>
+              <div style={{ fontSize:13, fontWeight:500, color:C.text, lineHeight:1.4, display:"-webkit-box", WebkitLineClamp:3, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
+                {a.title}
+              </div>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function NowPlayingCard({ steamId }) {
   const [game, setGame] = useState(null);
 
@@ -990,6 +1061,8 @@ function HomeScreen({ games, logs, onGameClick, steamId, onConnectSteam }) {
               </div>
             </div>
           )}
+
+          <NewsRow />
 
           <div style={{ paddingTop:32 }}>
             <SectionHead label="New & Hot" />
