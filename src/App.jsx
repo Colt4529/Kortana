@@ -920,20 +920,36 @@ function KortanaWeeklyTab({ articles }) {
   );
 }
 
+// Module-level cache so news survives NewsRow remounts
+let _newsCache = {};
+let _newsFetching = false;
+const _newsListeners = new Set();
+function loadFeeds() {
+  if (_newsFetching || Object.keys(_newsCache).length > 0) return;
+  _newsFetching = true;
+  Promise.allSettled(NEWS_FEEDS.map(fetchFeed)).then(results => {
+    const map = {};
+    results.forEach((r, i) => {
+      if (r.status === "fulfilled") map[NEWS_FEEDS[i].key] = r.value;
+    });
+    _newsCache = map;
+    _newsFetching = false;
+    _newsListeners.forEach(fn => fn(map));
+  });
+}
+
 // ── NEWS ROW ─────────────────────────────────────────────────────────────────
 function NewsRow() {
-  const [bySource, setBySource] = useState({});
+  const [bySource, setBySource] = useState(_newsCache);
   const [newsTab,  setNewsTab]  = useState("kortana");
   const allArticles = Object.values(bySource).flat();
 
   useEffect(() => {
-    Promise.allSettled(NEWS_FEEDS.map(fetchFeed)).then(results => {
-      const map = {};
-      results.forEach((r, i) => {
-        if (r.status === "fulfilled") map[NEWS_FEEDS[i].key] = r.value;
-      });
-      setBySource(map);
-    });
+    if (Object.keys(_newsCache).length > 0) { setBySource({ ..._newsCache }); return; }
+    const update = map => setBySource({ ...map });
+    _newsListeners.add(update);
+    loadFeeds();
+    return () => _newsListeners.delete(update);
   }, []);
 
   const ignArticles      = (bySource.ign || []).filter(isGamingArticle);
