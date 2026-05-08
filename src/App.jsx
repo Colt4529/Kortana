@@ -805,20 +805,20 @@ function NewsRow() {
         <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2px", color:"#444", textTransform:"uppercase", flexShrink:0 }}>Gaming News</span>
         <div style={{ flex:1, height:"0.5px", background:C.border }} />
       </div>
-      <div style={{ display:"flex", gap:"clamp(10px,2vw,14px)", overflowX:"auto", paddingBottom:8, scrollSnapType:"x mandatory", marginLeft:"-clamp(18px,5vw,48px)", marginRight:"-clamp(18px,5vw,48px)", paddingLeft:"clamp(18px,5vw,48px)", paddingRight:"clamp(18px,5vw,48px)" }}>
+      <div style={{ display:"flex", flexDirection:"column" }}>
         {articles.map((a, i) => (
           <a key={i} href={a.link} target="_blank" rel="noopener noreferrer"
-            style={{ display:"block", width:"clamp(220px,36vw,300px)", flexShrink:0, scrollSnapAlign:"start", textDecoration:"none", borderRadius:10, overflow:"hidden", background:C.surface, border:`0.5px solid ${C.border}` }}>
+            style={{ display:"flex", gap:12, padding:"clamp(10px,2vh,14px) 0", borderBottom:`0.5px solid ${C.border}`, textDecoration:"none", alignItems:"center" }}>
             {a.thumbnail && (
-              <div style={{ height:130, overflow:"hidden", background:C.faint }}>
+              <div style={{ width:72, height:52, borderRadius:6, overflow:"hidden", flexShrink:0, background:C.faint }}>
                 <img src={a.thumbnail} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e=>e.target.style.display="none"} />
               </div>
             )}
-            <div style={{ padding:"clamp(10px,2vw,14px)" }}>
-              <div style={{ fontSize:9, color:C.blue, fontWeight:500, letterSpacing:"1.5px", textTransform:"uppercase", marginBottom:6 }}>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:9, color:C.blue, fontWeight:500, letterSpacing:"1.5px", textTransform:"uppercase", marginBottom:4 }}>
                 {a.author || (a.link?.includes("ign") ? "IGN" : "GameSpot")}
               </div>
-              <div style={{ fontSize:13, fontWeight:500, color:C.text, lineHeight:1.4, display:"-webkit-box", WebkitLineClamp:3, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
+              <div style={{ fontSize:13, fontWeight:500, color:C.text, lineHeight:1.4, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
                 {a.title}
               </div>
             </div>
