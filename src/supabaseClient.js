@@ -11,6 +11,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-export async function insertGameLog(log) {
+export async function upsertGameLog(log) {
+  const { data: existing } = await supabase
+    .from('game_logs')
+    .select('id')
+    .eq('user_id', log.user_id)
+    .eq('game_id', String(log.game_id))
+    .maybeSingle();
+
+  if (existing) {
+    return supabase.from('game_logs').update(log).eq('id', existing.id);
+  }
   return supabase.from('game_logs').insert([log]);
 }

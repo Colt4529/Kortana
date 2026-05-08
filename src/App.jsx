@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase, insertGameLog } from "./supabaseClient";
+import { supabase, upsertGameLog } from "./supabaseClient";
 
 const C = {
   bg:      "#0a0a0a",
@@ -430,19 +430,20 @@ function LogSheet({ game, onClose, onSave, user }) {
 }
 
 // ── GAME DETAIL ───────────────────────────────────────────────────────────────
-function GameDetail({ game, onBack, onUpdate, user }) {
+function GameDetail({ game, onBack, onUpdate, onLogSaved, user }) {
   const [sheet, setSheet] = useState(false);
 
   const saveAndSyncLog = async (g) => {
     onUpdate(g);
     if (!user) return;
-    try {
-      await insertGameLog({
-        user_id: user.id, game_id: g.id, title: g.title, cover: g.cover,
-        developer: g.developer, publisher: g.publisher, year: g.year,
-        status: g.status, rating: g.rating, review: g.review,
-      });
-    } catch (err) { console.error("Failed to save game log to Supabase:", err); }
+    const log = {
+      user_id: user.id, game_id: String(g.id), title: g.title, cover: g.cover,
+      developer: g.developer, publisher: g.publisher, year: g.year,
+      status: g.status, rating: g.rating, review: g.review,
+    };
+    const { error } = await upsertGameLog(log);
+    if (error) console.error("Failed to save game log:", error);
+    else onLogSaved?.(log);
   };
 
   return (
@@ -2141,6 +2142,11 @@ export default function Kortana() {
   }, [lists]);
 
   const updateGame = u => setGames(gs=>gs.map(g=>g.id===u.id?u:g));
+  const handleLogSaved = log => setLogs(prev => {
+    const exists = prev.find(l => String(l.game_id) === String(log.game_id));
+    if (exists) return prev.map(l => String(l.game_id) === String(log.game_id) ? { ...l, ...log } : l);
+    return [{ ...log, created_at: new Date().toISOString() }, ...prev];
+  });
   const handleSignOut = async () => { await supabase.auth.signOut(); setUser(null); setDisplayName(""); setPhotoUrl(""); setSteamId(""); };
 
   const connectSteam = async (newSteamId) => {
@@ -2219,7 +2225,7 @@ export default function Kortana() {
 
         {/* ── Screens ── */}
         {detail ? (
-          <GameDetail game={games.find(g=>g.id===detail.id)||detail} user={user} onBack={()=>setDetail(null)} onUpdate={g=>{updateGame(g);setDetail(g);}} />
+          <GameDetail game={games.find(g=>g.id===detail.id)||detail} user={user} onBack={()=>setDetail(null)} onUpdate={g=>{updateGame(g);setDetail(g);}} onLogSaved={handleLogSaved} />
         ) : (
           <>
             {tab==="home"    && <HomeScreen    games={games} logs={logs} onGameClick={setDetail} steamId={steamId} onConnectSteam={()=>setShowConnectSteam(true)} />}
