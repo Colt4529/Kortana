@@ -1984,9 +1984,9 @@ function GenreRow({ genre, onGameClick, onBrowseGenre }) {
         involved_companies.company.name, involved_companies.developer,
         external_games.uid, external_games.category, rating;
       where ${genre.filter} & platforms = (${IGDB_PLATFORMS}) & cover != null
-        & version_parent = null & rating > 70 & rating_count > 20
+        & version_parent = null & rating > 78 & rating_count > 400
         & first_release_date > 946684800;
-      sort rating desc;
+      sort rating_count desc;
       limit 10;
     `)
       .then(data => {
@@ -2433,8 +2433,8 @@ function BrowseScreen({ games, onGameClick }) {
               involved_companies.company.name, involved_companies.developer,
               external_games.uid, external_games.category, rating;
             where ${filterMode.filter} & platforms = (${IGDB_PLATFORMS}) & cover != null
-              & version_parent = null & rating > 70 & rating_count > 10;
-            sort rating desc;
+              & version_parent = null & rating > 74 & rating_count > 200;
+            sort rating_count desc;
             limit 20;
           `);
         } else {
