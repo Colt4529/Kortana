@@ -806,105 +806,173 @@ function ConnectSteamSheet({ onConnect, onClose }) {
 // ── STEAM COMPONENTS ─────────────────────────────────────────────────────────
 // ── GAMING NEWS ───────────────────────────────────────────────────────────────
 const NEWS_FEEDS = [
-  { url:"https://feeds.ign.com/ign/all-articles",  name:"IGN",        color:C.pink  },
-  { url:"https://gamerant.com/feed",               name:"Game Rant",  color:C.yellow },
-  { url:"https://www.eurogamer.net/feed",          name:"Eurogamer",  color:C.blue  },
-  { url:"https://www.pcgamer.com/rss/",            name:"PC Gamer",   color:C.green },
+  { key:"ign",      url:"https://feeds.ign.com/ign/all",    name:"IGN",      color:C.pink   },
+  { key:"gameranx", url:"https://gameranx.com/feed/",       name:"Gameranx", color:C.yellow },
+  { key:"eurogamer",url:"https://www.eurogamer.net/feed",   name:"Eurogamer",color:C.blue   },
+  { key:"pcgamer",  url:"https://www.pcgamer.com/rss/",     name:"PC Gamer", color:C.green  },
 ];
+
+const GAMING_KWS = ["game","games","gaming","xbox","playstation","ps5","ps4","nintendo","switch","steam","rpg","fps","shooter","dlc","patch","trailer","developer","studio","esport","gta","cod","review","preview","announcement","sequel","remaster","remake","indie","console","pc gaming"];
+const isGamingArticle = a => GAMING_KWS.some(kw => (a.title+" "+(a.link||"")).toLowerCase().includes(kw));
 
 function parseRSSXml(xml) {
   const doc = new DOMParser().parseFromString(xml, "text/xml");
   return Array.from(doc.querySelectorAll("item")).map(item => {
     const get = tag => item.querySelector(tag)?.textContent?.trim() || "";
-    // thumbnail from media:content, enclosure, or og in description
-    const mediaUrl  = item.querySelector("content")?.getAttribute("url")
-                   || item.querySelector("enclosure")?.getAttribute("url")
-                   || "";
-    const descHtml  = get("description");
-    const imgMatch  = descHtml.match(/<img[^>]+src=["']([^"']+)["']/i);
-    const thumb     = mediaUrl || (imgMatch?.[1] ?? "");
+    const mediaUrl = item.querySelector("[url]")?.getAttribute("url")
+                  || item.querySelector("enclosure")?.getAttribute("url") || "";
+    const descHtml = get("description");
+    const imgMatch = descHtml.match(/<img[^>]+src=["']([^"']+)["']/i);
+    const thumb    = mediaUrl || (imgMatch?.[1] ?? "");
     return {
-      title:   get("title"),
-      link:    get("link") || item.querySelector("link")?.getAttribute("href") || "",
-      pubDate: get("pubDate") || get("published") || "",
-      thumbnail: thumb && !thumb.includes("1x1") && !thumb.includes("pixel") ? thumb : "",
+      title:     get("title"),
+      link:      get("link") || item.querySelector("link")?.getAttribute("href") || "",
+      pubDate:   get("pubDate") || get("published") || "",
+      thumbnail: thumb && !thumb.includes("1x1") && !thumb.includes("pixel") && thumb.startsWith("http") ? thumb : "",
     };
   });
 }
 
 async function fetchFeed(feed) {
   const res = await fetch(IGDB_PROXY, {
-    method: "POST",
-    headers: PROXY_HEADERS,
-    body: JSON.stringify({ endpoint: "rss", feedUrl: feed.url }),
+    method: "POST", headers: PROXY_HEADERS,
+    body: JSON.stringify({ endpoint:"rss", feedUrl:feed.url }),
   });
   const { xml } = await res.json();
-  return parseRSSXml(xml).map(item => ({ ...item, _source: feed.name, _color: feed.color }));
+  return parseRSSXml(xml).map(item => ({ ...item, _source:feed.name, _color:feed.color, _key:feed.key }));
 }
 
+// ── NEWS ARTICLE CARD ─────────────────────────────────────────────────────────
+function NewsCard({ a, compact }) {
+  const ts = a.pubDate ? relTime(new Date(a.pubDate)) : "";
+  return (
+    <a href={a.link} target="_blank" rel="noopener noreferrer"
+      style={{ display:"flex", gap:10, padding:compact?"10px 0":"12px 0", borderBottom:`0.5px solid ${C.border}`, textDecoration:"none", alignItems:"center", transition:"opacity .15s" }}
+      onMouseEnter={e=>e.currentTarget.style.opacity="0.7"}
+      onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
+      <div style={{ width:compact?60:76, height:compact?44:54, borderRadius:6, overflow:"hidden", flexShrink:0, background:C.faint }}>
+        {a.thumbnail
+          ? <img src={a.thumbnail} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e=>{e.target.parentNode.style.background=`${a._color}18`;e.target.style.display="none";}} />
+          : <div style={{ width:"100%", height:"100%", background:`${a._color}18`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <span style={{ fontSize:10, color:a._color, fontWeight:700 }}>{a._source?.[0]}</span>
+            </div>
+        }
+      </div>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:5, marginBottom:3 }}>
+          <span style={{ fontSize:8, fontWeight:700, color:a._color, letterSpacing:"1.5px", textTransform:"uppercase" }}>{a._source}</span>
+          {ts && <span style={{ fontSize:8, color:"#444" }}>· {ts}</span>}
+        </div>
+        <div style={{ fontSize:compact?11:12, fontWeight:500, color:C.text, lineHeight:1.4, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
+          {a.title}
+        </div>
+      </div>
+    </a>
+  );
+}
+
+// ── KORTANA WEEKLY TAB ────────────────────────────────────────────────────────
+function KortanaWeeklyTab({ articles }) {
+  const now   = new Date();
+  const mon   = new Date(now); mon.setDate(now.getDate() - now.getDay() + 1);
+  const sun   = new Date(mon); sun.setDate(mon.getDate() + 6);
+  const fmt   = d => d.toLocaleDateString("en-US", { month:"short", day:"numeric" });
+  const week  = `${fmt(mon)} – ${fmt(sun)}`;
+  const top   = articles[0];
+  const rest  = articles.slice(1, 9);
+
+  if (!top) return <div style={{ fontSize:11, color:"#333", padding:"20px 0", letterSpacing:"1px" }}>Loading…</div>;
+
+  return (
+    <div>
+      {/* Masthead */}
+      <div style={{ marginBottom:18, paddingBottom:14, borderBottom:`0.5px solid ${C.border}` }}>
+        <div style={{ fontSize:9, color:C.blue, fontWeight:700, letterSpacing:"3px", textTransform:"uppercase", marginBottom:4 }}>This Week in Games</div>
+        <div style={{ fontSize:10, color:"#444", letterSpacing:"1px" }}>{week}</div>
+      </div>
+
+      {/* Lead story */}
+      <a href={top.link} target="_blank" rel="noopener noreferrer" style={{ display:"block", textDecoration:"none", marginBottom:18 }}
+        onMouseEnter={e=>e.currentTarget.style.opacity="0.75"}
+        onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
+        {top.thumbnail && (
+          <div style={{ width:"100%", aspectRatio:"16/9", borderRadius:8, overflow:"hidden", marginBottom:10, background:C.faint }}>
+            <img src={top.thumbnail} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}
+              onError={e=>e.target.parentNode.style.display="none"} />
+          </div>
+        )}
+        <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:6 }}>
+          <span style={{ fontSize:8, fontWeight:700, color:top._color, letterSpacing:"1.5px", textTransform:"uppercase" }}>{top._source}</span>
+          <span style={{ fontSize:8, color:"#333", background:`${C.yellow}22`, border:`0.5px solid ${C.yellow}44`, borderRadius:3, padding:"1px 5px", letterSpacing:"1px", color:C.yellow }}>TOP STORY</span>
+        </div>
+        <div style={{ fontSize:14, fontWeight:600, color:C.text, lineHeight:1.4 }}>{top.title}</div>
+      </a>
+
+      {/* Divider */}
+      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+        <span style={{ fontSize:8, color:"#444", letterSpacing:"2px", textTransform:"uppercase", fontWeight:500, flexShrink:0 }}>Also This Week</span>
+        <div style={{ flex:1, height:"0.5px", background:C.border }} />
+      </div>
+
+      {/* Rest of stories */}
+      {rest.map((a, i) => <NewsCard key={i} a={a} compact />)}
+    </div>
+  );
+}
+
+// ── NEWS ROW ─────────────────────────────────────────────────────────────────
 function NewsRow() {
-  const [articles, setArticles] = useState([]);
+  const [bySource, setBySource] = useState({});
+  const [newsTab,  setNewsTab]  = useState("kortana");
+  const allArticles = Object.values(bySource).flat();
 
   useEffect(() => {
     Promise.allSettled(NEWS_FEEDS.map(fetchFeed)).then(results => {
-      const all = results.flatMap(r => r.status === "fulfilled" ? r.value : []);
-      const seen = new Set();
-      const deduped = all
-        .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-        .filter(a => {
-          if (!a.title || seen.has(a.title)) return false;
-          seen.add(a.title);
-          return true;
-        });
-      setArticles(deduped.slice(0, 30));
+      const map = {};
+      results.forEach((r, i) => {
+        if (r.status === "fulfilled") map[NEWS_FEEDS[i].key] = r.value;
+      });
+      setBySource(map);
     });
   }, []);
 
-  if (!articles.length) return (
-    <div style={{ paddingTop:32 }}>
-      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:14 }}>
-        <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2px", color:"#444", textTransform:"uppercase", flexShrink:0 }}>Gaming News</span>
-        <div style={{ flex:1, height:"0.5px", background:C.border }} />
-      </div>
-      <div style={{ fontSize:11, color:"#333", letterSpacing:"1px" }}>Loading news…</div>
-    </div>
-  );
+  const ignArticles      = (bySource.ign || []).filter(isGamingArticle);
+  const gameranxArticles = bySource.gameranx || [];
+  const kortanaAll       = allArticles
+    .filter(isGamingArticle)
+    .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
+    .filter((a, i, arr) => arr.findIndex(x => x.title === a.title) === i);
+
+  const NEWS_TABS = [
+    { key:"kortana",  label:"Kortana"  },
+    { key:"ign",      label:"IGN"      },
+    { key:"gameranx", label:"Gameranx" },
+  ];
 
   return (
-    <div style={{ paddingTop:32 }}>
-      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:"clamp(10px,2vh,14px)" }}>
-        <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2px", color:"#444", textTransform:"uppercase", flexShrink:0 }}>Gaming News</span>
-        <div style={{ flex:1, height:"0.5px", background:C.border }} />
+    <div style={{ paddingTop:28 }}>
+      {/* Tab bar */}
+      <div style={{ display:"flex", gap:6, marginBottom:16, overflowX:"auto", paddingBottom:2 }}>
+        {NEWS_TABS.map(t => (
+          <button key={t.key} onClick={() => setNewsTab(t.key)} style={{
+            flexShrink:0, padding:"5px 14px", borderRadius:20, cursor:"pointer",
+            background: newsTab===t.key ? C.blue : "transparent",
+            border: `0.5px solid ${newsTab===t.key ? C.blue : C.border}`,
+            color: newsTab===t.key ? "#fff" : C.muted,
+            fontSize:10, fontWeight:500, letterSpacing:"1.5px", textTransform:"uppercase", transition:"all .15s",
+          }}>{t.label}</button>
+        ))}
       </div>
-      <div style={{ display:"flex", flexDirection:"column" }}>
-        {articles.map((a, i) => {
-          const ts = a.pubDate ? relTime(new Date(a.pubDate)) : "";
-          return (
-            <a key={i} href={a.link} target="_blank" rel="noopener noreferrer"
-              style={{ display:"flex", gap:12, padding:"12px 0", borderBottom:`0.5px solid ${C.border}`, textDecoration:"none", alignItems:"center", transition:"opacity .15s" }}
-              onMouseEnter={e=>e.currentTarget.style.opacity="0.7"}
-              onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
-              <div style={{ width:76, height:54, borderRadius:6, overflow:"hidden", flexShrink:0, background:C.faint, flexShrink:0 }}>
-                {a.thumbnail
-                  ? <img src={a.thumbnail} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e=>{ e.target.parentNode.style.background=`${a._color}18`; e.target.style.display="none"; }} />
-                  : <div style={{ width:"100%", height:"100%", background:`${a._color}18`, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                      <span style={{ fontSize:11, color:a._color, fontWeight:700 }}>{a._source?.[0]}</span>
-                    </div>
-                }
-              </div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:4 }}>
-                  <span style={{ fontSize:8, fontWeight:700, color:a._color, letterSpacing:"1.5px", textTransform:"uppercase" }}>{a._source}</span>
-                  {ts && <span style={{ fontSize:8, color:"#444" }}>· {ts}</span>}
-                </div>
-                <div style={{ fontSize:12, fontWeight:500, color:C.text, lineHeight:1.4, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
-                  {a.title}
-                </div>
-              </div>
-            </a>
-          );
-        })}
-      </div>
+
+      {newsTab === "kortana"  && <KortanaWeeklyTab articles={kortanaAll} />}
+      {newsTab === "ign"      && (ignArticles.length
+        ? ignArticles.map((a, i) => <NewsCard key={i} a={a} />)
+        : <div style={{ fontSize:11, color:"#333", padding:"20px 0", letterSpacing:"1px" }}>Loading IGN…</div>
+      )}
+      {newsTab === "gameranx" && (gameranxArticles.length
+        ? gameranxArticles.map((a, i) => <NewsCard key={i} a={a} />)
+        : <div style={{ fontSize:11, color:"#333", padding:"20px 0", letterSpacing:"1px" }}>Loading Gameranx…</div>
+      )}
     </div>
   );
 }
