@@ -546,8 +546,9 @@ function GotyRace({ onGameClick }) {
           try {
             const data = await igdb("games", `
               search "${game.title.replace(/"/g, '\\"')}";
-              fields id, name, cover.image_id, external_games.uid, external_games.category, aggregated_rating;
-              where cover != null;
+              fields id, name, cover.image_id, artworks.image_id, screenshots.image_id,
+                external_games.uid, external_games.category, aggregated_rating;
+              where cover != null & version_parent = null;
               limit 1;
             `);
             const hit = data?.[0];
@@ -606,7 +607,7 @@ function NewAndHot({ onGameClick }) {
         involved_companies.company.name, involved_companies.developer,
         external_games.uid, external_games.category, rating, hypes;
       where hypes > 0 & platforms = (6,48,49,130,167,169) & cover != null
-        & category = (0,8,9) & first_release_date > ${oneYearAgo};
+        & version_parent = null & first_release_date > ${oneYearAgo};
       sort hypes desc;
       limit 12;
     `)
@@ -651,10 +652,14 @@ function GotyHistory({ onGameClick }) {
       const results = await Promise.all(
         TGA_WINNERS.map(async w => {
           try {
+            const yrStart = Math.floor(new Date(`${w.year}-01-01`).getTime() / 1000);
+            const yrEnd   = Math.floor(new Date(`${w.year + 1}-01-01`).getTime() / 1000);
             const data = await igdb("games", `
               search "${w.title.replace(/"/g, '\\"')}";
-              fields id, name, cover.image_id, external_games.uid, external_games.category;
-              where cover != null;
+              fields id, name, cover.image_id, artworks.image_id, screenshots.image_id,
+                external_games.uid, external_games.category;
+              where cover != null & version_parent = null
+                & first_release_date > ${yrStart} & first_release_date < ${yrEnd};
               limit 1;
             `);
             const hit = data?.[0];
@@ -1141,7 +1146,8 @@ function GenreRow({ genre, onGameClick, onBrowseGenre }) {
         involved_companies.company.name, involved_companies.developer,
         external_games.uid, external_games.category, rating;
       where ${genre.filter} & platforms = (${IGDB_PLATFORMS}) & cover != null
-        & category = (0,8,9) & rating > 70 & first_release_date > 946684800;
+        & version_parent = null & rating > 70 & rating_count > 20
+        & first_release_date > 946684800;
       sort rating desc;
       limit 10;
     `)
@@ -1285,7 +1291,7 @@ function RecommendFlow({ onClose, onGameClick }) {
         screenshots.image_id, involved_companies.company.name, involved_companies.developer,
         external_games.uid, external_games.category, rating, rating_count;
       where rating_count > 500 & platforms = (${IGDB_PLATFORMS}) & cover != null
-        & category = (0,8,9) & rating > 85;
+        & version_parent = null & rating > 85;
       sort rating_count desc;
       limit 12;
     `)
@@ -1308,7 +1314,7 @@ function RecommendFlow({ onClose, onGameClick }) {
         involved_companies.company.name, involved_companies.developer,
         external_games.uid, external_games.category, rating;
       where ${combined} & platforms = (${IGDB_PLATFORMS}) & cover != null
-        & category = (0,8,9) & rating > 75;
+        & version_parent = null & rating > 75;
       sort rating desc;
       limit 20;
     `)
@@ -1445,7 +1451,7 @@ function BrowseScreen({ games, onGameClick }) {
             involved_companies.company.name, involved_companies.developer, involved_companies.publisher,
             external_games.uid, external_games.category,
             rating, aggregated_rating, rating_count;
-          where cover != null & category = (0,8,9) ${yearClause};
+          where cover != null & version_parent = null ${yearClause};
           limit 10;
         `);
         if (!active) return;
@@ -1474,7 +1480,7 @@ function BrowseScreen({ games, onGameClick }) {
               involved_companies.company.name, involved_companies.developer,
               external_games.uid, external_games.category, rating;
             where ${filterMode.filter} & platforms = (${IGDB_PLATFORMS}) & cover != null
-              & category = (0,8,9) & rating > 70;
+              & version_parent = null & rating > 70 & rating_count > 10;
             sort rating desc;
             limit 20;
           `);
@@ -1491,7 +1497,7 @@ function BrowseScreen({ games, onGameClick }) {
               involved_companies.company.name, involved_companies.developer,
               external_games.uid, external_games.category, rating;
             where involved_companies.company = ${devId} & involved_companies.developer = true
-              & cover != null & category = (0,8,9);
+              & cover != null & version_parent = null;
             sort rating desc;
             limit 20;
           `) : [];
