@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase, upsertGameLog } from "./supabaseClient";
 
 const C = {
@@ -3210,6 +3210,60 @@ function ProfileScreen({ user, logs, displayName, photoUrl }) {
   );
 }
 
+// ── WISHLIST SALES SHEET ──────────────────────────────────────────────────────
+function WishlistSalesSheet({ sales, onClose }) {
+  const requestNotif = async () => {
+    if ("Notification" in window) await Notification.requestPermission();
+  };
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:820, display:"flex", flexDirection:"column" }} onClick={onClose}>
+      <div style={{ flex:1 }} />
+      <div onClick={e => e.stopPropagation()} style={{ background:C.surface, borderRadius:"20px 20px 0 0", border:`0.5px solid ${C.border}`, padding:"20px clamp(18px,5vw,32px) 36px", maxHeight:"80vh", overflowY:"auto" }}>
+        <div style={{ width:40, height:4, borderRadius:2, background:C.border, margin:"0 auto 22px" }} />
+        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M12 22a2 2 0 0 0 2-2H10a2 2 0 0 0 2 2zm6-6V11a6 6 0 0 0-5-5.91V4a1 1 0 0 0-2 0v1.09A6 6 0 0 0 6 11v5l-2 2v1h16v-1l-2-2z" fill={C.green}/>
+          </svg>
+          <div style={{ fontSize:17, fontWeight:500 }}>Wishlist on Sale</div>
+        </div>
+        <div style={{ fontSize:12, color:C.muted, marginBottom:20 }}>
+          {sales.length} game{sales.length !== 1 ? "s" : ""} from your backlog {sales.length !== 1 ? "are" : "is"} on sale right now
+        </div>
+        <div>
+          {sales.map((d, i) => (
+            <a key={i} href={d.url} target="_blank" rel="noopener noreferrer"
+              style={{ display:"flex", gap:12, alignItems:"center", padding:"12px 0", borderBottom:`0.5px solid ${C.border}`, textDecoration:"none" }}>
+              <div style={{ width:44, height:60, borderRadius:6, overflow:"hidden", background:C.faint, flexShrink:0 }}>
+                {d.image
+                  ? <Img src={d.image} style={{ width:"100%", height:"100%" }} />
+                  : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", padding:6 }}>
+                      <span style={{ fontSize:8, color:"#555", textAlign:"center" }}>{d.title}</span>
+                    </div>
+                }
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:14, fontWeight:500, color:C.text, marginBottom:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{d.title}</div>
+                <div style={{ fontSize:11, color:C.muted }}>{d.store}</div>
+              </div>
+              <div style={{ textAlign:"right", flexShrink:0 }}>
+                <div style={{ display:"inline-block", background:`${C.green}22`, color:C.green, borderRadius:5, padding:"2px 7px", fontSize:10, fontWeight:700, marginBottom:5 }}>-{d.cut}%</div>
+                <div style={{ fontSize:16, fontWeight:700, color:C.green }}>${d.salePrice}</div>
+                <div style={{ fontSize:10, color:"#555", textDecoration:"line-through" }}>${d.normalPrice}</div>
+              </div>
+            </a>
+          ))}
+        </div>
+        {"Notification" in window && Notification.permission === "default" && (
+          <button onClick={requestNotif}
+            style={{ width:"100%", marginTop:18, padding:"13px", background:`${C.blue}18`, border:`0.5px solid ${C.blue}55`, borderRadius:12, color:C.blue, fontSize:12, fontWeight:500, cursor:"pointer", letterSpacing:"0.3px" }}>
+            Enable push notifications for future sales
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── PLATFORMS SCREEN ─────────────────────────────────────────────────────────
 function PlatformsScreen({
   steamId,   onConnectSteam,   onDisconnectSteam,
@@ -3391,6 +3445,9 @@ export default function Kortana() {
   const [showConnectXbox,  setShowConnectXbox]  = useState(false);
   const [showOnboarding,   setShowOnboarding]   = useState(false);
   const [showWrapped,      setShowWrapped]      = useState(false);
+  const [wishlistSales,    setWishlistSales]    = useState([]);
+  const [showSalesSheet,   setShowSalesSheet]   = useState(false);
+  const seenSalesKey = useRef(typeof window !== "undefined" ? (localStorage.getItem("kortana_seen_sales") || "") : "");
   const vw        = useWindowWidth();
   const isDesktop = vw >= 960;
 
@@ -3450,6 +3507,50 @@ export default function Kortana() {
     return [{ ...log, created_at: new Date().toISOString() }, ...prev];
   });
   const handleSignOut = async () => { await supabase.auth.signOut(); setUser(null); setDisplayName(""); setPhotoUrl(""); setSteamId(""); };
+
+  // Check if any backlog games are on sale via ITAD
+  useEffect(() => {
+    if (!user || !logs.length) return;
+    const wishlist = logs.filter(l => l.status === "want to play");
+    if (!wishlist.length) return;
+    const norm = s => (s || "").toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
+    const wishTitles = wishlist.map(l => norm(l.title)).filter(t => t.length > 3);
+    fetchItadDeals("")
+      .then(raw => {
+        const list = Array.isArray(raw) ? raw : (raw?.list || []);
+        const found = new Set();
+        const onSale = list
+          .filter(d => {
+            const dt = norm(d.title);
+            if (found.has(dt)) return false;
+            const match = wishTitles.some(wt => dt === wt || dt.startsWith(wt + " ") || wt.startsWith(dt + " ") || (wt.length > 6 && dt.includes(wt)));
+            if (match) { found.add(dt); return true; }
+            return false;
+          })
+          .map(d => ({
+            title:       d.title,
+            cut:         Math.round(d.deal?.cut ?? 0),
+            salePrice:   Number(d.deal?.price?.amount ?? 0).toFixed(2),
+            normalPrice: Number(d.deal?.regular?.amount ?? 0).toFixed(2),
+            url:         d.deal?.url ?? "#",
+            store:       d.deal?.shop?.name ?? "Store",
+            image:       d.assets?.boxart || d.assets?.banner300 || "",
+          }))
+          .filter(d => d.cut >= 20);
+        setWishlistSales(onSale);
+        if (onSale.length > 0) {
+          const key = onSale.map(s => s.title).sort().join("|");
+          if (key !== seenSalesKey.current && "Notification" in window && Notification.permission === "granted") {
+            new Notification(`${onSale.length} wishlist game${onSale.length > 1 ? "s" : ""} on sale!`, {
+              body: onSale.slice(0, 3).map(s => `${s.title} — ${s.cut}% off ($${s.salePrice})`).join("\n"),
+            });
+            seenSalesKey.current = key;
+            localStorage.setItem("kortana_seen_sales", key);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [user?.id, logs.length]);
 
   const connectSteam = async (newSteamId) => {
     const { error } = await supabase.auth.updateUser({ data: { steam_id: newSteamId } });
@@ -3540,7 +3641,22 @@ export default function Kortana() {
         ::-webkit-scrollbar{display:none}
         input,textarea,select{color-scheme:dark}
         input::placeholder,textarea::placeholder{color:#444444!important}
+        html,body{
+          background-color:#06080f;
+          background-image:
+            linear-gradient(rgba(34,85,204,0.07) 1px,transparent 1px),
+            linear-gradient(90deg,rgba(34,85,204,0.07) 1px,transparent 1px),
+            repeating-linear-gradient(0deg,rgba(0,0,0,0.06) 0px,rgba(0,0,0,0.06) 1px,transparent 1px,transparent 3px);
+          background-size:44px 44px,44px 44px,3px 3px;
+          background-attachment:fixed;
+        }
       `}</style>
+      {/* Retro sci-fi grid overlay — visible through transparent areas */}
+      <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:0,
+        backgroundImage:`linear-gradient(rgba(34,85,204,0.07) 1px,transparent 1px),linear-gradient(90deg,rgba(34,85,204,0.07) 1px,transparent 1px),repeating-linear-gradient(0deg,rgba(0,0,0,0.06) 0px,rgba(0,0,0,0.06) 1px,transparent 1px,transparent 3px),radial-gradient(ellipse 100% 40% at 50% 0%,rgba(34,85,204,0.06) 0%,transparent 80%)`,
+        backgroundSize:"44px 44px,44px 44px,3px 3px,100% 100%",
+        mixBlendMode:"screen",
+      }} />
 
       <div style={{ width:"100%" }}>
 
@@ -3561,19 +3677,33 @@ export default function Kortana() {
                 <span style={{ fontSize:"clamp(16px,2.5vw,20px)", fontWeight:500, letterSpacing:"-0.5px", color:C.text }}>ortana</span>
               </div>
 
-              {/* Right: avatar / settings trigger */}
-              <div style={{ position:"relative" }}>
-                <button onClick={()=>setSettingsOpen(v=>!v)} style={{ background:"none", border:"none", cursor:"pointer", padding:0, display:"flex", alignItems:"center" }}>
-                  <UserAvatar initial={initial} photoUrl={photoUrl} size={34} />
+              {/* Right: bell + avatar / settings trigger */}
+              <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                {/* Wishlist sale bell */}
+                <button onClick={() => setShowSalesSheet(true)} title="Wishlist sales" style={{ position:"relative", background:"none", border:"none", cursor:"pointer", padding:"6px 8px", color: wishlistSales.length > 0 ? C.green : "#444", transition:"color .15s" }}>
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 22a2 2 0 0 0 2-2H10a2 2 0 0 0 2 2zm6-6V11a6 6 0 0 0-5-5.91V4a1 1 0 0 0-2 0v1.09A6 6 0 0 0 6 11v5l-2 2v1h16v-1l-2-2z" fill="currentColor"/>
+                  </svg>
+                  {wishlistSales.length > 0 && (
+                    <div style={{ position:"absolute", top:4, right:4, minWidth:16, height:16, borderRadius:8, background:C.green, border:`2px solid ${C.bg}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, fontWeight:700, color:"#000", padding:"0 3px" }}>
+                      {wishlistSales.length}
+                    </div>
+                  )}
                 </button>
-                {settingsOpen && (
-                  <SettingsDropdown
-                    user={user} displayName={displayName} photoUrl={photoUrl}
-                    onAccount={()=>{ setSettingsOpen(false); setSettingsModal("account"); }}
-                    onFriends={()=>{ setSettingsOpen(false); setSettingsModal("friends"); }}
-                    onSignOut={()=>{ setSettingsOpen(false); handleSignOut(); }}
-                  />
-                )}
+
+                <div style={{ position:"relative" }}>
+                  <button onClick={()=>setSettingsOpen(v=>!v)} style={{ background:"none", border:"none", cursor:"pointer", padding:0, display:"flex", alignItems:"center" }}>
+                    <UserAvatar initial={initial} photoUrl={photoUrl} size={34} />
+                  </button>
+                  {settingsOpen && (
+                    <SettingsDropdown
+                      user={user} displayName={displayName} photoUrl={photoUrl}
+                      onAccount={()=>{ setSettingsOpen(false); setSettingsModal("account"); }}
+                      onFriends={()=>{ setSettingsOpen(false); setSettingsModal("friends"); }}
+                      onSignOut={()=>{ setSettingsOpen(false); handleSignOut(); }}
+                    />
+                  )}
+                </div>
               </div>
 
             </div>
@@ -3646,6 +3776,13 @@ export default function Kortana() {
             user={user} logs={logs}
             steamId={steamId} psnToken={psnToken} xboxKey={xboxKey}
             onClose={()=>setShowWrapped(false)}
+          />
+        )}
+
+        {showSalesSheet && (
+          <WishlistSalesSheet
+            sales={wishlistSales}
+            onClose={() => setShowSalesSheet(false)}
           />
         )}
 
