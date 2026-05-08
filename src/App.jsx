@@ -173,7 +173,7 @@ function AuthScreen() {
       const { error } = await supabase.auth.signInWithPassword({ email: trimmedEmail, password });
       if (error) setMessage(error.message);
     } else {
-      const { error } = await supabase.auth.signUp({ email: trimmedEmail, password });
+      const { error } = await supabase.auth.signUp({ email: trimmedEmail, password, options: { emailRedirectTo: window.location.origin } });
       if (error) { setMessage(error.message); }
       else { setSentTo(trimmedEmail); }
     }
@@ -1819,13 +1819,38 @@ function HomeScreen({ games, logs, onGameClick, steamId, onConnectSteam, psnToke
           </div>
         </div>
       ) : !hasLogs && (
-        <div style={{ position:"relative", height:"clamp(340px,55vh,500px)", display:"flex", alignItems:"flex-end", overflow:"hidden" }}>
-          <div style={{ position:"absolute", inset:0, background:`radial-gradient(ellipse 90% 60% at 50% 0%, ${C.blue}18 0%, transparent 70%), radial-gradient(ellipse 60% 40% at 80% 80%, ${C.pink}12 0%, transparent 70%)` }} />
-          <div style={{ position:"relative", padding:"0 clamp(18px,5vw,48px) clamp(36px,8vh,60px)" }}>
-            <div style={{ fontSize:9, letterSpacing:"3px", color:"#444", textTransform:"uppercase", fontWeight:600, marginBottom:14 }}>Welcome</div>
-            <div style={{ fontSize:"clamp(30px,6vw,52px)", fontWeight:600, lineHeight:1.05, letterSpacing:"-1px", marginBottom:12 }}>Your game journal<br/>starts here.</div>
-            <div style={{ fontSize:13, color:"#555", lineHeight:1.7 }}>Browse games and save your first log to build your library.</div>
+        <div style={{ position:"relative", height:"clamp(420px,65vh,580px)", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center" }}>
+          {/* Deep space background */}
+          <div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 140% 100% at 50% 120%, #060d2e 0%, #050709 55%)" }} />
+          {/* Nebula glows */}
+          <div style={{ position:"absolute", top:"15%", left:"8%",  width:"clamp(200px,35vw,340px)", height:220, borderRadius:"50%", background:`radial-gradient(ellipse, ${C.blue}2a 0%, transparent 65%)`,  filter:"blur(50px)", pointerEvents:"none" }} />
+          <div style={{ position:"absolute", bottom:"5%", right:"5%", width:"clamp(160px,28vw,280px)", height:180, borderRadius:"50%", background:`radial-gradient(ellipse, ${C.pink}22 0%, transparent 65%)`,  filter:"blur(40px)", pointerEvents:"none" }} />
+          <div style={{ position:"absolute", top:"45%", right:"18%", width:160,  height:100, borderRadius:"50%", background:`radial-gradient(ellipse, ${C.yellow}18 0%, transparent 70%)`, filter:"blur(30px)", pointerEvents:"none" }} />
+          {/* Retro grid overlay */}
+          <div style={{ position:"absolute", inset:0, backgroundImage:"linear-gradient(rgba(34,85,204,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(34,85,204,.07) 1px, transparent 1px)", backgroundSize:"44px 44px", mixBlendMode:"screen", pointerEvents:"none" }} />
+          {/* Orbit rings */}
+          <div style={{ position:"absolute", width:"clamp(300px,55vw,520px)", height:"clamp(300px,55vw,520px)", borderRadius:"50%", border:"0.5px solid rgba(80,130,230,.12)", top:"50%", left:"50%", transform:"translate(-50%,-50%) rotateX(72deg)", pointerEvents:"none" }} />
+          <div style={{ position:"absolute", width:"clamp(200px,36vw,350px)", height:"clamp(200px,36vw,350px)", borderRadius:"50%", border:"0.5px solid rgba(200,80,200,.10)", top:"50%", left:"50%", transform:"translate(-50%,-50%) rotateX(72deg) rotateZ(55deg)", pointerEvents:"none" }} />
+          {/* Star dots */}
+          {[{t:"12%",l:"22%",s:2,o:.5},{t:"28%",l:"72%",s:1.5,o:.4},{t:"60%",l:"12%",s:1.5,o:.35},{t:"18%",l:"55%",s:1,o:.3},{t:"75%",l:"65%",s:2,o:.4},{t:"40%",l:"88%",s:1,o:.25},{t:"8%",l:"42%",s:1.5,o:.3}].map((s,i) => (
+            <div key={i} style={{ position:"absolute", top:s.t, left:s.l, width:s.s, height:s.s, borderRadius:"50%", background:"#fff", opacity:s.o, pointerEvents:"none" }} />
+          ))}
+          {/* Content */}
+          <div style={{ position:"relative", textAlign:"center", padding:"0 clamp(24px,6vw,56px)", zIndex:1 }}>
+            <div style={{ fontSize:"clamp(10px,1.6vw,12px)", letterSpacing:"6px", color:"#2a3a6a", textTransform:"uppercase", fontWeight:600, marginBottom:18 }}>Welcome to</div>
+            <div style={{
+              fontSize:"clamp(52px,13vw,110px)", fontWeight:800, letterSpacing:"-3px", lineHeight:1, marginBottom:14,
+              background:`linear-gradient(135deg, #c8d8ff 0%, ${C.blue} 30%, #8855ff 55%, ${C.pink} 78%, #ffaacc 100%)`,
+              WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text",
+              filter:"drop-shadow(0 0 40px rgba(80,120,255,.35))",
+            }}>KORTANA</div>
+            <div style={{ fontSize:"clamp(9px,1.4vw,11px)", letterSpacing:"5px", color:"#2a3a5a", textTransform:"uppercase", fontWeight:500, marginBottom:28 }}>Game Universe Tracker</div>
+            <div style={{ fontSize:"clamp(12px,1.8vw,14px)", color:"#3a4a6a", lineHeight:1.8, maxWidth:340, margin:"0 auto" }}>
+              Browse 200K+ games — log what you play, track your backlog, and map your entire game universe.
+            </div>
           </div>
+          {/* Bottom fade into page bg */}
+          <div style={{ position:"absolute", bottom:0, left:0, right:0, height:"clamp(60px,12vh,100px)", background:`linear-gradient(to top, ${C.bg} 0%, transparent 100%)`, pointerEvents:"none" }} />
         </div>
       )}
 
@@ -2165,8 +2190,8 @@ function StorefrontDeals() {
 const HOT_DEAL_TABS = [
   { key:"all",      label:"All",         shops:"",             color:C.green   },
   { key:"steam",    label:"Steam",       shops:"steam",        color:"#1b9af0" },
-  { key:"psn",      label:"PlayStation", shops:"psn",          color:"#003791" },
-  { key:"xbox",     label:"Xbox",        shops:"xboxgames",    color:"#107c10" },
+  { key:"psn",      label:"PlayStation", shops:"psn",          color:"#003791", direct:"psn/store-deals"  },
+  { key:"xbox",     label:"Xbox",        shops:"xboxgames",    color:"#107c10", direct:"xbox/store-deals" },
   { key:"nintendo", label:"Nintendo",    shops:"nintendo",     color:"#e60012" },
   { key:"epic",     label:"Epic",        shops:"epicgames",    color:"#c7c7c7" },
 ];
@@ -2191,25 +2216,38 @@ function DealsRow() {
   useEffect(() => {
     if (cache[tab]) { setDeals(cache[tab]); return; }
     setLoading(true);
-    fetchItadDeals(activeTab.shops)
-      .then(raw => {
-        const list = Array.isArray(raw) ? raw : (raw?.list || raw?.data?.list || []);
-        const normalized = list
-          .filter(d => (d.deal?.cut ?? 0) > 0)
-          .slice(0, 50)
-          .map(d => ({
-            title:       d.title || "",
-            image:       d.assets?.boxart || d.assets?.banner300 || d.assets?.banner145 || "",
-            salePrice:   Number(d.deal?.price?.amount ?? 0).toFixed(2),
-            normalPrice: Number(d.deal?.regular?.amount ?? 0).toFixed(2),
-            cut:         Math.round(d.deal?.cut ?? 0),
-            url:         d.deal?.url ?? "#",
-            store:       d.deal?.shop?.name ?? "Store",
-            storeId:     d.deal?.shop?.id   ?? "",
-          }));
-        setDeals(normalized);
-        setCache(c => ({ ...c, [tab]: normalized }));
-      })
+    const normalizeItad = raw => {
+      const list = Array.isArray(raw) ? raw : (raw?.list || raw?.data?.list || []);
+      return list
+        .filter(d => (d.deal?.cut ?? 0) > 0)
+        .slice(0, 50)
+        .map(d => ({
+          title:       d.title || "",
+          image:       d.assets?.boxart || d.assets?.banner300 || d.assets?.banner145 || "",
+          salePrice:   Number(d.deal?.price?.amount ?? 0).toFixed(2),
+          normalPrice: Number(d.deal?.regular?.amount ?? 0).toFixed(2),
+          cut:         Math.round(d.deal?.cut ?? 0),
+          url:         d.deal?.url ?? "#",
+          store:       d.deal?.shop?.name ?? "Store",
+          storeId:     d.deal?.shop?.id   ?? "",
+          isAtLow:     d.deal?.flag === "K" || (d.deal?.price?.amount > 0 && d.deal?.historyLow?.amount > 0 && d.deal.price.amount <= d.deal.historyLow.amount),
+        }));
+    };
+    const fetchDirect = endpoint =>
+      fetch(IGDB_PROXY, { method:"POST", headers:PROXY_HEADERS, body:JSON.stringify({ endpoint }) }).then(r => r.json());
+    const run = async () => {
+      if (activeTab?.direct) {
+        const raw = await fetchDirect(activeTab.direct).catch(() => []);
+        if (Array.isArray(raw) && raw.length) return raw.filter(d => (d.cut ?? 0) > 0);
+        // fall back to ITAD if direct returned empty
+        const itad = await fetchItadDeals(activeTab.shops).catch(() => []);
+        return normalizeItad(itad);
+      }
+      const raw = await fetchItadDeals(activeTab.shops);
+      return normalizeItad(raw);
+    };
+    run()
+      .then(normalized => { setDeals(normalized); setCache(c => ({ ...c, [tab]: normalized })); })
       .catch(() => setDeals([]))
       .finally(() => setLoading(false));
   }, [tab]);
@@ -2254,6 +2292,8 @@ function DealsRow() {
                 <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(10,10,10,.97) 0%, rgba(10,10,10,.1) 55%, transparent 100%)" }} />
                 {/* Discount badge */}
                 <div style={{ position:"absolute", top:8, left:8, background:C.green, borderRadius:5, padding:"3px 7px", fontSize:10, fontWeight:700, color:"#000" }}>-{d.cut}%</div>
+                {/* ATL badge */}
+                {d.isAtLow && <div style={{ position:"absolute", top:30, left:8, background:"#FAC000", borderRadius:5, padding:"2px 6px", fontSize:9, fontWeight:800, color:"#000", letterSpacing:"0.5px" }}>🔥 ATL</div>}
                 {/* Platform badge */}
                 <div style={{ position:"absolute", top:8, right:8, fontSize:13, lineHeight:1 }}>{PLATFORM_ICON[d.storeId] || "🎮"}</div>
                 <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"clamp(8px,2vw,11px)" }}>
@@ -2489,32 +2529,33 @@ function BrowseScreen({ games, onGameClick }) {
           `);
         } else {
           const escaped = filterMode.name.replace(/"/g, '\\"');
-          // Try exact name match first; fall back to fuzzy search
+          // Collect all company IDs for this developer (handles subsidiaries/aliases)
           let companies = await igdb("companies", `
             fields id, name;
             where name = "${escaped}";
-            limit 1;
+            limit 10;
           `);
           if (!Array.isArray(companies) || !companies.length) {
             companies = await igdb("companies", `
               search "${escaped}";
               fields id, name;
-              limit 5;
+              limit 10;
             `);
           }
-          // Pick best match: exact or first result
-          const exactMatch = Array.isArray(companies) && companies.find(
-            c => c.name?.toLowerCase() === filterMode.name.toLowerCase()
-          );
-          const devId = exactMatch?.id ?? (Array.isArray(companies) ? companies[0]?.id : null);
-          data = devId ? await igdb("games", `
+          const exactMatches = Array.isArray(companies)
+            ? companies.filter(c => c.name?.toLowerCase() === filterMode.name.toLowerCase())
+            : [];
+          const pool = exactMatches.length ? exactMatches : (Array.isArray(companies) ? companies.slice(0, 5) : []);
+          const devIds = pool.map(c => c.id).filter(Boolean);
+          const whereIds = devIds.length > 1 ? `(${devIds.join(",")})` : devIds[0] ?? null;
+          data = whereIds ? await igdb("games", `
             fields id, name, first_release_date, cover.image_id, artworks.image_id,
               screenshots.image_id, genres.name,
               involved_companies.company.name, involved_companies.developer,
-              external_games.uid, external_games.category, rating;
-            where involved_companies.company = ${devId} & cover != null;
-            sort rating desc;
-            limit 20;
+              external_games.uid, external_games.category, rating, rating_count;
+            where involved_companies.company = ${whereIds} & cover != null & version_parent = null;
+            sort rating_count desc;
+            limit 30;
           `) : [];
         }
         if (active && Array.isArray(data))
@@ -3513,6 +3554,7 @@ export default function Kortana() {
         setSteamId(u.user_metadata?.steam_id || "");
         setPsnNpsso(u.user_metadata?.psn_npsso || "");
         setXboxKey(u.user_metadata?.xbox_key || "");
+        if (!localStorage.getItem(`kortana_onboarded_${u.id}`)) setShowOnboarding(true);
       }
     });
     return () => { mounted = false; subscription?.subscription?.unsubscribe?.(); };

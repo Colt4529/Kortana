@@ -160,6 +160,98 @@ serve(async (req) => {
       });
     }
 
+    // ── Xbox Store direct deals ────────────────────────────────────────────────
+    if (endpoint === "xbox/store-deals") {
+      // Step 1: best-deals IDs from Microsoft public reco API
+      const recoRes = await fetch(
+        "https://reco-public.rec.mp.microsoft.com/channels/Reco/V8.0/Lists/Merchandising/BestDeals?Market=US&Language=en-US&Country=US&ItemTypes=Game&deviceFamily=Windows.Xbox&top=100",
+        { headers: { "Accept": "application/json" } }
+      );
+      const recoData = await recoRes.json() as any;
+      const ids: string[] = (recoData.Items || []).map((i: any) => i.Id).filter(Boolean).slice(0, 50);
+      if (!ids.length) {
+        return new Response(JSON.stringify([]), { headers: { ...CORS, "Content-Type": "application/json" } });
+      }
+      // Step 2: fetch product details (price, images) from catalog
+      const catalogRes = await fetch(
+        `https://displaycatalog.mp.microsoft.com/v7.0/products?bigIds=${ids.join(",")}&Market=US&languages=en-us`,
+        { headers: { "Accept": "application/json" } }
+      );
+      const catalogData = await catalogRes.json() as any;
+      const deals = (catalogData.Products || []).flatMap((p: any) => {
+        const props = p.LocalizedProperties?.[0];
+        const price = p.DisplaySkuAvailabilities?.[0]?.Availabilities?.[0]?.OrderManagementData?.Price;
+        if (!price?.MSRP || !price?.ListPrice) return [];
+        const cut = Math.round((1 - price.ListPrice / price.MSRP) * 100);
+        if (cut <= 0) return [];
+        const imgUri = props?.Images?.find((i: any) => i.ImagePurpose === "BoxArt")?.Uri
+                    || props?.Images?.find((i: any) => i.ImagePurpose === "Poster")?.Uri || "";
+        return [{
+          title:       props?.ProductTitle || "",
+          image:       imgUri ? `https:${imgUri}` : "",
+          salePrice:   price.ListPrice.toFixed(2),
+          normalPrice: price.MSRP.toFixed(2),
+          cut,
+          url:         `https://www.xbox.com/en-US/games/store/-/${p.ProductId}`,
+          store:       "Xbox",
+          storeId:     "xboxgames",
+          isAtLow:     false,
+        }];
+      });
+      return new Response(JSON.stringify(deals), {
+        headers: { ...CORS, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── PSN Store direct deals ─────────────────────────────────────────────────
+    if (endpoint === "psn/store-deals") {
+      // PlayStation Store public GraphQL – categoryGridRetrieve (price-drop page)
+      const gqlBody = JSON.stringify({
+        operationName: "categoryGridRetrieve",
+        variables: {
+          categoryId: "STORE-MSF75508-PSPRICEDROPS",
+          pageArgs: { size: 100, offset: 0 },
+          sortBy: { name: "productDiscountPercentage", isAscending: false },
+          filterBy: [],
+          contextualLogs: [],
+        },
+        extensions: {
+          persistedQuery: {
+            version: 1,
+            sha256Hash: "4a1fed4c9f66a02a9f35455a5617c4b87dd49f6286c4abb2ece7ef9a3a5b7faf",
+          },
+        },
+      });
+      const gqlRes = await fetch("https://web.np.playstation.com/api/graphql/v1/op", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json", "Accept-Language": "en-US" },
+        body: gqlBody,
+      });
+      const gqlData = await gqlRes.json() as any;
+      const edges: any[] = gqlData?.data?.categoryGridRetrieve?.products?.edges || [];
+      const deals = edges.map((e: any) => {
+        const p = e.node;
+        const price = p.price || {};
+        const base = (price.basePrice || 0) / 100;
+        const sale = (price.discountedPrice ?? price.basePrice ?? 0) / 100;
+        const cut  = price.discountPercentage ?? (base > 0 ? Math.round((1 - sale / base) * 100) : 0);
+        return {
+          title:       p.name || "",
+          image:       p.media?.find((m: any) => m.role === "MASTER")?.url || p.thumbnailUrl || "",
+          salePrice:   sale.toFixed(2),
+          normalPrice: base.toFixed(2),
+          cut,
+          url:         `https://store.playstation.com/en-us/product/${p.id}`,
+          store:       "PlayStation",
+          storeId:     "psn",
+          isAtLow:     false,
+        };
+      }).filter((d: any) => d.cut > 0);
+      return new Response(JSON.stringify(deals), {
+        headers: { ...CORS, "Content-Type": "application/json" },
+      });
+    }
+
     // ── Xbox (OpenXBL proxy) ──────────────────────────────────────────────────
     if (endpoint?.startsWith("xbox/")) {
       const { xboxKey } = body;
