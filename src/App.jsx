@@ -853,30 +853,11 @@ function ConnectSteamSheet({ onConnect, onClose }) {
 
 // ── CONNECT PSN SHEET ────────────────────────────────────────────────────────
 function ConnectPSNSheet({ onConnect, onClose }) {
-  const [npsso,   setNpsso]   = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState("");
-  const [preview, setPreview] = useState(null);
-  const [showHow, setShowHow] = useState(false);
-
-  const verify = async (token) => {
-    const t = (token || npsso).trim();
-    if (!t) return;
-    setLoading(true); setError(""); setPreview(null);
-    const data = await psnConnect(t);
-    if (data.error) { setError(data.error); setLoading(false); }
-    else { setPreview(data); setLoading(false); }
-  };
-
-  const handlePaste = e => {
-    const val = e.clipboardData.getData("text").trim();
-    setNpsso(val); setError(""); setPreview(null);
-    if (val.length > 20) setTimeout(() => verify(val), 100);
-  };
+  const [onlineId, setOnlineId] = useState("");
 
   return (
     <div onClick={e=>e.target===e.currentTarget&&onClose()} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.87)", zIndex:400, display:"flex", alignItems:"flex-end", justifyContent:"center", backdropFilter:"blur(14px)" }}>
-      <div style={{ background:C.surface, borderRadius:"16px 16px 0 0", width:"100%", maxWidth:440, paddingBottom:40, border:`0.5px solid ${C.border}`, borderBottom:"none", animation:"slideUp .22s ease", overflow:"hidden", maxHeight:"85vh", overflowY:"auto" }}>
+      <div style={{ background:C.surface, borderRadius:"16px 16px 0 0", width:"100%", maxWidth:440, paddingBottom:40, border:`0.5px solid ${C.border}`, borderBottom:"none", animation:"slideUp .22s ease", overflow:"hidden" }}>
         <StripeBar height={3} />
         <div style={{ display:"flex", justifyContent:"center", padding:"14px 0 6px" }}>
           <div style={{ width:36, height:3, borderRadius:2, background:C.border }} />
@@ -887,66 +868,32 @@ function ConnectPSNSheet({ onConnect, onClose }) {
             <div style={{ fontSize:17, fontWeight:500, letterSpacing:"-0.3px" }}>Connect PlayStation</div>
           </div>
           <div style={{ fontSize:12, color:"#666", marginBottom:20, lineHeight:1.5 }}>
-            Sync your PSN library and trophies with Kortana.
+            Enter your PSN Online ID to link your account — no password needed.
           </div>
 
-          {/* App link buttons */}
-          <div style={{ display:"flex", gap:8, marginBottom:20 }}>
-            <a href="https://my.playstation.com" target="_blank" rel="noopener noreferrer"
-              style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:7, padding:"12px 10px", borderRadius:10,
-                background:"rgba(0,55,145,.18)", border:"0.5px solid rgba(0,80,200,.35)", color:"#5599ff", fontWeight:600, fontSize:13,
-                textDecoration:"none", letterSpacing:"0.2px" }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 4v13.5l3.3 1.1c2.2.7 3.7.5 3.7-1V6.5c0-1.5-1-2.2-2.2-1.7L9 4zm8.5 11.5c.5-.6.5-1.3.5-2h-1.8v1c0 .5-.3.9-.8.7l-1.9-.6v1.8l1.9.6c1.2.4 2.1.1 2.1-1.5z" fill="#5599ff"/></svg>
-              Open PlayStation App
-            </a>
-          </div>
+          <a href="https://my.playstation.com" target="_blank" rel="noopener noreferrer"
+            style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"13px", borderRadius:10, marginBottom:20,
+              background:"rgba(0,55,145,.18)", border:"0.5px solid rgba(0,80,200,.35)", color:"#5599ff", fontWeight:600, fontSize:14,
+              textDecoration:"none" }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 4v13.5l3.3 1.1c2.2.7 3.7.5 3.7-1V6.5c0-1.5-1-2.2-2.2-1.7L9 4zm8.5 11.5c.5-.6.5-1.3.5-2h-1.8v1c0 .5-.3.9-.8.7l-1.9-.6v1.8l1.9.6c1.2.4 2.1.1 2.1-1.5z" fill="#5599ff"/></svg>
+            Open PlayStation App ↗
+          </a>
 
-          {/* How to get token — collapsible */}
-          <button onClick={() => setShowHow(h => !h)}
-            style={{ width:"100%", background:C.faint, border:`0.5px solid ${C.border}`, borderRadius:8, padding:"10px 14px",
-              color:C.muted, fontSize:12, cursor:"pointer", textAlign:"left", display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-            <span>How to get your token</span>
-            <span style={{ fontSize:16, lineHeight:1 }}>{showHow ? "▲" : "▼"}</span>
-          </button>
-          {showHow && (
-            <div style={{ background:C.faint, border:`0.5px solid ${C.border}`, borderRadius:8, padding:"12px 14px", marginBottom:14, fontSize:12, color:C.muted, lineHeight:2 }}>
-              1. Open <b style={{ color:C.text }}>my.playstation.com</b> and sign in<br/>
-              2. Press <b style={{ color:C.text }}>F12</b> (or Cmd+Option+I on Mac)<br/>
-              3. Click <b style={{ color:C.text }}>Application</b> → Cookies → playstation.com<br/>
-              4. Find <b style={{ color:C.text }}>npsso</b> and copy its value
-            </div>
-          )}
-
-          {/* Paste field */}
-          <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:8, fontWeight:600 }}>Paste npsso token</div>
-          <textarea
-            value={npsso}
-            onChange={e => { setNpsso(e.target.value); setError(""); setPreview(null); }}
-            onPaste={handlePaste}
-            placeholder="Paste your npsso value here…"
-            rows={3}
-            style={{ width:"100%", background:C.faint, border:`0.5px solid ${error ? C.pink : C.border}`, borderRadius:8, padding:"12px 14px", color:C.text, fontSize:12, outline:"none", boxSizing:"border-box", fontFamily:"monospace", resize:"none", marginBottom:10, lineHeight:1.5 }}
+          <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:8, fontWeight:600 }}>Your PSN Online ID</div>
+          <input
+            value={onlineId}
+            onChange={e => setOnlineId(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && onlineId.trim() && onConnect(onlineId.trim())}
+            placeholder="e.g. YourGamerTag123"
+            style={{ width:"100%", background:C.faint, border:`0.5px solid ${C.border}`, borderRadius:8, padding:"13px 14px", color:C.text, fontSize:14, outline:"none", boxSizing:"border-box", marginBottom:16 }}
+            autoFocus
           />
-          {loading && <div style={{ fontSize:12, color:C.muted, marginBottom:12, textAlign:"center" }}>Verifying…</div>}
-          {error   && <div style={{ fontSize:12, color:C.pink, marginBottom:14, padding:"10px 14px", background:"rgba(204,51,119,.08)", borderRadius:8 }}>{error}</div>}
-          {preview ? (
-            <>
-              <div style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", background:C.faint, borderRadius:10, marginBottom:16, border:`0.5px solid ${C.green}44` }}>
-                {preview.avatarUrl && <img src={preview.avatarUrl} style={{ width:46, height:46, borderRadius:"50%", objectFit:"cover" }} alt="" />}
-                <div>
-                  <div style={{ fontSize:14, fontWeight:500 }}>{preview.onlineId}</div>
-                  <div style={{ fontSize:11, color:C.green }}>Account verified ✓</div>
-                </div>
-              </div>
-              <button onClick={() => onConnect(npsso.trim(), preview)} style={{ width:"100%", padding:14, borderRadius:10, border:"none", background:"#003791", color:"#fff", fontWeight:600, fontSize:14, cursor:"pointer", letterSpacing:"1px" }}>
-                Connect PlayStation
-              </button>
-            </>
-          ) : (
-            <button onClick={() => verify()} disabled={loading || !npsso.trim()} style={{ width:"100%", padding:14, borderRadius:10, border:"none", background:npsso.trim() ? "#003791" : C.faint, color:npsso.trim() ? "#fff" : C.muted, fontWeight:600, fontSize:14, cursor:npsso.trim()?"pointer":"default", letterSpacing:"1px", transition:"all .15s" }}>
-              {loading ? "Verifying…" : "Verify Token"}
-            </button>
-          )}
+          <button
+            onClick={() => onlineId.trim() && onConnect(onlineId.trim())}
+            disabled={!onlineId.trim()}
+            style={{ width:"100%", padding:14, borderRadius:10, border:"none", background:onlineId.trim() ? "#003791" : C.faint, color:onlineId.trim() ? "#fff" : C.muted, fontWeight:600, fontSize:14, cursor:onlineId.trim()?"pointer":"default", letterSpacing:"1px", transition:"all .15s" }}>
+            Connect PlayStation
+          </button>
         </div>
       </div>
     </div>
@@ -955,90 +902,46 @@ function ConnectPSNSheet({ onConnect, onClose }) {
 
 // ── CONNECT XBOX SHEET ────────────────────────────────────────────────────────
 function ConnectXboxSheet({ onConnect, onClose }) {
-  const [key,     setKey]     = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState("");
-  const [preview, setPreview] = useState(null);
-
-  const verify = async () => {
-    const k = key.trim();
-    if (!k) { setError("Paste your OpenXBL API key above."); return; }
-    setLoading(true); setError(""); setPreview(null);
-    const data = await xboxApi("profile", k);
-    const pu = data?.profileUsers?.[0];
-    if (!pu) { setError("Invalid API key. Make sure you copied it from openxbl.com."); setLoading(false); return; }
-    const gamertag = pu.settings?.find(s => s.id === "Gamertag")?.value || "";
-    const avatar   = pu.settings?.find(s => s.id === "GameDisplayPicRaw")?.value || "";
-    if (!gamertag) { setError("Couldn't read Gamertag. Try again."); setLoading(false); return; }
-    setPreview({ gamertag, avatar });
-    setLoading(false);
-  };
-
-  const sheetStyle = { background:C.surface, borderRadius:"16px 16px 0 0", width:"100%", maxWidth:440, paddingBottom:40, border:`0.5px solid ${C.border}`, borderBottom:"none", animation:"slideUp .22s ease", overflow:"hidden" };
-  const inp = { width:"100%", background:C.faint, border:`0.5px solid ${error ? C.pink : C.border}`, borderRadius:8, padding:"12px 14px", color:C.text, fontSize:13, outline:"none", boxSizing:"border-box", fontFamily:"monospace" };
+  const [gamertag, setGamertag] = useState("");
 
   return (
     <div onClick={e=>e.target===e.currentTarget&&onClose()} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.87)", zIndex:400, display:"flex", alignItems:"flex-end", justifyContent:"center", backdropFilter:"blur(14px)" }}>
-      <div style={sheetStyle}>
+      <div style={{ background:C.surface, borderRadius:"16px 16px 0 0", width:"100%", maxWidth:440, paddingBottom:40, border:`0.5px solid ${C.border}`, borderBottom:"none", animation:"slideUp .22s ease", overflow:"hidden" }}>
         <StripeBar height={3} />
         <div style={{ display:"flex", justifyContent:"center", padding:"14px 0 6px" }}>
           <div style={{ width:36, height:3, borderRadius:2, background:C.border }} />
         </div>
         <div style={{ padding:"4px 24px 0" }}>
           <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
-            <span style={{ fontSize:24 }}>🎮</span>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#107c10" strokeWidth="1.5"/><path d="M8.5 8.5C9.8 7 11 6 12 6s2.2 1 3.5 2.5" stroke="#107c10" strokeWidth="1.3" strokeLinecap="round"/><path d="M6 10.5C7.5 9 9 7.5 10 7l4 10c-1.5 1-4 1.5-5.5.5L6 10.5z" fill="#107c10" opacity=".7"/><path d="M18 10.5c-1.5-1.5-3-3-4-3.5l-4 10c1.5 1 4 1.5 5.5.5L18 10.5z" fill="#107c10" opacity=".5"/></svg>
             <div style={{ fontSize:17, fontWeight:500, letterSpacing:"-0.3px" }}>Connect Xbox</div>
           </div>
-          <div style={{ fontSize:13, color:C.muted, marginBottom:20, lineHeight:1.6 }}>Sync your Xbox game library and achievements using a free OpenXBL API key.</div>
-
-          {/* App links */}
-          <div style={{ display:"flex", gap:8, marginBottom:16 }}>
-            <a href="https://www.xbox.com/en-US/" target="_blank" rel="noopener noreferrer"
-              style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:7, padding:"12px 10px", borderRadius:10,
-                background:"rgba(16,60,16,.35)", border:"0.5px solid rgba(16,124,16,.35)", color:C.green, fontWeight:600, fontSize:13,
-                textDecoration:"none" }}>
-              Open Xbox App
-            </a>
-            <a href="https://openxbl.com" target="_blank" rel="noopener noreferrer"
-              style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:7, padding:"12px 10px", borderRadius:10,
-                background:C.faint, border:`0.5px solid ${C.border}`, color:C.muted, fontWeight:600, fontSize:13,
-                textDecoration:"none" }}>
-              Get API Key
-            </a>
+          <div style={{ fontSize:12, color:"#666", marginBottom:20, lineHeight:1.5 }}>
+            Enter your Xbox Gamertag to link your account — no password needed.
           </div>
 
-          <div style={{ background:C.faint, borderRadius:10, padding:"12px 14px", marginBottom:16, border:`0.5px solid ${C.border}` }}>
-            <div style={{ fontSize:12, color:C.muted, lineHeight:1.8 }}>
-              1. Open <b style={{ color:C.text }}>openxbl.com</b> → Sign in with Xbox<br/>
-              2. Copy your <b style={{ color:C.text }}>API Key</b> from the dashboard<br/>
-              3. Paste it below — it's free
-            </div>
-          </div>
+          <a href="https://www.xbox.com/en-US/" target="_blank" rel="noopener noreferrer"
+            style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"13px", borderRadius:10, marginBottom:20,
+              background:"rgba(16,60,16,.35)", border:"0.5px solid rgba(16,124,16,.4)", color:C.green, fontWeight:600, fontSize:14,
+              textDecoration:"none" }}>
+            Open Xbox App ↗
+          </a>
 
-          <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:8 }}>OpenXBL API Key</div>
-          <input value={key} onChange={e=>{ setKey(e.target.value); setPreview(null); setError(""); }}
-            placeholder="Paste API key here…" style={{ ...inp, marginBottom:10 }} />
-
-          {error && <div style={{ fontSize:12, color:C.pink, marginBottom:14, padding:"10px 14px", background:"rgba(204,51,119,.08)", borderRadius:8 }}>{error}</div>}
-
-          {preview ? (
-            <>
-              <div style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", background:C.faint, borderRadius:10, marginBottom:16, border:`0.5px solid ${C.green}44` }}>
-                {preview.avatar && <img src={preview.avatar} style={{ width:46, height:46, borderRadius:"50%", objectFit:"cover" }} alt="" />}
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:14, fontWeight:500, color:C.text, marginBottom:2 }}>{preview.gamertag}</div>
-                  <div style={{ fontSize:11, color:C.green }}>Xbox account verified ✓</div>
-                </div>
-              </div>
-              <button onClick={() => onConnect(key.trim(), preview)} style={{ width:"100%", padding:14, borderRadius:8, border:"none", background:C.green, color:"#fff", fontWeight:500, fontSize:14, cursor:"pointer", textTransform:"uppercase", letterSpacing:"1.5px" }}>
-                Connect Xbox
-              </button>
-            </>
-          ) : (
-            <button onClick={verify} disabled={loading || !key.trim()} style={{ width:"100%", padding:14, borderRadius:8, border:"none", background:key.trim() ? C.green : C.faint, color:key.trim() ? "#fff" : C.muted, fontWeight:500, fontSize:14, cursor:key.trim()?"pointer":"default", textTransform:"uppercase", letterSpacing:"1.5px", transition:"all .15s" }}>
-              {loading ? "Verifying…" : "Verify Key"}
-            </button>
-          )}
+          <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:8, fontWeight:600 }}>Your Xbox Gamertag</div>
+          <input
+            value={gamertag}
+            onChange={e => setGamertag(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && gamertag.trim() && onConnect(gamertag.trim())}
+            placeholder="e.g. MasterChief"
+            style={{ width:"100%", background:C.faint, border:`0.5px solid ${C.border}`, borderRadius:8, padding:"13px 14px", color:C.text, fontSize:14, outline:"none", boxSizing:"border-box", marginBottom:16 }}
+            autoFocus
+          />
+          <button
+            onClick={() => gamertag.trim() && onConnect(gamertag.trim())}
+            disabled={!gamertag.trim()}
+            style={{ width:"100%", padding:14, borderRadius:10, border:"none", background:gamertag.trim() ? C.green : C.faint, color:gamertag.trim() ? "#fff" : C.muted, fontWeight:600, fontSize:14, cursor:gamertag.trim()?"pointer":"default", textTransform:"uppercase", letterSpacing:"1.5px", transition:"all .15s" }}>
+            Connect Xbox
+          </button>
         </div>
       </div>
     </div>
@@ -1827,9 +1730,9 @@ function HomeScreen({ games, logs, onGameClick, steamId, onConnectSteam, psnToke
   const PLATFORM_CONNECT = [
     !steamId  && { label:"Steam",       desc:"Library & playtime",              color:"#1b9af0", bg:"rgba(27,40,56,.8)",     border:"#2a475e55", onClick:onConnectSteam,
       icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489l3.075-3.739A3.5 3.5 0 0 1 15.5 11h.5l3.739-3.075A9.956 9.956 0 0 0 12 2z" fill="#1b9af0"/><path d="M11.97 14.5A2.5 2.5 0 1 0 9.47 12" stroke="#fff" strokeWidth="1.5" fill="none"/></svg> },
-    !psnToken && { label:"PlayStation",  desc:"Trophies & PS4/PS5 games",        color:"#0070d1", bg:"rgba(0,36,80,.7)",      border:"rgba(0,120,255,.2)", onClick:onConnectPSN,
+    !psnProfile && { label:"PlayStation",  desc:"Link your PSN account",           color:"#0070d1", bg:"rgba(0,36,80,.7)",      border:"rgba(0,120,255,.2)", onClick:onConnectPSN,
       icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 4v13.5l3.3 1.1c2.2.7 3.7.5 3.7-1V6.5c0-1.5-1-2.2-2.2-1.7L9 4zm8.5 11.5c.5-.6.5-1.3.5-2h-1.8v1c0 .5-.3.9-.8.7l-1.9-.6v1.8l1.9.6c1.2.4 2.1.1 2.1-1.5z" fill="#0070d1"/></svg> },
-    !xboxKey  && { label:"Xbox",         desc:"Game library & achievements",      color:"#107c10", bg:"rgba(16,60,16,.5)",     border:"rgba(16,124,16,.25)", onClick:onConnectXbox,
+    !xboxProfile && { label:"Xbox",        desc:"Link your Xbox account",          color:"#107c10", bg:"rgba(16,60,16,.5)",     border:"rgba(16,124,16,.25)", onClick:onConnectXbox,
       icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#107c10" strokeWidth="1.5"/><path d="M8.5 8.5C9.8 7 11 6 12 6s2.2 1 3.5 2.5" stroke="#107c10" strokeWidth="1.3" strokeLinecap="round"/><path d="M6 10.5C7.5 9 9 7.5 10 7l4 10c-1.5 1-4 1.5-5.5.5L6 10.5z" fill="#107c10" opacity=".7"/><path d="M18 10.5c-1.5-1.5-3-3-4-3.5l-4 10c1.5 1 4 1.5 5.5.5L18 10.5z" fill="#107c10" opacity=".5"/></svg> },
   ].filter(Boolean);
 
@@ -3593,8 +3496,10 @@ export default function Kortana() {
         setDisplayName(u.user_metadata?.display_name || "");
         setPhotoUrl(u.user_metadata?.avatar_url || "");
         setSteamId(u.user_metadata?.steam_id || "");
-        setPsnNpsso(u.user_metadata?.psn_npsso || "");
-        setXboxKey(u.user_metadata?.xbox_key || "");
+        const psnId = u.user_metadata?.psn_online_id || "";
+        if (psnId) setPsnProfile({ onlineId: psnId, avatarUrl: "" });
+        const xbtag = u.user_metadata?.xbox_gamertag || "";
+        if (xbtag) setXboxProfile({ gamertag: xbtag });
         if (!localStorage.getItem(`kortana_onboarded_${u.id}`)) setShowOnboarding(true);
       }
       setAuthLoading(false);
@@ -3608,8 +3513,10 @@ export default function Kortana() {
         setDisplayName(u.user_metadata?.display_name || "");
         setPhotoUrl(u.user_metadata?.avatar_url || "");
         setSteamId(u.user_metadata?.steam_id || "");
-        setPsnNpsso(u.user_metadata?.psn_npsso || "");
-        setXboxKey(u.user_metadata?.xbox_key || "");
+        const psnId = u.user_metadata?.psn_online_id || "";
+        if (psnId) setPsnProfile({ onlineId: psnId, avatarUrl: "" });
+        const xbtag = u.user_metadata?.xbox_gamertag || "";
+        if (xbtag) setXboxProfile({ gamertag: xbtag });
         if (!localStorage.getItem(`kortana_onboarded_${u.id}`)) setShowOnboarding(true);
       }
     });
@@ -3689,21 +3596,18 @@ export default function Kortana() {
     if (!error) { setSteamId(newSteamId); setShowConnectSteam(false); }
   };
 
-  const connectPSN = async (npsso, profile) => {
-    const { error } = await supabase.auth.updateUser({ data: { psn_npsso: npsso } });
+  const connectPSN = async (onlineId) => {
+    const { error } = await supabase.auth.updateUser({ data: { psn_online_id: onlineId } });
     if (!error) {
-      setPsnNpsso(npsso);
-      setPsnToken(profile.access_token);
-      setPsnProfile({ onlineId: profile.onlineId, avatarUrl: profile.avatarUrl });
+      setPsnProfile({ onlineId, avatarUrl: "" });
       setShowConnectPSN(false);
     }
   };
 
-  const connectXbox = async (key, profile) => {
-    const { error } = await supabase.auth.updateUser({ data: { xbox_key: key } });
+  const connectXbox = async (gamertag) => {
+    const { error } = await supabase.auth.updateUser({ data: { xbox_gamertag: gamertag } });
     if (!error) {
-      setXboxKey(key);
-      setXboxProfile(profile);
+      setXboxProfile({ gamertag });
       setShowConnectXbox(false);
     }
   };
@@ -3713,24 +3617,14 @@ export default function Kortana() {
     setSteamId("");
   };
   const disconnectPSN = async () => {
-    await supabase.auth.updateUser({ data: { psn_npsso: "" } });
-    setPsnNpsso(""); setPsnToken(""); setPsnProfile(null);
+    await supabase.auth.updateUser({ data: { psn_online_id: "", psn_npsso: "" } });
+    setPsnProfile(null);
   };
   const disconnectXbox = async () => {
-    await supabase.auth.updateUser({ data: { xbox_key: "" } });
-    setXboxKey(""); setXboxProfile(null);
+    await supabase.auth.updateUser({ data: { xbox_gamertag: "", xbox_key: "" } });
+    setXboxProfile(null);
   };
 
-  // Auto-reconnect PSN using stored NPSSO when session loads
-  useEffect(() => {
-    if (!psnNpsso || psnToken) return;
-    psnConnect(psnNpsso).then(data => {
-      if (data.access_token) {
-        setPsnToken(data.access_token);
-        setPsnProfile({ onlineId: data.onlineId, avatarUrl: data.avatarUrl });
-      }
-    }).catch(() => {});
-  }, [psnNpsso]);
 
   // Auto-load Xbox profile when key loads
   useEffect(() => {
