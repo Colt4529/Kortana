@@ -857,67 +857,100 @@ function ConnectPSNSheet({ onConnect, onClose }) {
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState("");
   const [preview, setPreview] = useState(null);
+  const [step,    setStep]    = useState(1); // 1=guide, 2=paste
 
-  const verify = async () => {
-    const token = npsso.trim();
-    if (!token) { setError("Paste your NPSSO token above."); return; }
+  const verify = async (token) => {
+    const t = (token || npsso).trim();
+    if (!t) return;
     setLoading(true); setError(""); setPreview(null);
-    const data = await psnConnect(token);
-    if (data.error) setError(data.error);
-    else setPreview(data);
-    setLoading(false);
+    const data = await psnConnect(t);
+    if (data.error) { setError(data.error); setLoading(false); }
+    else { setPreview(data); setLoading(false); }
   };
 
-  const sheetStyle = { background:C.surface, borderRadius:"16px 16px 0 0", width:"100%", maxWidth:440, paddingBottom:40, border:`0.5px solid ${C.border}`, borderBottom:"none", animation:"slideUp .22s ease", overflow:"hidden" };
-  const inp = { width:"100%", background:C.faint, border:`0.5px solid ${error ? C.pink : C.border}`, borderRadius:8, padding:"12px 14px", color:C.text, fontSize:13, outline:"none", boxSizing:"border-box", fontFamily:"monospace" };
+  const handlePaste = e => {
+    const val = e.clipboardData.getData("text").trim();
+    setNpsso(val);
+    setError("");
+    setPreview(null);
+    if (val.length > 20) setTimeout(() => verify(val), 100);
+  };
+
+  const STEPS = [
+    { n:1, icon:"🌐", title:"Open PlayStation.com",   desc:"Tap the button below — sign in if needed.", action: <button onClick={() => window.open("https://www.playstation.com/en-us/", "_blank")} style={{ marginTop:8, padding:"8px 16px", borderRadius:8, border:`0.5px solid #003791`, background:"rgba(0,55,145,.15)", color:"#5599ff", fontSize:12, fontWeight:600, cursor:"pointer", letterSpacing:"0.5px" }}>Open PlayStation.com →</button> },
+    { n:2, icon:"⌨️", title:'Press F12',               desc:'Opens browser tools. On Mac use Cmd+Option+I.' },
+    { n:3, icon:"🍪", title:"Go to Application → Cookies", desc:'Click the "Application" tab at the top, then "Cookies" → "www.playstation.com" in the left panel.' },
+    { n:4, icon:"📋", title:'Find "npsso" → Copy Value', desc:"Scroll to find the cookie named npsso. Click it, then copy the long text in the Value column.", action: <button onClick={() => setStep(2)} style={{ marginTop:8, padding:"8px 16px", borderRadius:8, border:`0.5px solid ${C.green}`, background:`${C.green}18`, color:C.green, fontSize:12, fontWeight:600, cursor:"pointer" }}>I copied it →</button> },
+  ];
 
   return (
     <div onClick={e=>e.target===e.currentTarget&&onClose()} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.87)", zIndex:400, display:"flex", alignItems:"flex-end", justifyContent:"center", backdropFilter:"blur(14px)" }}>
-      <div style={sheetStyle}>
+      <div style={{ background:C.surface, borderRadius:"16px 16px 0 0", width:"100%", maxWidth:440, paddingBottom:40, border:`0.5px solid ${C.border}`, borderBottom:"none", animation:"slideUp .22s ease", overflow:"hidden", maxHeight:"85vh", overflowY:"auto" }}>
         <StripeBar height={3} />
         <div style={{ display:"flex", justifyContent:"center", padding:"14px 0 6px" }}>
           <div style={{ width:36, height:3, borderRadius:2, background:C.border }} />
         </div>
         <div style={{ padding:"4px 24px 0" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
-            <span style={{ fontSize:24 }}>🎮</span>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
+            <span style={{ fontSize:22 }}>🎮</span>
             <div style={{ fontSize:17, fontWeight:500, letterSpacing:"-0.3px" }}>Connect PlayStation</div>
           </div>
-          <div style={{ fontSize:13, color:C.muted, marginBottom:20, lineHeight:1.6 }}>Sync your trophy library and games using your NPSSO session token.</div>
-
-          <div style={{ background:C.faint, borderRadius:10, padding:"14px 16px", marginBottom:20, border:`0.5px solid ${C.border}` }}>
-            <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:10, fontWeight:600 }}>How to get your NPSSO token</div>
-            <div style={{ fontSize:12, color:C.muted, lineHeight:1.8 }}>
-              1. Sign in at <span style={{ color:C.blue }}>playstation.com</span><br/>
-              2. Open DevTools → F12 (or right-click → Inspect)<br/>
-              3. Go to <b>Application</b> → <b>Cookies</b> → <b>www.playstation.com</b><br/>
-              4. Find the cookie named <span style={{ fontFamily:"monospace", color:C.text, background:"rgba(255,255,255,.06)", padding:"1px 5px", borderRadius:3 }}>npsso</span> and copy its Value
-            </div>
+          <div style={{ fontSize:12, color:"#555", marginBottom:20, lineHeight:1.5 }}>
+            Links your PSN account to show your library and hours played. Takes about 60 seconds.
           </div>
 
-          <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:8 }}>NPSSO Token</div>
-          <input value={npsso} onChange={e=>{ setNpsso(e.target.value); setPreview(null); setError(""); }}
-            placeholder="Paste token here…" style={{ ...inp, marginBottom:10 }} />
-
-          {error && <div style={{ fontSize:12, color:C.pink, marginBottom:14, padding:"10px 14px", background:"rgba(204,51,119,.08)", borderRadius:8 }}>{error}</div>}
-
-          {preview ? (
+          {step === 1 ? (
             <>
-              <div style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", background:C.faint, borderRadius:10, marginBottom:16, border:`0.5px solid ${C.green}44` }}>
-                {preview.avatarUrl && <img src={preview.avatarUrl} style={{ width:46, height:46, borderRadius:"50%", objectFit:"cover" }} alt="" />}
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:14, fontWeight:500, color:C.text, marginBottom:2 }}>{preview.onlineId || "PlayStation Account"}</div>
-                  <div style={{ fontSize:11, color:C.green }}>Account verified ✓</div>
-                </div>
+              <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:14, fontWeight:600 }}>Follow these steps</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:12, marginBottom:24 }}>
+                {STEPS.map(s => (
+                  <div key={s.n} style={{ display:"flex", gap:14, padding:"14px 16px", background:C.faint, borderRadius:12, border:`0.5px solid ${C.border}` }}>
+                    <div style={{ width:32, height:32, borderRadius:"50%", background:"rgba(255,255,255,.04)", border:`0.5px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:16 }}>{s.icon}</div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:13, fontWeight:500, color:C.text, marginBottom:3 }}>{s.n}. {s.title}</div>
+                      <div style={{ fontSize:12, color:"#555", lineHeight:1.5 }}>{s.desc}</div>
+                      {s.action}
+                    </div>
+                  </div>
+                ))}
               </div>
-              <button onClick={() => onConnect(npsso.trim(), preview)} style={{ width:"100%", padding:14, borderRadius:8, border:"none", background:C.blue, color:"#fff", fontWeight:500, fontSize:14, cursor:"pointer", textTransform:"uppercase", letterSpacing:"1.5px" }}>
-                Connect PlayStation
+              <button onClick={() => setStep(2)} style={{ width:"100%", padding:14, borderRadius:10, border:`0.5px solid ${C.border}`, background:"transparent", color:C.muted, fontSize:13, cursor:"pointer" }}>
+                Skip guide — I already have my token
               </button>
             </>
           ) : (
-            <button onClick={verify} disabled={loading || !npsso.trim()} style={{ width:"100%", padding:14, borderRadius:8, border:"none", background:npsso.trim() ? C.pink : C.faint, color:npsso.trim() ? "#fff" : C.muted, fontWeight:500, fontSize:14, cursor:npsso.trim()?"pointer":"default", textTransform:"uppercase", letterSpacing:"1.5px", transition:"all .15s" }}>
-              {loading ? "Verifying…" : "Verify Token"}
-            </button>
+            <>
+              <button onClick={() => setStep(1)} style={{ background:"none", border:"none", color:"#555", fontSize:12, cursor:"pointer", padding:"0 0 16px", display:"flex", alignItems:"center", gap:6 }}>← Back to guide</button>
+              <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:8, fontWeight:600 }}>Paste your npsso token</div>
+              <textarea
+                value={npsso}
+                onChange={e => { setNpsso(e.target.value); setError(""); setPreview(null); }}
+                onPaste={handlePaste}
+                placeholder="Paste the npsso value here…"
+                rows={3}
+                style={{ width:"100%", background:C.faint, border:`0.5px solid ${error ? C.pink : C.border}`, borderRadius:8, padding:"12px 14px", color:C.text, fontSize:12, outline:"none", boxSizing:"border-box", fontFamily:"monospace", resize:"none", marginBottom:10, lineHeight:1.5 }}
+              />
+              {loading && <div style={{ fontSize:12, color:C.muted, marginBottom:12, textAlign:"center" }}>Verifying…</div>}
+              {error   && <div style={{ fontSize:12, color:C.pink,  marginBottom:14, padding:"10px 14px", background:"rgba(204,51,119,.08)", borderRadius:8 }}>{error}</div>}
+              {preview ? (
+                <>
+                  <div style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", background:C.faint, borderRadius:10, marginBottom:16, border:`0.5px solid ${C.green}44` }}>
+                    {preview.avatarUrl && <img src={preview.avatarUrl} style={{ width:46, height:46, borderRadius:"50%", objectFit:"cover" }} alt="" />}
+                    <div>
+                      <div style={{ fontSize:14, fontWeight:500 }}>{preview.onlineId}</div>
+                      <div style={{ fontSize:11, color:C.green }}>Account verified ✓</div>
+                    </div>
+                  </div>
+                  <button onClick={() => onConnect(npsso.trim(), preview)} style={{ width:"100%", padding:14, borderRadius:10, border:"none", background:C.blue, color:"#fff", fontWeight:600, fontSize:14, cursor:"pointer", letterSpacing:"1px" }}>
+                    Connect PlayStation
+                  </button>
+                </>
+              ) : (
+                <button onClick={() => verify()} disabled={loading || !npsso.trim()} style={{ width:"100%", padding:14, borderRadius:10, border:"none", background:npsso.trim() ? "#003791" : C.faint, color:npsso.trim() ? "#fff" : C.muted, fontWeight:600, fontSize:14, cursor:npsso.trim()?"pointer":"default", letterSpacing:"1px", transition:"all .15s" }}>
+                  {loading ? "Verifying…" : "Verify Token"}
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
