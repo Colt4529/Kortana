@@ -3214,109 +3214,145 @@ function ProfileScreen({ user, logs, displayName, photoUrl, onGameClick }) {
   const avgRating = rated.length ? (rated.reduce((s, l) => s + l.rating, 0) / rated.length).toFixed(1) : "—";
   const recent    = [...logs].slice(0, 8);
 
+  const HudCorners = ({ color }) => (<>
+    <div style={{ position:"absolute", top:-1, left:-1,   width:14, height:14, borderTop:`2px solid ${color}`, borderLeft:`2px solid ${color}`, pointerEvents:"none" }} />
+    <div style={{ position:"absolute", top:-1, right:-1,  width:14, height:14, borderTop:`2px solid ${color}`, borderRight:`2px solid ${color}`, pointerEvents:"none" }} />
+    <div style={{ position:"absolute", bottom:-1, left:-1, width:14, height:14, borderBottom:`2px solid ${color}`, borderLeft:`2px solid ${color}`, pointerEvents:"none" }} />
+    <div style={{ position:"absolute", bottom:-1, right:-1,width:14, height:14, borderBottom:`2px solid ${color}`, borderRight:`2px solid ${color}`, pointerEvents:"none" }} />
+  </>);
+
+  const TermHead = ({ label, color, hint }) => (
+    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:18 }}>
+      <span style={{ fontFamily:"monospace", fontSize:10, color:"#555" }}>&gt;_</span>
+      <span style={{ fontFamily:"monospace", fontSize:10, letterSpacing:"2.5px", color, fontWeight:600 }}>[ {label} ]</span>
+      <div style={{ flex:1, height:"0.5px", background:`linear-gradient(to right, ${color}50, transparent)` }} />
+      {hint && <span style={{ fontFamily:"monospace", fontSize:8, color:"#444", letterSpacing:"1px" }}>{hint}</span>}
+    </div>
+  );
+
   return (
-    <div style={{ minHeight:"100vh", background:"#060810", color:C.text, paddingBottom:100, position:"relative", overflow:"hidden" }}>
+    <div style={{ minHeight:"100vh", background:"#060810", color:C.text, paddingBottom:120, position:"relative", overflow:"hidden" }}>
       {pickerSlot !== null && <FavoritePicker onPick={pickGame} onClose={()=>setPickerSlot(null)} />}
 
-      {/* Deep space base */}
-      <div style={{ position:"fixed", inset:0, zIndex:0, pointerEvents:"none",
-        background:"radial-gradient(ellipse 120% 60% at 50% -10%, #0d1a3a 0%, #060810 55%)" }} />
+      <style>{`
+        @keyframes prof-glitch {
+          0%,88%,100% { transform:none; text-shadow:none; }
+          89% { transform:translate(-4px,0); text-shadow:4px 0 #CC3377,−4px 0 #2255CC; }
+          90% { transform:translate(4px,0);  text-shadow:-4px 0 #2255CC,4px 0 #CC3377; }
+          91% { transform:translate(-1px,0); text-shadow:none; }
+          92% { transform:none; }
+          95% { transform:translate(2px,0);  text-shadow:-2px 0 #00A850; }
+          96% { transform:none; text-shadow:none; }
+        }
+        @keyframes prof-pulse {
+          0%,100% { opacity:1; }
+          50%      { opacity:0.35; }
+        }
+        @keyframes prof-scan {
+          0%   { transform:translateY(-4px); opacity:0; }
+          5%   { opacity:0.6; }
+          95%  { opacity:0.2; }
+          100% { transform:translateY(100vh); opacity:0; }
+        }
+        @keyframes prof-flicker {
+          0%,93%,100% { opacity:1; }
+          94% { opacity:0.3; }
+          95% { opacity:1; }
+          98% { opacity:0.6; }
+          99% { opacity:1; }
+        }
+        @keyframes prof-blink {
+          0%,49% { opacity:1; }
+          50%,100% { opacity:0; }
+        }
+      `}</style>
 
-      {/* Star field */}
-      <div style={{ position:"fixed", inset:0, zIndex:0, pointerEvents:"none", opacity:0.7,
-        backgroundImage:`radial-gradient(1px 1px at 12% 18%, #fff 0%, transparent 100%),
-          radial-gradient(1px 1px at 34% 7%,  #fff 0%, transparent 100%),
-          radial-gradient(1.5px 1.5px at 55% 22%, #fff 0%, transparent 100%),
-          radial-gradient(1px 1px at 72% 5%,  #fff 0%, transparent 100%),
-          radial-gradient(1px 1px at 88% 14%, #fff 0%, transparent 100%),
-          radial-gradient(1px 1px at 5%  42%, #fff 0%, transparent 100%),
-          radial-gradient(1px 1px at 23% 55%, #fff 0%, transparent 100%),
-          radial-gradient(1.5px 1.5px at 48% 38%, #fff 0%, transparent 100%),
-          radial-gradient(1px 1px at 67% 48%, #fff 0%, transparent 100%),
-          radial-gradient(1px 1px at 91% 35%, #fff 0%, transparent 100%),
-          radial-gradient(1px 1px at 8%  72%, #fff 0%, transparent 100%),
-          radial-gradient(1px 1px at 38% 78%, #fff 0%, transparent 100%),
-          radial-gradient(1.5px 1.5px at 60% 65%, #fff 0%, transparent 100%),
-          radial-gradient(1px 1px at 80% 82%, #fff 0%, transparent 100%),
-          radial-gradient(1px 1px at 95% 60%, #fff 0%, transparent 100%)` }} />
+      {/* Backgrounds */}
+      <div style={{ position:"fixed", inset:0, zIndex:0, pointerEvents:"none", background:"radial-gradient(ellipse 130% 55% at 50% -10%, #0c1830 0%, #060810 55%)" }} />
+      <div style={{ position:"fixed", inset:0, zIndex:0, pointerEvents:"none", opacity:0.65,
+        backgroundImage:`radial-gradient(1px 1px at 8% 12%,#fff 0%,transparent 100%),radial-gradient(1px 1px at 28% 6%,#fff 0%,transparent 100%),radial-gradient(1.5px 1.5px at 52% 20%,#fff 0%,transparent 100%),radial-gradient(1px 1px at 70% 4%,#fff 0%,transparent 100%),radial-gradient(1px 1px at 85% 16%,#fff 0%,transparent 100%),radial-gradient(1px 1px at 4% 38%,#fff 0%,transparent 100%),radial-gradient(1px 1px at 20% 52%,#fff 0%,transparent 100%),radial-gradient(1.5px 1.5px at 45% 35%,#fff 0%,transparent 100%),radial-gradient(1px 1px at 65% 45%,#fff 0%,transparent 100%),radial-gradient(1px 1px at 90% 30%,#fff 0%,transparent 100%),radial-gradient(1px 1px at 10% 70%,#fff 0%,transparent 100%),radial-gradient(1px 1px at 35% 75%,#fff 0%,transparent 100%),radial-gradient(1.5px 1.5px at 58% 62%,#fff 0%,transparent 100%),radial-gradient(1px 1px at 78% 80%,#fff 0%,transparent 100%),radial-gradient(1px 1px at 93% 58%,#fff 0%,transparent 100%)` }} />
+      <div style={{ position:"fixed", inset:0, zIndex:0, pointerEvents:"none", backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.07) 3px,rgba(0,0,0,0.07) 4px)" }} />
+      <div style={{ position:"fixed", top:0, left:0, right:0, height:500, zIndex:0, pointerEvents:"none", background:`radial-gradient(ellipse 80% 50% at 50% -5%,${C.blue}28 0%,transparent 70%)` }} />
+      <div style={{ position:"fixed", top:0, right:0, width:350, height:350, zIndex:0, pointerEvents:"none", background:`radial-gradient(circle at 100% 0%,${C.pink}15 0%,transparent 60%)` }} />
+      <div style={{ position:"fixed", inset:0, zIndex:0, pointerEvents:"none", backgroundImage:`linear-gradient(rgba(34,85,204,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(34,85,204,0.05) 1px,transparent 1px)`, backgroundSize:"44px 44px" }} />
 
-      {/* Scanline overlay */}
-      <div style={{ position:"fixed", inset:0, zIndex:0, pointerEvents:"none",
-        backgroundImage:"repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px)",
-        mixBlendMode:"multiply" }} />
-
-      {/* Blue nebula top */}
-      <div style={{ position:"fixed", top:0, left:0, right:0, height:500, zIndex:0, pointerEvents:"none",
-        background:`radial-gradient(ellipse 80% 50% at 50% -5%, ${C.blue}30 0%, transparent 70%)` }} />
-
-      {/* Pink accent top-right */}
-      <div style={{ position:"fixed", top:0, right:0, width:400, height:400, zIndex:0, pointerEvents:"none",
-        background:`radial-gradient(circle at 100% 0%, ${C.pink}18 0%, transparent 60%)` }} />
-
-      {/* HUD grid — tight, faint */}
-      <div style={{ position:"fixed", inset:0, zIndex:0, pointerEvents:"none",
-        backgroundImage:`linear-gradient(rgba(34,85,204,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(34,85,204,0.06) 1px, transparent 1px)`,
-        backgroundSize:"44px 44px" }} />
+      {/* Sweep scan line */}
+      <div style={{ position:"fixed", top:0, left:0, right:0, height:3, zIndex:3, pointerEvents:"none",
+        background:`linear-gradient(90deg,transparent,${C.blue}60,transparent)`,
+        animation:"prof-scan 14s linear infinite" }} />
 
       <div style={{ position:"relative", zIndex:1 }}>
 
+        {/* ── Boot header ── */}
+        <div style={{ padding:"clamp(72px,12vh,88px) clamp(18px,5vw,48px) 0", fontFamily:"monospace" }}>
+          <div style={{ fontSize:9, color:C.blue, letterSpacing:"3px", animation:"prof-flicker 9s infinite", opacity:0.8 }}>KORTANA_OS::v2.0.26</div>
+          <div style={{ fontSize:9, color:"#1a2540", letterSpacing:"0.5px", marginTop:3, userSelect:"none" }}>{'─'.repeat(48)}</div>
+        </div>
+
         {/* ── Identity ── */}
-        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", paddingTop:"clamp(90px,14vh,118px)", paddingBottom:28 }}>
-          <div style={{ width:118, height:118, borderRadius:"50%", padding:3,
-            background:`conic-gradient(${C.blue}, ${C.pink}, ${C.yellow}, ${C.green}, ${C.blue})`,
-            boxShadow:`0 0 44px ${C.blue}55, 0 0 90px ${C.blue}22`,
-            marginBottom:22, flexShrink:0 }}>
-            <div style={{ width:"100%", height:"100%", borderRadius:"50%", overflow:"hidden", background:C.bg }}>
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", paddingTop:28, paddingBottom:32 }}>
+
+          {/* Avatar with HUD corners */}
+          <div style={{ position:"relative", marginBottom:20, padding:10 }}>
+            <div style={{ position:"absolute", top:0, left:0, width:18, height:18, borderTop:`2px solid ${C.blue}`, borderLeft:`2px solid ${C.blue}` }} />
+            <div style={{ position:"absolute", top:0, right:0, width:18, height:18, borderTop:`2px solid ${C.pink}`, borderRight:`2px solid ${C.pink}` }} />
+            <div style={{ position:"absolute", bottom:0, left:0, width:18, height:18, borderBottom:`2px solid ${C.yellow}`, borderLeft:`2px solid ${C.yellow}` }} />
+            <div style={{ position:"absolute", bottom:0, right:0, width:18, height:18, borderBottom:`2px solid ${C.green}`, borderRight:`2px solid ${C.green}` }} />
+            <div style={{ width:100, height:100, borderRadius:"50%", overflow:"hidden", border:`0.5px solid ${C.blue}44` }}>
               {photoUrl && !avatarErr
                 ? <img src={photoUrl} onError={()=>setAvatarErr(true)} style={{ width:"100%", height:"100%", objectFit:"cover" }} alt="" />
-                : <div style={{ width:"100%", height:"100%", background:`linear-gradient(135deg,${C.blue},${C.pink})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:42, fontWeight:600, color:"#fff" }}>{initial}</div>
+                : <div style={{ width:"100%", height:"100%", background:`linear-gradient(135deg,${C.blue},${C.pink})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, fontWeight:600 }}>{initial}</div>
               }
             </div>
           </div>
-          <div style={{ display:"flex", alignItems:"center", gap:5, marginBottom:6 }}>
-            <div style={{ width:6, height:6, borderRadius:"50%", background:C.green, boxShadow:`0 0 8px ${C.green}` }} />
-            <span style={{ fontSize:9, color:C.green, letterSpacing:"2.5px", textTransform:"uppercase", fontWeight:500 }}>Online</span>
+
+          <div style={{ fontFamily:"monospace", fontSize:9, color:C.blue, letterSpacing:"3px", marginBottom:5, opacity:0.6 }}>&gt;_ OPERATIVE_ID://</div>
+          <div style={{ fontSize:"clamp(22px,5vw,30px)", fontWeight:700, letterSpacing:"-0.5px", textAlign:"center", animation:"prof-glitch 8s infinite" }}>
+            {(displayName || "OPERATIVE").toUpperCase()}
           </div>
-          <div style={{ fontSize:"clamp(24px,5vw,32px)", fontWeight:600, letterSpacing:"-0.5px", marginBottom:5, textAlign:"center" }}>
-            {displayName || "Operative"}
+          <div style={{ fontFamily:"monospace", fontSize:9, color:"#2a3a55", letterSpacing:"2px", marginTop:5 }}>
+            {joinYear ? `ACTIVE::${joinYear}` : "KORTANA_NET"}
           </div>
-          <div style={{ fontSize:9, color:"#444", letterSpacing:"3px", textTransform:"uppercase", marginBottom:32 }}>
-            Kortana{joinYear ? ` · Since ${joinYear}` : ""}
+          <div style={{ display:"flex", alignItems:"center", gap:7, marginTop:12, marginBottom:28 }}>
+            <div style={{ width:6, height:6, borderRadius:"50%", background:C.green, boxShadow:`0 0 10px ${C.green}`, animation:"prof-pulse 1.8s infinite" }} />
+            <span style={{ fontFamily:"monospace", fontSize:9, color:C.green, letterSpacing:"2px" }}>STATUS::ONLINE</span>
+            <span style={{ fontFamily:"monospace", fontSize:9, color:"#444", animation:"prof-blink 1s infinite" }}>▋</span>
           </div>
-          <div style={{ display:"flex", gap:0, background:C.surface, borderRadius:14, border:`0.5px solid ${C.border}`, overflow:"hidden" }}>
-            {[["Played",played,C.green],["Playing",playing,C.blue],["Backlog",backlog,C.yellow],["Avg Rating",avgRating,C.pink]].map(([label,val,col],i,a)=>(
-              <div key={label} style={{ padding:"16px clamp(14px,3.5vw,26px)", textAlign:"center", borderRight:i<a.length-1?`0.5px solid ${C.border}`:"none" }}>
-                <div style={{ fontSize:"clamp(22px,4vw,30px)", fontWeight:700, color:col, letterSpacing:"-1.5px", lineHeight:1, textShadow:`0 0 20px ${col}66` }}>{val}</div>
-                <div style={{ fontSize:9, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginTop:6 }}>{label}</div>
-              </div>
-            ))}
+
+          {/* Stats block */}
+          <div style={{ position:"relative", padding:"18px clamp(14px,4vw,28px)", background:"rgba(8,16,36,0.7)", border:`0.5px solid rgba(34,85,204,0.2)` }}>
+            <HudCorners color={C.blue} />
+            <div style={{ fontFamily:"monospace", fontSize:8, color:`${C.blue}55`, letterSpacing:"2px", textAlign:"center", marginBottom:14 }}>// PLAYER_STATS</div>
+            <div style={{ display:"flex" }}>
+              {[["PLAYED",played,C.green],["PLAYING",playing,C.blue],["BACKLOG",backlog,C.yellow],["AVG_RTG",avgRating,C.pink]].map(([label,val,col],i,a)=>(
+                <div key={label} style={{ padding:"0 clamp(12px,3vw,22px)", textAlign:"center", borderRight:i<a.length-1?`0.5px solid rgba(255,255,255,0.06)`:"none" }}>
+                  <div style={{ fontFamily:"monospace", fontSize:8, color:"#3a4a6a", letterSpacing:"1.5px", marginBottom:10 }}>{label}</div>
+                  <div style={{ fontFamily:"monospace", fontSize:"clamp(20px,4vw,28px)", fontWeight:700, color:col, letterSpacing:"-1px", lineHeight:1, textShadow:`0 0 22px ${col}99`, animation:"prof-flicker 12s infinite" }}>{val}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* ── Top 5 (Letterboxd-style curated) ── */}
-        <div style={{ padding:"0 clamp(18px,5vw,48px)", marginBottom:40 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:18 }}>
-            <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2px", color:"#444", textTransform:"uppercase" }}>Top 5</span>
-            <div style={{ flex:1, height:"0.5px", background:C.border }} />
-            <span style={{ fontSize:10, color:"#444", letterSpacing:"1px" }}>Tap to add</span>
-          </div>
-          <div style={{ display:"flex", gap:10 }}>
+        {/* ── Top 5 ── */}
+        <div style={{ padding:"0 clamp(18px,5vw,48px)", marginBottom:44 }}>
+          <TermHead label="TOP_5" color={C.pink} hint="tap_to_edit" />
+          <div style={{ display:"flex", gap:8 }}>
             {favorites.map((fav, i) => (
               <div key={i} style={{ flex:1, position:"relative" }}>
-                {fav ? (
-                  <>
-                    <div onClick={()=>setPickerSlot(i)} style={{ aspectRatio:"2/3", borderRadius:8, overflow:"hidden", cursor:"pointer", boxShadow:"0 4px 18px rgba(0,0,0,.7)", border:`0.5px solid ${C.border}` }}>
-                      <img src={fav.cover} alt={fav.title} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                    </div>
-                    <button onClick={e=>{e.stopPropagation();removeSlot(i);}} style={{ position:"absolute", top:4, right:4, width:20, height:20, borderRadius:"50%", background:"rgba(0,0,0,.8)", border:"none", color:"#888", fontSize:10, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>✕</button>
-                    <div style={{ marginTop:6, fontSize:10, fontWeight:500, color:C.text, lineHeight:1.3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textAlign:"center" }}>{fav.title}</div>
-                  </>
-                ) : (
-                  <div onClick={()=>setPickerSlot(i)} style={{ aspectRatio:"2/3", borderRadius:8, border:`1px dashed ${C.border}`, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor:"pointer", background:C.faint, transition:"border-color .15s" }}
+                {fav ? (<>
+                  <div onClick={()=>setPickerSlot(i)} style={{ aspectRatio:"2/3", borderRadius:2, overflow:"hidden", cursor:"pointer", boxShadow:"0 4px 20px rgba(0,0,0,.8)", border:`0.5px solid ${C.border}` }}>
+                    <img src={fav.cover} alt={fav.title} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                  </div>
+                  <button onClick={e=>{e.stopPropagation();removeSlot(i);}} style={{ position:"absolute", top:4, right:4, width:18, height:18, borderRadius:0, background:"rgba(0,0,0,.9)", border:`0.5px solid ${C.border}`, color:"#666", fontSize:9, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"monospace" }}>✕</button>
+                  <div style={{ marginTop:5, fontFamily:"monospace", fontSize:8, color:"#555", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textAlign:"center", letterSpacing:"0.5px" }}>{fav.title}</div>
+                </>) : (
+                  <div onClick={()=>setPickerSlot(i)}
+                    style={{ aspectRatio:"2/3", borderRadius:2, border:`1px dashed rgba(34,85,204,0.25)`, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor:"pointer", background:"rgba(34,85,204,0.03)", transition:"border-color .15s" }}
                     onMouseEnter={e=>e.currentTarget.style.borderColor=C.blue}
-                    onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
-                    <div style={{ fontSize:20, color:"#333", marginBottom:4 }}>+</div>
-                    <div style={{ fontSize:9, color:"#333", letterSpacing:"1px", textTransform:"uppercase" }}>{i+1}</div>
+                    onMouseLeave={e=>e.currentTarget.style.borderColor="rgba(34,85,204,0.25)"}>
+                    <div style={{ fontFamily:"monospace", fontSize:18, color:`${C.blue}55`, marginBottom:2 }}>+</div>
+                    <div style={{ fontFamily:"monospace", fontSize:8, color:"#2a3550", letterSpacing:"1px" }}>0{i+1}</div>
                   </div>
                 )}
               </div>
@@ -3328,37 +3364,32 @@ function ProfileScreen({ user, logs, displayName, photoUrl, onGameClick }) {
         {(() => {
           const loggedWithCovers = logs.filter(l => l.cover);
           const favGames = favorites.filter(Boolean);
-          // merge: logged games first, then any favorites not already in logs
           const logIds = new Set(loggedWithCovers.map(l => String(l.game_id||l.id)));
           const strip = [...loggedWithCovers, ...favGames.filter(f => !logIds.has(String(f.id)))].slice(0, 20);
           if (!strip.length) return null;
           return (
             <div style={{ marginBottom:44 }}>
-              <div style={{ padding:"0 clamp(18px,5vw,48px)", marginBottom:16, display:"flex", alignItems:"center", gap:12 }}>
-                <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2.5px", color:"#444", textTransform:"uppercase" }}>Film Strip</span>
-                <div style={{ flex:1, height:"0.5px", background:`linear-gradient(to right, ${C.border}, transparent)` }} />
+              <div style={{ padding:"0 clamp(18px,5vw,48px)", marginBottom:16 }}>
+                <TermHead label="FILM_STRIP" color={C.yellow} />
               </div>
               <div style={{ overflowX:"auto", display:"flex", gap:10, padding:"4px clamp(18px,5vw,48px) 12px", scrollSnapType:"x mandatory", scrollbarWidth:"none" }}>
                 {strip.map((item, i) => {
-                  const isLog = !!item.game_id;
                   const cover = item.cover;
-                  const rating = item.rating || 0;
-                  const status = item.status || "";
+                  const rating = item.rating||0;
+                  const status = item.status||"";
                   const gameObj = { id:item.game_id||item.id, title:item.title, cover, hero:cover, status, rating, review:item.review||"", year:item.year||null, developer:item.developer||"", publisher:"", genre:"", playtime:item.playtime||0, desc:"" };
                   return (
-                    <div key={i} onClick={() => onGameClick && onGameClick(gameObj)}
-                      style={{ flexShrink:0, width:90, scrollSnapAlign:"start", cursor:"pointer", transition:"transform .2s" }}
-                      onMouseEnter={e=>e.currentTarget.style.transform="translateY(-5px) scale(1.04)"}
+                    <div key={i} onClick={()=>onGameClick&&onGameClick(gameObj)}
+                      style={{ flexShrink:0, width:88, scrollSnapAlign:"start", cursor:"pointer", transition:"transform .18s" }}
+                      onMouseEnter={e=>e.currentTarget.style.transform="translateY(-6px) scale(1.04)"}
                       onMouseLeave={e=>e.currentTarget.style.transform="none"}>
-                      <div style={{ width:90, height:122, borderRadius:8, overflow:"hidden",
-                        boxShadow:"0 6px 24px rgba(0,0,0,.8)", border:`0.5px solid ${C.border}` }}>
+                      <div style={{ width:88, height:120, borderRadius:2, overflow:"hidden", boxShadow:"0 6px 28px rgba(0,0,0,.85)", border:`0.5px solid rgba(255,255,255,0.08)` }}>
                         <img src={cover} alt={item.title} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
                       </div>
                       {rating > 0
-                        ? <div style={{ marginTop:6, display:"flex", justifyContent:"center" }}><Stars value={rating} size={8} /></div>
-                        : status
-                          ? <div style={{ marginTop:6, textAlign:"center", fontSize:8, letterSpacing:"1px", textTransform:"uppercase", color:SC[status]||C.muted }}>{status}</div>
-                          : null}
+                        ? <div style={{ marginTop:5, display:"flex", justifyContent:"center" }}><Stars value={rating} size={8} /></div>
+                        : status ? <div style={{ marginTop:5, textAlign:"center", fontFamily:"monospace", fontSize:7, letterSpacing:"1px", color:SC[status]||C.muted }}>{status.toUpperCase()}</div>
+                        : null}
                     </div>
                   );
                 })}
@@ -3367,46 +3398,50 @@ function ProfileScreen({ user, logs, displayName, photoUrl, onGameClick }) {
           );
         })()}
 
-        {/* ── Recent Activity ── */}
+        {/* ── Activity Log ── */}
         {recent.length > 0 && (
           <div style={{ padding:"0 clamp(18px,5vw,48px)" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
-              <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2.5px", color:"#444", textTransform:"uppercase" }}>Activity</span>
-              <div style={{ flex:1, height:"0.5px", background:`linear-gradient(to right, ${C.border}, transparent)` }} />
-            </div>
+            <TermHead label="ACTIVITY_LOG" color={C.green} />
             {recent.map((log, i) => {
               const ts = log.created_at ? new Date(log.created_at) : null;
               return (
                 <div key={log.id||i}
-                  onClick={() => onGameClick && onGameClick({ id:log.game_id||log.id, title:log.title, cover:log.cover, hero:log.cover, status:log.status, rating:log.rating, review:log.review, year:null, developer:"", publisher:"", genre:"", playtime:log.playtime||0, desc:"" })}
-                  style={{ display:"flex", gap:16, padding:"18px 0", borderBottom:`0.5px solid rgba(255,255,255,0.05)`, cursor:"pointer", transition:"background .15s" }}
-                  onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.02)"}
+                  onClick={()=>onGameClick&&onGameClick({ id:log.game_id||log.id, title:log.title, cover:log.cover, hero:log.cover, status:log.status, rating:log.rating, review:log.review, year:null, developer:"", publisher:"", genre:"", playtime:log.playtime||0, desc:"" })}
+                  style={{ display:"flex", gap:14, padding:"16px 0", borderBottom:`0.5px solid rgba(34,85,204,0.08)`, cursor:"pointer", transition:"background .12s" }}
+                  onMouseEnter={e=>e.currentTarget.style.background="rgba(34,85,204,0.05)"}
                   onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  <div style={{ width:56, height:76, borderRadius:7, overflow:"hidden", flexShrink:0,
-                    boxShadow:`0 4px 20px rgba(0,0,0,.8), 0 0 0 0.5px ${C.border}` }}>
+                  <div style={{ width:50, height:68, borderRadius:2, overflow:"hidden", flexShrink:0, boxShadow:`0 4px 18px rgba(0,0,0,.8),0 0 0 0.5px rgba(34,85,204,0.2)` }}>
                     <Img src={log.cover} style={{ width:"100%", height:"100%" }} />
                   </div>
                   <div style={{ flex:1, minWidth:0, paddingTop:2 }}>
-                    <div style={{ fontSize:15, fontWeight:600, letterSpacing:"-0.3px", color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginBottom:6 }}>{log.title}</div>
-                    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom: log.review ? 8 : 0 }}>
+                    <div style={{ fontFamily:"monospace", fontSize:8, color:`${C.blue}70`, letterSpacing:"1px", marginBottom:5 }}>
+                      &gt; {ts ? `[${ts.toISOString().slice(0,10)}]` : "[----------]"}
+                    </div>
+                    <div style={{ fontSize:14, fontWeight:600, letterSpacing:"-0.3px", color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginBottom:5 }}>{log.title}</div>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:log.review?7:0 }}>
                       {log.rating > 0 && <Stars value={log.rating} size={10} />}
-                      <span style={{ fontSize:9, fontWeight:500, color:SC[log.status]||C.muted, letterSpacing:"1.5px", textTransform:"uppercase" }}>{log.status}</span>
+                      <span style={{ fontFamily:"monospace", fontSize:8, color:SC[log.status]||C.muted, letterSpacing:"1.5px" }}>{log.status?.toUpperCase()}</span>
                     </div>
                     {log.review && (
-                      <div style={{ fontSize:12, color:"#666", lineHeight:1.55, fontStyle:"italic",
-                        overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>
-                        "{log.review}"
+                      <div style={{ fontFamily:"monospace", fontSize:10, color:"#3a5070", lineHeight:1.6, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>
+                        // "{log.review}"
                       </div>
                     )}
                   </div>
-                  <div style={{ fontSize:10, color:"#444", flexShrink:0, paddingTop:3 }}>{ts ? relTime(ts) : ""}</div>
+                  <div style={{ fontFamily:"monospace", fontSize:9, color:"#2a3a55", flexShrink:0, paddingTop:3 }}>{ts?relTime(ts):""}</div>
                 </div>
               );
             })}
           </div>
         )}
 
-        {logs.length === 0 && <Empty label="Log some games to build your profile" />}
+        {logs.length === 0 && (
+          <div style={{ padding:"60px clamp(18px,5vw,48px)", fontFamily:"monospace" }}>
+            <div style={{ fontSize:9, color:"#2a3a55", letterSpacing:"2px", marginBottom:6 }}>&gt;_ NO_ENTRIES_FOUND</div>
+            <div style={{ fontSize:10, color:"#3a4a6a" }}>// log some games to build your profile</div>
+          </div>
+        )}
+
       </div>
     </div>
   );
