@@ -857,7 +857,7 @@ function ConnectPSNSheet({ onConnect, onClose }) {
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState("");
   const [preview, setPreview] = useState(null);
-  const [step,    setStep]    = useState(1); // 1=guide, 2=paste
+  const [showHow, setShowHow] = useState(false);
 
   const verify = async (token) => {
     const t = (token || npsso).trim();
@@ -870,18 +870,9 @@ function ConnectPSNSheet({ onConnect, onClose }) {
 
   const handlePaste = e => {
     const val = e.clipboardData.getData("text").trim();
-    setNpsso(val);
-    setError("");
-    setPreview(null);
+    setNpsso(val); setError(""); setPreview(null);
     if (val.length > 20) setTimeout(() => verify(val), 100);
   };
-
-  const STEPS = [
-    { n:1, icon:"🌐", title:"Open PlayStation.com",   desc:"Tap the button below — sign in if needed.", action: <button onClick={() => window.open("https://www.playstation.com/en-us/", "_blank")} style={{ marginTop:8, padding:"8px 16px", borderRadius:8, border:`0.5px solid #003791`, background:"rgba(0,55,145,.15)", color:"#5599ff", fontSize:12, fontWeight:600, cursor:"pointer", letterSpacing:"0.5px" }}>Open PlayStation.com →</button> },
-    { n:2, icon:"⌨️", title:'Press F12',               desc:'Opens browser tools. On Mac use Cmd+Option+I.' },
-    { n:3, icon:"🍪", title:"Go to Application → Cookies", desc:'Click the "Application" tab at the top, then "Cookies" → "www.playstation.com" in the left panel.' },
-    { n:4, icon:"📋", title:'Find "npsso" → Copy Value', desc:"Scroll to find the cookie named npsso. Click it, then copy the long text in the Value column.", action: <button onClick={() => setStep(2)} style={{ marginTop:8, padding:"8px 16px", borderRadius:8, border:`0.5px solid ${C.green}`, background:`${C.green}18`, color:C.green, fontSize:12, fontWeight:600, cursor:"pointer" }}>I copied it →</button> },
-  ];
 
   return (
     <div onClick={e=>e.target===e.currentTarget&&onClose()} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.87)", zIndex:400, display:"flex", alignItems:"flex-end", justifyContent:"center", backdropFilter:"blur(14px)" }}>
@@ -891,66 +882,70 @@ function ConnectPSNSheet({ onConnect, onClose }) {
           <div style={{ width:36, height:3, borderRadius:2, background:C.border }} />
         </div>
         <div style={{ padding:"4px 24px 0" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
-            <span style={{ fontSize:22 }}>🎮</span>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M9 4v13.5l3.3 1.1c2.2.7 3.7.5 3.7-1V6.5c0-1.5-1-2.2-2.2-1.7L9 4zm8.5 11.5c.5-.6.5-1.3.5-2h-1.8v1c0 .5-.3.9-.8.7l-1.9-.6v1.8l1.9.6c1.2.4 2.1.1 2.1-1.5z" fill="#0070d1"/></svg>
             <div style={{ fontSize:17, fontWeight:500, letterSpacing:"-0.3px" }}>Connect PlayStation</div>
           </div>
-          <div style={{ fontSize:12, color:"#555", marginBottom:20, lineHeight:1.5 }}>
-            Links your PSN account to show your library and hours played. Takes about 60 seconds.
+          <div style={{ fontSize:12, color:"#666", marginBottom:20, lineHeight:1.5 }}>
+            Sync your PSN library and trophies with Kortana.
           </div>
 
-          {step === 1 ? (
+          {/* App link buttons */}
+          <div style={{ display:"flex", gap:8, marginBottom:20 }}>
+            <a href="https://my.playstation.com" target="_blank" rel="noopener noreferrer"
+              style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:7, padding:"12px 10px", borderRadius:10,
+                background:"rgba(0,55,145,.18)", border:"0.5px solid rgba(0,80,200,.35)", color:"#5599ff", fontWeight:600, fontSize:13,
+                textDecoration:"none", letterSpacing:"0.2px" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 4v13.5l3.3 1.1c2.2.7 3.7.5 3.7-1V6.5c0-1.5-1-2.2-2.2-1.7L9 4zm8.5 11.5c.5-.6.5-1.3.5-2h-1.8v1c0 .5-.3.9-.8.7l-1.9-.6v1.8l1.9.6c1.2.4 2.1.1 2.1-1.5z" fill="#5599ff"/></svg>
+              Open PlayStation App
+            </a>
+          </div>
+
+          {/* How to get token — collapsible */}
+          <button onClick={() => setShowHow(h => !h)}
+            style={{ width:"100%", background:C.faint, border:`0.5px solid ${C.border}`, borderRadius:8, padding:"10px 14px",
+              color:C.muted, fontSize:12, cursor:"pointer", textAlign:"left", display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+            <span>How to get your token</span>
+            <span style={{ fontSize:16, lineHeight:1 }}>{showHow ? "▲" : "▼"}</span>
+          </button>
+          {showHow && (
+            <div style={{ background:C.faint, border:`0.5px solid ${C.border}`, borderRadius:8, padding:"12px 14px", marginBottom:14, fontSize:12, color:C.muted, lineHeight:2 }}>
+              1. Open <b style={{ color:C.text }}>my.playstation.com</b> and sign in<br/>
+              2. Press <b style={{ color:C.text }}>F12</b> (or Cmd+Option+I on Mac)<br/>
+              3. Click <b style={{ color:C.text }}>Application</b> → Cookies → playstation.com<br/>
+              4. Find <b style={{ color:C.text }}>npsso</b> and copy its value
+            </div>
+          )}
+
+          {/* Paste field */}
+          <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:8, fontWeight:600 }}>Paste npsso token</div>
+          <textarea
+            value={npsso}
+            onChange={e => { setNpsso(e.target.value); setError(""); setPreview(null); }}
+            onPaste={handlePaste}
+            placeholder="Paste your npsso value here…"
+            rows={3}
+            style={{ width:"100%", background:C.faint, border:`0.5px solid ${error ? C.pink : C.border}`, borderRadius:8, padding:"12px 14px", color:C.text, fontSize:12, outline:"none", boxSizing:"border-box", fontFamily:"monospace", resize:"none", marginBottom:10, lineHeight:1.5 }}
+          />
+          {loading && <div style={{ fontSize:12, color:C.muted, marginBottom:12, textAlign:"center" }}>Verifying…</div>}
+          {error   && <div style={{ fontSize:12, color:C.pink, marginBottom:14, padding:"10px 14px", background:"rgba(204,51,119,.08)", borderRadius:8 }}>{error}</div>}
+          {preview ? (
             <>
-              <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:14, fontWeight:600 }}>Follow these steps</div>
-              <div style={{ display:"flex", flexDirection:"column", gap:12, marginBottom:24 }}>
-                {STEPS.map(s => (
-                  <div key={s.n} style={{ display:"flex", gap:14, padding:"14px 16px", background:C.faint, borderRadius:12, border:`0.5px solid ${C.border}` }}>
-                    <div style={{ width:32, height:32, borderRadius:"50%", background:"rgba(255,255,255,.04)", border:`0.5px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:16 }}>{s.icon}</div>
-                    <div style={{ flex:1 }}>
-                      <div style={{ fontSize:13, fontWeight:500, color:C.text, marginBottom:3 }}>{s.n}. {s.title}</div>
-                      <div style={{ fontSize:12, color:"#555", lineHeight:1.5 }}>{s.desc}</div>
-                      {s.action}
-                    </div>
-                  </div>
-                ))}
+              <div style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", background:C.faint, borderRadius:10, marginBottom:16, border:`0.5px solid ${C.green}44` }}>
+                {preview.avatarUrl && <img src={preview.avatarUrl} style={{ width:46, height:46, borderRadius:"50%", objectFit:"cover" }} alt="" />}
+                <div>
+                  <div style={{ fontSize:14, fontWeight:500 }}>{preview.onlineId}</div>
+                  <div style={{ fontSize:11, color:C.green }}>Account verified ✓</div>
+                </div>
               </div>
-              <button onClick={() => setStep(2)} style={{ width:"100%", padding:14, borderRadius:10, border:`0.5px solid ${C.border}`, background:"transparent", color:C.muted, fontSize:13, cursor:"pointer" }}>
-                Skip guide — I already have my token
+              <button onClick={() => onConnect(npsso.trim(), preview)} style={{ width:"100%", padding:14, borderRadius:10, border:"none", background:"#003791", color:"#fff", fontWeight:600, fontSize:14, cursor:"pointer", letterSpacing:"1px" }}>
+                Connect PlayStation
               </button>
             </>
           ) : (
-            <>
-              <button onClick={() => setStep(1)} style={{ background:"none", border:"none", color:"#555", fontSize:12, cursor:"pointer", padding:"0 0 16px", display:"flex", alignItems:"center", gap:6 }}>← Back to guide</button>
-              <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:8, fontWeight:600 }}>Paste your npsso token</div>
-              <textarea
-                value={npsso}
-                onChange={e => { setNpsso(e.target.value); setError(""); setPreview(null); }}
-                onPaste={handlePaste}
-                placeholder="Paste the npsso value here…"
-                rows={3}
-                style={{ width:"100%", background:C.faint, border:`0.5px solid ${error ? C.pink : C.border}`, borderRadius:8, padding:"12px 14px", color:C.text, fontSize:12, outline:"none", boxSizing:"border-box", fontFamily:"monospace", resize:"none", marginBottom:10, lineHeight:1.5 }}
-              />
-              {loading && <div style={{ fontSize:12, color:C.muted, marginBottom:12, textAlign:"center" }}>Verifying…</div>}
-              {error   && <div style={{ fontSize:12, color:C.pink,  marginBottom:14, padding:"10px 14px", background:"rgba(204,51,119,.08)", borderRadius:8 }}>{error}</div>}
-              {preview ? (
-                <>
-                  <div style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", background:C.faint, borderRadius:10, marginBottom:16, border:`0.5px solid ${C.green}44` }}>
-                    {preview.avatarUrl && <img src={preview.avatarUrl} style={{ width:46, height:46, borderRadius:"50%", objectFit:"cover" }} alt="" />}
-                    <div>
-                      <div style={{ fontSize:14, fontWeight:500 }}>{preview.onlineId}</div>
-                      <div style={{ fontSize:11, color:C.green }}>Account verified ✓</div>
-                    </div>
-                  </div>
-                  <button onClick={() => onConnect(npsso.trim(), preview)} style={{ width:"100%", padding:14, borderRadius:10, border:"none", background:C.blue, color:"#fff", fontWeight:600, fontSize:14, cursor:"pointer", letterSpacing:"1px" }}>
-                    Connect PlayStation
-                  </button>
-                </>
-              ) : (
-                <button onClick={() => verify()} disabled={loading || !npsso.trim()} style={{ width:"100%", padding:14, borderRadius:10, border:"none", background:npsso.trim() ? "#003791" : C.faint, color:npsso.trim() ? "#fff" : C.muted, fontWeight:600, fontSize:14, cursor:npsso.trim()?"pointer":"default", letterSpacing:"1px", transition:"all .15s" }}>
-                  {loading ? "Verifying…" : "Verify Token"}
-                </button>
-              )}
-            </>
+            <button onClick={() => verify()} disabled={loading || !npsso.trim()} style={{ width:"100%", padding:14, borderRadius:10, border:"none", background:npsso.trim() ? "#003791" : C.faint, color:npsso.trim() ? "#fff" : C.muted, fontWeight:600, fontSize:14, cursor:npsso.trim()?"pointer":"default", letterSpacing:"1px", transition:"all .15s" }}>
+              {loading ? "Verifying…" : "Verify Token"}
+            </button>
           )}
         </div>
       </div>
@@ -996,13 +991,27 @@ function ConnectXboxSheet({ onConnect, onClose }) {
           </div>
           <div style={{ fontSize:13, color:C.muted, marginBottom:20, lineHeight:1.6 }}>Sync your Xbox game library and achievements using a free OpenXBL API key.</div>
 
-          <div style={{ background:C.faint, borderRadius:10, padding:"14px 16px", marginBottom:20, border:`0.5px solid ${C.border}` }}>
-            <div style={{ fontSize:10, color:"#444", letterSpacing:"2px", textTransform:"uppercase", marginBottom:10, fontWeight:600 }}>How to get your free API key</div>
+          {/* App links */}
+          <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+            <a href="https://www.xbox.com/en-US/" target="_blank" rel="noopener noreferrer"
+              style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:7, padding:"12px 10px", borderRadius:10,
+                background:"rgba(16,60,16,.35)", border:"0.5px solid rgba(16,124,16,.35)", color:C.green, fontWeight:600, fontSize:13,
+                textDecoration:"none" }}>
+              Open Xbox App
+            </a>
+            <a href="https://openxbl.com" target="_blank" rel="noopener noreferrer"
+              style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:7, padding:"12px 10px", borderRadius:10,
+                background:C.faint, border:`0.5px solid ${C.border}`, color:C.muted, fontWeight:600, fontSize:13,
+                textDecoration:"none" }}>
+              Get API Key
+            </a>
+          </div>
+
+          <div style={{ background:C.faint, borderRadius:10, padding:"12px 14px", marginBottom:16, border:`0.5px solid ${C.border}` }}>
             <div style={{ fontSize:12, color:C.muted, lineHeight:1.8 }}>
-              1. Go to <span style={{ color:C.green }}>openxbl.com</span><br/>
-              2. Click <b>Sign In</b> and connect your Microsoft / Xbox account<br/>
-              3. After signing in, copy your <b>API Key</b> from the dashboard<br/>
-              4. Paste it below — it's free, no credit card needed
+              1. Open <b style={{ color:C.text }}>openxbl.com</b> → Sign in with Xbox<br/>
+              2. Copy your <b style={{ color:C.text }}>API Key</b> from the dashboard<br/>
+              3. Paste it below — it's free
             </div>
           </div>
 
@@ -2334,18 +2343,23 @@ function DealsRow() {
                     </div>
                 }
                 <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(10,10,10,.97) 0%, rgba(10,10,10,.1) 55%, transparent 100%)" }} />
-                {/* Discount badge */}
-                <div style={{ position:"absolute", top:8, left:8, background:C.green, borderRadius:5, padding:"3px 7px", fontSize:10, fontWeight:700, color:"#000" }}>-{d.cut}%</div>
+                {/* Discount badge — only when there's a real discount */}
+                {d.cut > 0 && <div style={{ position:"absolute", top:8, left:8, background:C.green, borderRadius:5, padding:"3px 7px", fontSize:10, fontWeight:700, color:"#000" }}>-{d.cut}%</div>}
                 {/* ATL badge */}
-                {d.isAtLow && <div style={{ position:"absolute", top:30, left:8, background:"#FAC000", borderRadius:5, padding:"2px 6px", fontSize:9, fontWeight:800, color:"#000", letterSpacing:"0.5px" }}>🔥 ATL</div>}
+                {d.isAtLow && <div style={{ position:"absolute", top: d.cut > 0 ? 30 : 8, left:8, background:"#FAC000", borderRadius:5, padding:"2px 6px", fontSize:9, fontWeight:800, color:"#000", letterSpacing:"0.5px" }}>🔥 ATL</div>}
                 {/* Platform badge */}
                 <div style={{ position:"absolute", top:8, right:8, fontSize:13, lineHeight:1 }}>{PLATFORM_ICON[d.storeId] || "🎮"}</div>
                 <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"clamp(8px,2vw,11px)" }}>
                   <div style={{ fontSize:"clamp(10px,1.5vw,12px)", fontWeight:500, color:C.text, lineHeight:1.3, marginBottom:5, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{d.title}</div>
-                  <div style={{ display:"flex", alignItems:"baseline", gap:6 }}>
-                    <span style={{ fontSize:14, fontWeight:700, color:C.green }}>${d.salePrice}</span>
-                    <span style={{ fontSize:10, color:"#555", textDecoration:"line-through" }}>${d.normalPrice}</span>
-                  </div>
+                  {(d.cut > 0 || d.normalPrice) && (
+                    <div style={{ display:"flex", alignItems:"baseline", gap:6 }}>
+                      {d.cut > 0
+                        ? <><span style={{ fontSize:14, fontWeight:700, color:C.green }}>${d.salePrice}</span>
+                            <span style={{ fontSize:10, color:"#555", textDecoration:"line-through" }}>${d.normalPrice}</span></>
+                        : <span style={{ fontSize:13, fontWeight:600, color:C.text }}>${d.normalPrice}</span>
+                      }
+                    </div>
+                  )}
                   <div style={{ fontSize:9, marginTop:3, color:storeColor(d.storeId), fontWeight:500, textTransform:"uppercase", letterSpacing:"0.5px" }}>{d.store}</div>
                 </div>
               </div>

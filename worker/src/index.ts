@@ -43,42 +43,46 @@ export default {
       if (endpoint === "steam/store-deals") {
         const res = await fetch("https://store.steampowered.com/api/featuredcategories?cc=US&l=en");
         const data = await res.json() as any;
-        const items: any[] = (data?.specials?.items ?? []).filter((g: any) => g.discount_percent > 0);
-        return ok(items.map((g: any) => ({
+        // Merge top sellers + specials, deduplicate by appid
+        const sellers: any[] = data?.top_sellers?.items ?? [];
+        const specials: any[] = (data?.specials?.items ?? []).filter((g: any) => g.discount_percent > 0);
+        const seen = new Set<number>();
+        const merged: any[] = [];
+        for (const g of [...sellers, ...specials]) {
+          if (seen.has(g.id ?? g.steam_appid)) continue;
+          seen.add(g.id ?? g.steam_appid);
+          merged.push(g);
+        }
+        return ok(merged.slice(0, 40).map((g: any) => ({
           title:       g.name ?? "",
           image:       g.header_image ?? g.large_capsule_image ?? "",
-          salePrice:   ((g.final_price    ?? 0) / 100).toFixed(2),
-          normalPrice: ((g.original_price ?? 0) / 100).toFixed(2),
+          salePrice:   ((g.final_price    ?? g.discounted_price ?? 0) / 100).toFixed(2),
+          normalPrice: ((g.original_price ?? g.final_price ?? 0) / 100).toFixed(2),
           cut:         g.discount_percent ?? 0,
-          url:         `https://store.steampowered.com/app/${g.steam_appid}`,
+          url:         `https://store.steampowered.com/app/${g.id ?? g.steam_appid}`,
           store: "Steam", storeId: "steam", isAtLow: false,
         })));
       }
 
       // ── Epic Games Store public deals ────────────────────────────────────────
       if (endpoint === "epic/store-deals") {
-        const res = await fetch(
-          "https://store-site-backend-static-ipv4.ak.epicgames.com/freeGamesPromotions?locale=en-US&country=US&allowCountries=US",
-          { headers: { "User-Agent": "Mozilla/5.0 (compatible; Kortana/1.0)" } }
-        );
-        const data = await res.json() as any;
-        const elements: any[] = data?.data?.Catalog?.searchStore?.elements ?? [];
+        // Use IGDB for top-rated recent PC games (platform 6), link to Epic Store
+        const epicTok = await getIgdbToken(env);
+        const epicRes = await fetch("https://api.igdb.com/v4/games", {
+          method: "POST",
+          headers: { "Client-ID": env.IGDB_CLIENT_ID, "Authorization": `Bearer ${epicTok}`, "Accept": "application/json" },
+          body: "fields name, cover.url, first_release_date, rating; where platforms = (6) & cover != null & rating >= 80 & first_release_date > 1609459200; sort rating_count desc; limit 30;",
+        });
+        const epicGames = await epicRes.json() as any;
         const games: any[] = [];
-        for (const g of elements) {
-          if (!g.title) continue;
-          const price = g?.price?.totalPrice ?? {};
-          const slug = (g?.catalogNs?.mappings ?? []).find((m: any) => m.pageType === "productHome")?.pageSlug ?? "";
-          const imgs: any[] = g?.keyImages ?? [];
-          const img = imgs.find((i: any) => i.type === "Thumbnail")?.url
-                   ?? imgs.find((i: any) => i.type === "DieselStoreFrontWide")?.url
-                   ?? imgs[0]?.url ?? "";
-          const orig = (price.originalPrice ?? 0) / 100;
-          const sale = (price.discountPrice  ?? 0) / 100;
+        for (const g of (Array.isArray(epicGames) ? epicGames : [])) {
+          if (!g.name) continue;
+          const img = (g.cover?.url ?? "").replace("t_thumb", "t_cover_big");
           games.push({
-            title: g.title, image: img,
-            salePrice: sale.toFixed(2), normalPrice: orig.toFixed(2),
-            cut: orig > 0 ? Math.round((1 - sale / orig) * 100) : 0,
-            url: slug ? `https://store.epicgames.com/en-US/p/${slug}` : "https://store.epicgames.com",
+            title: g.name,
+            image: img.startsWith("//") ? `https:${img}` : img,
+            salePrice: "", normalPrice: "", cut: 0,
+            url: `https://store.epicgames.com/en-US/browse?q=${encodeURIComponent(g.name)}&sortBy=relevancy`,
             store: "Epic Games", storeId: "epicgames", isAtLow: false,
           });
         }
@@ -87,38 +91,23 @@ export default {
 
       // ── Xbox Store public deals ──────────────────────────────────────────────
       if (endpoint === "xbox/store-deals") {
-        const gpRes = await fetch(
-          "https://catalog.gamepass.com/sigls/v2?id=fdd9e2a7-0fee-49f6-ad69-4354098401ff&language=en-us&market=US",
-          { headers: { "Accept": "application/json" } }
-        );
-        const gpData = await gpRes.json() as any;
-        const ids: string[] = (Array.isArray(gpData) ? gpData : [])
-          .map((i: any) => String(i.id ?? ""))
-          .filter((id: string) => id.length > 4)
-          .slice(0, 50);
-        if (!ids.length) return ok([]);
-        const productsRes = await fetch(
-          `https://displaycatalog.mp.microsoft.com/v7.0/products?bigIds=${ids.join(",")}&Market=US&languages=en-us`,
-          { headers: { "Accept": "application/json" } }
-        );
-        const productsData = await productsRes.json() as any;
+        // Use IGDB for top-rated Xbox Series X games (platform 169)
+        const xboxTok = await getIgdbToken(env);
+        const xboxRes = await fetch("https://api.igdb.com/v4/games", {
+          method: "POST",
+          headers: { "Client-ID": env.IGDB_CLIENT_ID, "Authorization": `Bearer ${xboxTok}`, "Accept": "application/json" },
+          body: "fields name, cover.url, first_release_date, rating; where platforms = (169) & cover != null & rating >= 70; sort rating_count desc; limit 30;",
+        });
+        const xboxGames = await xboxRes.json() as any;
         const games: any[] = [];
-        for (const p of (productsData?.Products ?? [])) {
-          const props = p?.LocalizedProperties?.[0] ?? {};
-          const title = props?.ProductTitle ?? "";
-          if (!title) continue;
-          const price = p?.DisplaySkuAvailabilities?.[0]?.Availabilities?.[0]?.OrderManagementData?.Price ?? {};
-          const imgs: any[] = props?.Images ?? [];
-          const imgUri = imgs.find((i: any) => i.ImagePurpose === "BoxArt")?.Uri
-                      ?? imgs.find((i: any) => i.ImagePurpose === "Poster")?.Uri
-                      ?? imgs[0]?.Uri ?? "";
-          const msrp = price.MSRP ?? 0;
-          const list = price.ListPrice ?? msrp;
-          const cut  = msrp > 0 ? Math.round((1 - list / msrp) * 100) : 0;
+        for (const g of (Array.isArray(xboxGames) ? xboxGames : [])) {
+          if (!g.name) continue;
+          const img = (g.cover?.url ?? "").replace("t_thumb", "t_cover_big");
           games.push({
-            title, image: imgUri ? `https:${imgUri}` : "",
-            salePrice: list.toFixed(2), normalPrice: msrp.toFixed(2), cut,
-            url: `https://www.xbox.com/en-US/games/store/-/${p.ProductId}`,
+            title: g.name,
+            image: img.startsWith("//") ? `https:${img}` : img,
+            salePrice: "", normalPrice: "", cut: 0,
+            url: `https://www.xbox.com/en-US/Search/Results?q=${encodeURIComponent(g.name)}`,
             store: "Xbox", storeId: "xboxgames", isAtLow: false,
           });
         }
@@ -143,7 +132,7 @@ export default {
           games.push({
             title: g.name,
             image: img.startsWith("//") ? `https:${img}` : img,
-            salePrice: "69.99", normalPrice: "69.99", cut: 0,
+            salePrice: "", normalPrice: "", cut: 0,
             url: `https://store.playstation.com/en-us/search/${encodeURIComponent(g.name)}`,
             store: "PlayStation", storeId: "psn", isAtLow: false,
           });
