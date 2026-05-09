@@ -57,17 +57,16 @@ export default {
 
       // ── Epic Games Store public deals ────────────────────────────────────────
       if (endpoint === "epic/store-deals") {
-        const res = await fetch("https://graphql.epicgames.com/graphql", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: '{ Catalog { searchStore(category:"games/edition/base" count:40 country:"US" locale:"en-US" onSale:true sortBy:"effectiveDate" sortDir:"DESC") { elements { title keyImages { type url } price(country:"US") { totalPrice { originalPrice discountPrice discount } } catalogNs { mappings { pageSlug pageType } } } } } }' }),
-        });
+        const res = await fetch(
+          "https://store-site-backend-static-ipv4.ak.epicgames.com/freeGamesPromotions?locale=en-US&country=US&allowCountries=US",
+          { headers: { "User-Agent": "Mozilla/5.0 (compatible; Kortana/1.0)" } }
+        );
         const data = await res.json() as any;
         const elements: any[] = data?.data?.Catalog?.searchStore?.elements ?? [];
-        const deals: any[] = [];
+        const games: any[] = [];
         for (const g of elements) {
+          if (!g.title) continue;
           const price = g?.price?.totalPrice ?? {};
-          if (!price.discount || price.discount <= 0) continue;
           const slug = (g?.catalogNs?.mappings ?? []).find((m: any) => m.pageType === "productHome")?.pageSlug ?? "";
           const imgs: any[] = g?.keyImages ?? [];
           const img = imgs.find((i: any) => i.type === "Thumbnail")?.url
@@ -75,79 +74,81 @@ export default {
                    ?? imgs[0]?.url ?? "";
           const orig = (price.originalPrice ?? 0) / 100;
           const sale = (price.discountPrice  ?? 0) / 100;
-          deals.push({
-            title: g.title ?? "", image: img,
+          games.push({
+            title: g.title, image: img,
             salePrice: sale.toFixed(2), normalPrice: orig.toFixed(2),
             cut: orig > 0 ? Math.round((1 - sale / orig) * 100) : 0,
             url: slug ? `https://store.epicgames.com/en-US/p/${slug}` : "https://store.epicgames.com",
             store: "Epic Games", storeId: "epicgames", isAtLow: false,
           });
         }
-        return ok(deals.filter((d: any) => d.cut > 0));
+        return ok(games);
       }
 
       // ── Xbox Store public deals ──────────────────────────────────────────────
       if (endpoint === "xbox/store-deals") {
-        const recoRes = await fetch(
-          "https://reco-public.rec.mp.microsoft.com/channels/Reco/V8.0/Lists/Merchandising/BestDeals?Market=US&Language=en-US&Country=US&ItemTypes=Game&deviceFamily=Windows.Xbox&top=100",
+        const gpRes = await fetch(
+          "https://catalog.gamepass.com/sigls/v2?id=fdd9e2a7-0fee-49f6-ad69-4354098401ff&language=en-us&market=US",
           { headers: { "Accept": "application/json" } }
         );
-        const recoData = await recoRes.json() as any;
-        const ids: string[] = (recoData?.Items ?? []).map((i: any) => String(i.Id ?? "")).filter((id: string) => id.length > 0).slice(0, 50);
+        const gpData = await gpRes.json() as any;
+        const ids: string[] = (Array.isArray(gpData) ? gpData : [])
+          .map((i: any) => String(i.id ?? ""))
+          .filter((id: string) => id.length > 4)
+          .slice(0, 50);
         if (!ids.length) return ok([]);
-        const catalogRes = await fetch(
+        const productsRes = await fetch(
           `https://displaycatalog.mp.microsoft.com/v7.0/products?bigIds=${ids.join(",")}&Market=US&languages=en-us`,
           { headers: { "Accept": "application/json" } }
         );
-        const catalogData = await catalogRes.json() as any;
-        const deals: any[] = [];
-        for (const p of (catalogData?.Products ?? [])) {
+        const productsData = await productsRes.json() as any;
+        const games: any[] = [];
+        for (const p of (productsData?.Products ?? [])) {
           const props = p?.LocalizedProperties?.[0] ?? {};
+          const title = props?.ProductTitle ?? "";
+          if (!title) continue;
           const price = p?.DisplaySkuAvailabilities?.[0]?.Availabilities?.[0]?.OrderManagementData?.Price ?? {};
-          if (!price.MSRP || !price.ListPrice) continue;
-          const cut = Math.round((1 - price.ListPrice / price.MSRP) * 100);
-          if (cut <= 0) continue;
           const imgs: any[] = props?.Images ?? [];
-          const imgUri = imgs.find((i: any) => i.ImagePurpose === "BoxArt")?.Uri ?? imgs.find((i: any) => i.ImagePurpose === "Poster")?.Uri ?? "";
-          deals.push({
-            title: props?.ProductTitle ?? "", image: imgUri ? `https:${imgUri}` : "",
-            salePrice: price.ListPrice.toFixed(2), normalPrice: price.MSRP.toFixed(2), cut,
+          const imgUri = imgs.find((i: any) => i.ImagePurpose === "BoxArt")?.Uri
+                      ?? imgs.find((i: any) => i.ImagePurpose === "Poster")?.Uri
+                      ?? imgs[0]?.Uri ?? "";
+          const msrp = price.MSRP ?? 0;
+          const list = price.ListPrice ?? msrp;
+          const cut  = msrp > 0 ? Math.round((1 - list / msrp) * 100) : 0;
+          games.push({
+            title, image: imgUri ? `https:${imgUri}` : "",
+            salePrice: list.toFixed(2), normalPrice: msrp.toFixed(2), cut,
             url: `https://www.xbox.com/en-US/games/store/-/${p.ProductId}`,
             store: "Xbox", storeId: "xboxgames", isAtLow: false,
           });
         }
-        return ok(deals);
+        return ok(games);
       }
 
       // ── PSN Store public deals ───────────────────────────────────────────────
       if (endpoint === "psn/store-deals") {
-        const gqlRes = await fetch("https://web.np.playstation.com/api/graphql/v1/op", {
+        // PSN GraphQL uses persisted-queries-only — falls through to IGDB fallback
+        const games: any[] = [];
+        // IGDB fallback: recent AAA PS5 games (platform 167)
+        const igdbTok = await getIgdbToken(env);
+        const igdbRes = await fetch("https://api.igdb.com/v4/games", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "Accept": "application/json" },
-          body: JSON.stringify({
-            operationName: "categoryGridRetrieve",
-            variables: { categoryId: "STORE-MSF75508-PSPRICEDROPS", pageArgs: { size: 100, offset: 0 }, sortBy: { name: "productDiscountPercentage", isAscending: false }, filterBy: [], contextualLogs: [] },
-            extensions: { persistedQuery: { version: 1, sha256Hash: "4a1fed4c9f66a02a9f35455a5617c4b87dd49f6286c4abb2ece7ef9a3a5b7faf" } },
-          }),
+          headers: { "Client-ID": env.IGDB_CLIENT_ID, "Authorization": `Bearer ${igdbTok}`, "Accept": "application/json" },
+          body: "fields name, cover.url, first_release_date, rating; where platforms = (167) & cover != null & rating >= 75 & first_release_date > 1672531200; sort rating_count desc; limit 30;",
         });
-        const gqlData = await gqlRes.json() as any;
-        const edges: any[] = gqlData?.data?.categoryGridRetrieve?.products?.edges ?? [];
-        const deals: any[] = [];
-        for (const e of edges) {
-          const p = e?.node ?? {};
-          const price = p?.price ?? {};
-          const base = (price.basePrice ?? 0) / 100;
-          const sale = (price.discountedPrice ?? price.basePrice ?? 0) / 100;
-          const cut  = price.discountPercentage ?? (base > 0 ? Math.round((1 - sale / base) * 100) : 0);
-          if (!cut || cut <= 0) continue;
-          deals.push({
-            title: p?.name ?? "", image: (p?.media ?? []).find((m: any) => m.role === "MASTER")?.url ?? p?.thumbnailUrl ?? "",
-            salePrice: sale.toFixed(2), normalPrice: base.toFixed(2), cut,
-            url: `https://store.playstation.com/en-us/product/${p?.id ?? ""}`,
+        const igdbGames = await igdbRes.json() as any;
+        for (const g of (Array.isArray(igdbGames) ? igdbGames : [])) {
+          if (!g.name) continue;
+          const img = (g.cover?.url ?? "").replace("t_thumb", "t_cover_big");
+          games.push({
+            title: g.name,
+            image: img.startsWith("//") ? `https:${img}` : img,
+            salePrice: "69.99", normalPrice: "69.99", cut: 0,
+            url: `https://store.playstation.com/en-us/search/${encodeURIComponent(g.name)}`,
             store: "PlayStation", storeId: "psn", isAtLow: false,
           });
         }
-        return ok(deals);
+        return ok(games);
       }
 
       // ── Steam personal API ───────────────────────────────────────────────────

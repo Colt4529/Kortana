@@ -1250,50 +1250,61 @@ function NewsCard({ a, compact }) {
 }
 
 // ── KORTANA WEEKLY TAB ────────────────────────────────────────────────────────
+const KORTANA_TRAILERS = [
+  { id:"aQoEd5rnxiQ", title:"Mixtape",            dev:"Beethoven & Dinosaur", label:"LAUNCH TRAILER"  },
+  { id:"ePFf7FCVTyQ", title:"Pragmata",            dev:"Capcom",              label:"LAUNCH TRAILER"  },
+  { id:"tbWZIxw7Uto", title:"007 First Light",     dev:"IO Interactive",      label:"REVEAL TRAILER"  },
+  { id:"sLcksHR30UA", title:"Ghost of Yōtei",      dev:"Sucker Punch",        label:"LAUNCH TRAILER"  },
+  { id:"VQRLujxTm3c", title:"Grand Theft Auto VI", dev:"Rockstar Games",      label:"TRAILER 2"       },
+];
+
 function KortanaWeeklyTab({ articles }) {
-  const now   = new Date();
-  const mon   = new Date(now); mon.setDate(now.getDate() - now.getDay() + 1);
-  const sun   = new Date(mon); sun.setDate(mon.getDate() + 6);
-  const fmt   = d => d.toLocaleDateString("en-US", { month:"short", day:"numeric" });
-  const week  = `${fmt(mon)} – ${fmt(sun)}`;
-  const top   = articles[0];
-  const rest  = articles.slice(1, 9);
-
-  if (!top) return <div style={{ fontSize:11, color:"#333", padding:"20px 0", letterSpacing:"1px" }}>Loading…</div>;
-
   return (
     <div>
-      {/* Masthead */}
-      <div style={{ marginBottom:18, paddingBottom:14, borderBottom:`0.5px solid ${C.border}` }}>
-        <div style={{ fontSize:9, color:C.blue, fontWeight:700, letterSpacing:"3px", textTransform:"uppercase", marginBottom:4 }}>This Week in Games</div>
-        <div style={{ fontSize:10, color:"#444", letterSpacing:"1px" }}>{week}</div>
+      <div style={{ fontSize:9, color:C.blue, fontWeight:700, letterSpacing:"3px", textTransform:"uppercase", marginBottom:14 }}>
+        Kortana Picks — Trailers
       </div>
 
-      {/* Lead story */}
-      <a href={top.link} target="_blank" rel="noopener noreferrer" style={{ display:"block", textDecoration:"none", marginBottom:18 }}
-        onMouseEnter={e=>e.currentTarget.style.opacity="0.75"}
-        onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
-        {top.thumbnail && (
-          <div style={{ width:"100%", aspectRatio:"16/9", borderRadius:8, overflow:"hidden", marginBottom:10, background:C.faint }}>
-            <img src={top.thumbnail} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}
-              onError={e=>e.target.parentNode.style.display="none"} />
+      <div style={{ display:"flex", flexDirection:"column", gap:12, marginBottom:28 }}>
+        {KORTANA_TRAILERS.map(t => (
+          <a key={t.id} href={`https://www.youtube.com/watch?v=${t.id}`} target="_blank" rel="noopener noreferrer"
+            style={{ display:"block", textDecoration:"none", borderRadius:10, overflow:"hidden",
+              border:`0.5px solid ${C.border}`, background:C.card, transition:"opacity .15s" }}
+            onMouseEnter={e=>e.currentTarget.style.opacity="0.75"}
+            onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
+            <div style={{ position:"relative", width:"100%", aspectRatio:"16/9", background:"#111", overflow:"hidden" }}>
+              <img src={`https://img.youtube.com/vi/${t.id}/maxresdefault.jpg`} alt={t.title}
+                style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}
+                onError={e=>{ e.target.src=`https://img.youtube.com/vi/${t.id}/hqdefault.jpg`; }} />
+              <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center",
+                background:"rgba(0,0,0,0.18)" }}>
+                <div style={{ width:46, height:46, background:"rgba(220,20,20,0.92)", borderRadius:"50%",
+                  display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 2px 14px rgba(0,0,0,0.55)" }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+                </div>
+              </div>
+              <div style={{ position:"absolute", top:8, left:8, background:"rgba(0,0,0,0.72)", borderRadius:4,
+                padding:"2px 7px", fontSize:8, fontWeight:700, color:"#fff", letterSpacing:"1.5px", textTransform:"uppercase" }}>
+                {t.label}
+              </div>
+            </div>
+            <div style={{ padding:"9px 11px" }}>
+              <div style={{ fontSize:13, fontWeight:600, color:C.text, marginBottom:2 }}>{t.title}</div>
+              <div style={{ fontSize:10, color:C.muted }}>{t.dev}</div>
+            </div>
+          </a>
+        ))}
+      </div>
+
+      {articles.length > 0 && (
+        <>
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
+            <span style={{ fontSize:8, color:"#444", letterSpacing:"2px", textTransform:"uppercase", fontWeight:500, flexShrink:0 }}>Latest News</span>
+            <div style={{ flex:1, height:"0.5px", background:C.border }} />
           </div>
-        )}
-        <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:6 }}>
-          <span style={{ fontSize:8, fontWeight:700, color:top._color, letterSpacing:"1.5px", textTransform:"uppercase" }}>{top._source}</span>
-          <span style={{ fontSize:8, color:"#333", background:`${C.yellow}22`, border:`0.5px solid ${C.yellow}44`, borderRadius:3, padding:"1px 5px", letterSpacing:"1px", color:C.yellow }}>TOP STORY</span>
-        </div>
-        <div style={{ fontSize:14, fontWeight:600, color:C.text, lineHeight:1.4 }}>{top.title}</div>
-      </a>
-
-      {/* Divider */}
-      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
-        <span style={{ fontSize:8, color:"#444", letterSpacing:"2px", textTransform:"uppercase", fontWeight:500, flexShrink:0 }}>Also This Week</span>
-        <div style={{ flex:1, height:"0.5px", background:C.border }} />
-      </div>
-
-      {/* Rest of stories */}
-      {rest.map((a, i) => <NewsCard key={i} a={a} compact />)}
+          {articles.slice(0, 6).map((a, i) => <NewsCard key={i} a={a} compact />)}
+        </>
+      )}
     </div>
   );
 }
@@ -2271,7 +2282,7 @@ function DealsRow() {
     const run = async () => {
       if (activeTab?.direct) {
         const raw = await fetchDirect(activeTab.direct).catch(() => []);
-        if (Array.isArray(raw) && raw.length) return raw.filter(d => (d.cut ?? 0) > 0);
+        if (Array.isArray(raw) && raw.length) return raw;
         // fall back to ITAD if direct returned empty
         const itad = await fetchItadDeals(activeTab.shops).catch(() => []);
         return normalizeItad(itad);
