@@ -2016,10 +2016,6 @@ function HomeScreen({ games, logs, onGameClick, steamId, onConnectSteam, psnToke
         {!isDesktop && <NewsRow />}
 
         <div style={{ marginBottom:36 }}>
-          <StorefrontDeals />
-        </div>
-
-        <div style={{ marginBottom:36 }}>
           <SectionHead label="New & Hot" />
           <NewAndHot onGameClick={onGameClick} />
         </div>
