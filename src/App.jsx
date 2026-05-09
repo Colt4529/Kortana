@@ -3532,6 +3532,66 @@ function PlatformsScreen({
   );
 }
 
+// ── SPLASH ────────────────────────────────────────────────────────────────────
+function SplashScreen({ fading }) {
+  return (
+    <>
+      <style>{`
+        @keyframes ks-k    { from{stroke-dashoffset:1} to{stroke-dashoffset:0} }
+        @keyframes ks-line { from{stroke-dashoffset:1;opacity:0} to{stroke-dashoffset:0;opacity:1} }
+        @keyframes ks-word { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes ks-bar  { from{clip-path:inset(0 100% 0 0);opacity:1} to{clip-path:inset(0 0% 0 0);opacity:1} }
+      `}</style>
+      <div style={{
+        position:"fixed", inset:0, zIndex:9999,
+        background:"#0a0a0a",
+        display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+        pointerEvents:"none",
+        transition:"opacity 0.65s cubic-bezier(0.4,0,1,1), transform 0.65s cubic-bezier(0.4,0,1,1)",
+        opacity: fading ? 0 : 1,
+        transform: fading ? "scale(1.05)" : "scale(1)",
+      }}>
+        <svg width="140" height="140" viewBox="0 0 110 110" fill="none">
+          <path
+            d="M16 10 L16 100 L34 100 L34 62 L68 100 L92 100 L54 55 L90 10 L66 10 L34 46 L34 10 Z"
+            fill="none" stroke="#2255CC" strokeWidth="4"
+            pathLength="1" strokeDasharray="1" strokeDashoffset="1"
+            style={{ animation:"ks-k 0.9s cubic-bezier(0.16,1,0.3,1) 0.1s forwards" }}
+          />
+          <path d="M90 10 L54 55" fill="none" stroke="#CC3377" strokeWidth="4"
+            pathLength="1" strokeDasharray="1" strokeDashoffset="1"
+            style={{ animation:"ks-line 0.35s ease 0.65s forwards", opacity:0 }}
+          />
+          <path d="M34 62 L68 100 L92 100" fill="none" stroke="#FAC000" strokeWidth="4"
+            pathLength="1" strokeDasharray="1" strokeDashoffset="1"
+            style={{ animation:"ks-line 0.4s ease 0.8s forwards", opacity:0 }}
+          />
+          <path d="M54 55 L92 100" fill="none" stroke="#00A850" strokeWidth="4"
+            pathLength="1" strokeDasharray="1" strokeDashoffset="1"
+            style={{ animation:"ks-line 0.35s ease 0.95s forwards", opacity:0 }}
+          />
+        </svg>
+        <div style={{
+          fontSize:13, fontWeight:500, letterSpacing:"0.4em", color:"#888",
+          textTransform:"uppercase", marginTop:18,
+          fontFamily:"'Poppins',system-ui,sans-serif",
+          animation:"ks-word 0.5s cubic-bezier(0.16,1,0.3,1) 0.75s both",
+        }}>Kortana</div>
+        <div style={{
+          display:"flex", height:2, width:72, marginTop:14,
+          borderRadius:1, overflow:"hidden",
+          animation:"ks-bar 0.5s cubic-bezier(0.16,1,0.3,1) 1.0s both",
+          clipPath:"inset(0 100% 0 0)",
+        }}>
+          {["#2255CC","#CC3377","#FAC000","#00A850"].map(c=>(
+            <div key={c} style={{ flex:1, background:c }} />
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── ROOT ──────────────────────────────────────────────────────────────────────
 export default function Kortana() {
   const [games,    setGames]    = useState(INIT_GAMES);
@@ -3548,6 +3608,9 @@ export default function Kortana() {
   const [detail, setDetail] = useState(null);
   const [user,   setUser]   = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [splashVisible, setSplashVisible] = useState(true);
+  const [splashFading,  setSplashFading]  = useState(false);
+  const splashStart = useRef(Date.now());
   const [logs, setLogs]         = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [settingsOpen, setSettingsOpen]   = useState(false);
@@ -3673,6 +3736,20 @@ export default function Kortana() {
       .catch(() => {});
   }, [user?.id, logs.length]);
 
+  // Dismiss splash once auth resolves, holding at least 1.6s for the animation
+  useEffect(() => {
+    if (!authLoading && splashVisible) {
+      const elapsed   = Date.now() - splashStart.current;
+      const remaining = Math.max(0, 1600 - elapsed);
+      let t2;
+      const t1 = setTimeout(() => {
+        setSplashFading(true);
+        t2 = setTimeout(() => setSplashVisible(false), 700);
+      }, remaining);
+      return () => { clearTimeout(t1); clearTimeout(t2); };
+    }
+  }, [authLoading]);
+
   const connectSteam = async (newSteamId) => {
     const { error } = await supabase.auth.updateUser({ data: { steam_id: newSteamId } });
     if (!error) { setSteamId(newSteamId); setShowConnectSteam(false); }
@@ -3742,16 +3819,24 @@ export default function Kortana() {
   ];
 
   if (authLoading) return (
-    <div style={{ minHeight:"100vh", background:C.bg, color:C.text, display:"flex", alignItems:"center", justifyContent:"center" }}>
-      <div style={{ fontSize:11, color:"#444", letterSpacing:"2px", textTransform:"uppercase" }}>Loading…</div>
-    </div>
+    <>
+      {splashVisible && <SplashScreen fading={splashFading} />}
+      <div style={{ minHeight:"100vh", background:C.bg }} />
+    </>
   );
 
-  if (!user) return <AuthScreen />;
+  if (!user) return (
+    <>
+      {splashVisible && <SplashScreen fading={splashFading} />}
+      <AuthScreen />
+    </>
+  );
 
   const initial = (displayName || user.email)[0].toUpperCase();
 
   return (
+    <>
+    {splashVisible && <SplashScreen fading={splashFading} />}
     <div style={{ minHeight:"100vh", background:C.bg, position:"relative", overflowX:"hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&display=swap');
@@ -3909,5 +3994,6 @@ export default function Kortana() {
 
       </div>
     </div>
+    </>
   );
 }
