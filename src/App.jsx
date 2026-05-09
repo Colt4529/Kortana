@@ -18,7 +18,7 @@ const STRIPES = ["#2255CC","#CC3377","#FAC000","#00A850"];
 const SC = { "played":C.green, "playing":C.blue, "want to play":C.yellow, "dropped":C.muted };
 const GENRES     = ["All","RPG","Action","Roguelike","Platformer","Metroidvania","Strategy","Horror","Sports","Adventure"];
 const PUBLISHERS = ["All","Bandai Namco","Supergiant","Team Cherry","ZA/UM","Extremely OK","Activision","Motion Twin","Nintendo"];
-const IGDB_PROXY    = "https://fivqyneeitodojrojabx.supabase.co/functions/v1/igdb-proxy";
+const IGDB_PROXY    = "https://kortana-proxy.coltenhorn05.workers.dev";
 const SUPABASE_ANON = "sb_publishable_pq-vcpw-vvbcj6v-VBwYCw_XXI_dydj";
 
 const PROXY_HEADERS = {
