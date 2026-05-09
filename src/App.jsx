@@ -2529,34 +2529,32 @@ function BrowseScreen({ games, onGameClick }) {
           `);
         } else {
           const escaped = filterMode.name.replace(/"/g, '\\"');
-          // Collect all company IDs for this developer (handles subsidiaries/aliases)
-          let companies = await igdb("companies", `
+          const target = filterMode.name.toLowerCase();
+          // Use search (case-insensitive full-text) and validate results have real IDs
+          const raw = await igdb("companies", `
+            search "${escaped}";
             fields id, name;
-            where name = "${escaped}";
-            limit 10;
+            limit 15;
           `);
-          if (!Array.isArray(companies) || !companies.length) {
-            companies = await igdb("companies", `
-              search "${escaped}";
-              fields id, name;
-              limit 10;
-            `);
-          }
-          const exactMatches = Array.isArray(companies)
-            ? companies.filter(c => c.name?.toLowerCase() === filterMode.name.toLowerCase())
-            : [];
-          const pool = exactMatches.length ? exactMatches : (Array.isArray(companies) ? companies.slice(0, 5) : []);
+          const companies = Array.isArray(raw) ? raw.filter(c => c.id && c.name) : [];
+          const exact = companies.filter(c => c.name.toLowerCase() === target);
+          const pool  = exact.length ? exact : companies.slice(0, 3);
           const devIds = pool.map(c => c.id).filter(Boolean);
-          const whereIds = devIds.length > 1 ? `(${devIds.join(",")})` : devIds[0] ?? null;
-          data = whereIds ? await igdb("games", `
-            fields id, name, first_release_date, cover.image_id, artworks.image_id,
-              screenshots.image_id, genres.name,
-              involved_companies.company.name, involved_companies.developer,
-              external_games.uid, external_games.category, rating, rating_count;
-            where involved_companies.company = ${whereIds} & cover != null & version_parent = null;
-            sort rating_count desc;
-            limit 30;
-          `) : [];
+          if (!devIds.length) {
+            data = [];
+          } else {
+            const ids = devIds.length > 1 ? `(${devIds.join(",")})` : String(devIds[0]);
+            const res = await igdb("games", `
+              fields id, name, first_release_date, cover.image_id, artworks.image_id,
+                screenshots.image_id, genres.name,
+                involved_companies.company.name, involved_companies.developer,
+                external_games.uid, external_games.category, rating, rating_count;
+              where involved_companies.company = ${ids} & cover != null;
+              sort rating_count desc;
+              limit 30;
+            `);
+            data = Array.isArray(res) ? res : [];
+          }
         }
         if (active && Array.isArray(data))
           setFilterGames(data.filter(g => g.cover?.image_id).map(normalizeIgdbGame));
