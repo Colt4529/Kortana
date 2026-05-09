@@ -31,6 +31,92 @@ serve(async (req) => {
     const body = await req.json();
     const { endpoint } = body;
 
+    // ── Steam Store public deals (no auth) ────────────────────────────────────
+    if (endpoint === "steam/store-deals") {
+      const res = await fetch(
+        "https://store.steampowered.com/api/featuredcategories?cc=US&l=en",
+        { headers: { "Accept": "application/json" } }
+      );
+      const data = await res.json() as any;
+      const items: any[] = (data?.specials?.items || []).filter((g: any) => g.discount_percent > 0);
+      const deals = items.map((g: any) => ({
+        title:       g.name || "",
+        image:       g.header_image || g.large_capsule_image || "",
+        salePrice:   ((g.final_price   || 0) / 100).toFixed(2),
+        normalPrice: ((g.original_price || 0) / 100).toFixed(2),
+        cut:         g.discount_percent || 0,
+        url:         `https://store.steampowered.com/app/${g.steam_appid}`,
+        store:       "Steam",
+        storeId:     "steam",
+        isAtLow:     false,
+      }));
+      return new Response(JSON.stringify(deals), {
+        headers: { ...CORS, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Epic Games Store public deals (no auth) ────────────────────────────────
+    if (endpoint === "epic/store-deals") {
+      const gql = JSON.stringify({
+        query: `{
+          Catalog {
+            searchStore(
+              category: "games/edition/base"
+              count: 40
+              country: "US"
+              locale: "en-US"
+              onSale: true
+              sortBy: "effectiveDate"
+              sortDir: "DESC"
+            ) {
+              elements {
+                title
+                keyImages { type url }
+                price(country: "US") {
+                  totalPrice { originalPrice discountPrice discount }
+                }
+                catalogNs { mappings(pageType: "productHome") { pageSlug pageType } }
+              }
+            }
+          }
+        }`,
+      });
+      const res = await fetch("https://graphql.epicgames.com/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: gql,
+      });
+      const data = await res.json() as any;
+      const elements: any[] = data?.data?.Catalog?.searchStore?.elements || [];
+      const deals = elements
+        .filter((g: any) => (g.price?.totalPrice?.discount ?? 0) > 0)
+        .map((g: any) => {
+          const price = g.price?.totalPrice;
+          const slug  = g.catalogNs?.mappings?.[0]?.pageSlug || "";
+          const img   = g.keyImages?.find((i: any) => i.type === "Thumbnail")?.url
+                     || g.keyImages?.find((i: any) => i.type === "DieselStoreFrontWide")?.url
+                     || g.keyImages?.[0]?.url || "";
+          const orig = (price?.originalPrice || 0) / 100;
+          const sale = (price?.discountPrice  || 0) / 100;
+          const cut  = orig > 0 ? Math.round((1 - sale / orig) * 100) : 0;
+          return {
+            title:       g.title || "",
+            image:       img,
+            salePrice:   sale.toFixed(2),
+            normalPrice: orig.toFixed(2),
+            cut,
+            url:         slug ? `https://store.epicgames.com/en-US/p/${slug}` : "https://store.epicgames.com",
+            store:       "Epic Games",
+            storeId:     "epicgames",
+            isAtLow:     false,
+          };
+        })
+        .filter((d: any) => d.cut > 0);
+      return new Response(JSON.stringify(deals), {
+        headers: { ...CORS, "Content-Type": "application/json" },
+      });
+    }
+
     // ── Steam ──────────────────────────────────────────────────────────────────
     if (endpoint?.startsWith("steam/")) {
       const key = Deno.env.get("STEAM_API_KEY")!;

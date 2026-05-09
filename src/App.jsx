@@ -2188,12 +2188,12 @@ function StorefrontDeals() {
 }
 
 const HOT_DEAL_TABS = [
-  { key:"all",      label:"All",         shops:"",             color:C.green   },
-  { key:"steam",    label:"Steam",       shops:"steam",        color:"#1b9af0" },
-  { key:"psn",      label:"PlayStation", shops:"psn",          color:"#003791", direct:"psn/store-deals"  },
-  { key:"xbox",     label:"Xbox",        shops:"xboxgames",    color:"#107c10", direct:"xbox/store-deals" },
-  { key:"nintendo", label:"Nintendo",    shops:"nintendo",     color:"#e60012" },
-  { key:"epic",     label:"Epic",        shops:"epicgames",    color:"#c7c7c7" },
+  { key:"all",      label:"All",         shops:"",             color:C.green                                      },
+  { key:"steam",    label:"Steam",       shops:"steam",        color:"#1b9af0", direct:"steam/store-deals"        },
+  { key:"psn",      label:"PlayStation", shops:"psn",          color:"#003791", direct:"psn/store-deals"          },
+  { key:"xbox",     label:"Xbox",        shops:"xboxgames",    color:"#107c10", direct:"xbox/store-deals"         },
+  { key:"nintendo", label:"Nintendo",    shops:"nintendo",     color:"#e60012"                                    },
+  { key:"epic",     label:"Epic",        shops:"epicgames",    color:"#c7c7c7", direct:"epic/store-deals"         },
 ];
 
 const PLATFORM_ICON = {
