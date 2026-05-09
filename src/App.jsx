@@ -3325,35 +3325,47 @@ function ProfileScreen({ user, logs, displayName, photoUrl, onGameClick }) {
         </div>
 
         {/* ── Film Strip ── */}
-        {logs.filter(l => l.cover).length > 0 && (
-          <div style={{ marginBottom:44 }}>
-            <div style={{ padding:"0 clamp(18px,5vw,48px)", marginBottom:16, display:"flex", alignItems:"center", gap:12 }}>
-              <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2.5px", color:"#444", textTransform:"uppercase" }}>Film Strip</span>
-              <div style={{ flex:1, height:"0.5px", background:`linear-gradient(to right, ${C.border}, transparent)` }} />
-            </div>
-            <div style={{ overflowX:"auto", display:"flex", gap:10, padding:"4px clamp(18px,5vw,48px) 12px", scrollSnapType:"x mandatory", scrollbarWidth:"none" }}>
-              {logs.filter(l => l.cover).slice(0, 20).map((log, i) => (
-                <div key={log.id||i} onClick={() => onGameClick && onGameClick({ id:log.game_id||log.id, title:log.title, cover:log.cover, hero:log.cover, status:log.status, rating:log.rating, review:log.review, year:null, developer:"", publisher:"", genre:"", playtime:log.playtime||0, desc:"" })}
-                  style={{ flexShrink:0, width:90, scrollSnapAlign:"start", cursor:"pointer", transition:"transform .2s", position:"relative" }}
-                  onMouseEnter={e=>e.currentTarget.style.transform="translateY(-4px) scale(1.03)"}
-                  onMouseLeave={e=>e.currentTarget.style.transform="translateY(0) scale(1)"}>
-                  <div style={{ width:90, height:122, borderRadius:8, overflow:"hidden",
-                    boxShadow:"0 6px 24px rgba(0,0,0,.8)", border:`0.5px solid ${C.border}` }}>
-                    <img src={log.cover} alt={log.title} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                  </div>
-                  {log.rating > 0 && (
-                    <div style={{ marginTop:6, display:"flex", justifyContent:"center" }}>
-                      <Stars value={log.rating} size={8} />
+        {(() => {
+          const loggedWithCovers = logs.filter(l => l.cover);
+          const favGames = favorites.filter(Boolean);
+          // merge: logged games first, then any favorites not already in logs
+          const logIds = new Set(loggedWithCovers.map(l => String(l.game_id||l.id)));
+          const strip = [...loggedWithCovers, ...favGames.filter(f => !logIds.has(String(f.id)))].slice(0, 20);
+          if (!strip.length) return null;
+          return (
+            <div style={{ marginBottom:44 }}>
+              <div style={{ padding:"0 clamp(18px,5vw,48px)", marginBottom:16, display:"flex", alignItems:"center", gap:12 }}>
+                <span style={{ fontSize:10, fontWeight:500, letterSpacing:"2.5px", color:"#444", textTransform:"uppercase" }}>Film Strip</span>
+                <div style={{ flex:1, height:"0.5px", background:`linear-gradient(to right, ${C.border}, transparent)` }} />
+              </div>
+              <div style={{ overflowX:"auto", display:"flex", gap:10, padding:"4px clamp(18px,5vw,48px) 12px", scrollSnapType:"x mandatory", scrollbarWidth:"none" }}>
+                {strip.map((item, i) => {
+                  const isLog = !!item.game_id;
+                  const cover = item.cover;
+                  const rating = item.rating || 0;
+                  const status = item.status || "";
+                  const gameObj = { id:item.game_id||item.id, title:item.title, cover, hero:cover, status, rating, review:item.review||"", year:item.year||null, developer:item.developer||"", publisher:"", genre:"", playtime:item.playtime||0, desc:"" };
+                  return (
+                    <div key={i} onClick={() => onGameClick && onGameClick(gameObj)}
+                      style={{ flexShrink:0, width:90, scrollSnapAlign:"start", cursor:"pointer", transition:"transform .2s" }}
+                      onMouseEnter={e=>e.currentTarget.style.transform="translateY(-5px) scale(1.04)"}
+                      onMouseLeave={e=>e.currentTarget.style.transform="none"}>
+                      <div style={{ width:90, height:122, borderRadius:8, overflow:"hidden",
+                        boxShadow:"0 6px 24px rgba(0,0,0,.8)", border:`0.5px solid ${C.border}` }}>
+                        <img src={cover} alt={item.title} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                      </div>
+                      {rating > 0
+                        ? <div style={{ marginTop:6, display:"flex", justifyContent:"center" }}><Stars value={rating} size={8} /></div>
+                        : status
+                          ? <div style={{ marginTop:6, textAlign:"center", fontSize:8, letterSpacing:"1px", textTransform:"uppercase", color:SC[status]||C.muted }}>{status}</div>
+                          : null}
                     </div>
-                  )}
-                  {!log.rating && log.status && (
-                    <div style={{ marginTop:6, textAlign:"center", fontSize:8, letterSpacing:"1px", textTransform:"uppercase", color:SC[log.status]||C.muted }}>{log.status}</div>
-                  )}
-                </div>
-              ))}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ── Recent Activity ── */}
         {recent.length > 0 && (
