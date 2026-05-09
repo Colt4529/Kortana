@@ -3533,6 +3533,16 @@ function PlatformsScreen({
 }
 
 // ── SPLASH ────────────────────────────────────────────────────────────────────
+const SPLASH_LASERS = [
+  { color:"#2255CC", top:"12%", w:460, h:2,   angle:-4,  delay:"0.1s",  dur:"1.1s",  rtl:false },
+  { color:"#CC3377", top:"38%", w:320, h:2.5, angle: 7,  delay:"0.35s", dur:"0.95s", rtl:false },
+  { color:"#FAC000", top:"65%", w:400, h:1.5, angle:-6,  delay:"0.2s",  dur:"1.2s",  rtl:false },
+  { color:"#00A850", top:"25%", w:280, h:2,   angle: 4,  delay:"0.65s", dur:"1.05s", rtl:true  },
+  { color:"#CC3377", top:"80%", w:240, h:1.5, angle:-3,  delay:"0.85s", dur:"0.9s",  rtl:true  },
+  { color:"#2255CC", top:"52%", w:370, h:2,   angle: 9,  delay:"0.5s",  dur:"1.15s", rtl:false },
+  { color:"#00A850", top:"90%", w:300, h:1.5, angle:-5,  delay:"1.0s",  dur:"1.0s",  rtl:false },
+];
+
 function SplashScreen({ fading }) {
   return (
     <>
@@ -3540,48 +3550,66 @@ function SplashScreen({ fading }) {
         @keyframes ks-k    { from{stroke-dashoffset:1} to{stroke-dashoffset:0} }
         @keyframes ks-line { from{stroke-dashoffset:1;opacity:0} to{stroke-dashoffset:0;opacity:1} }
         @keyframes ks-word { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes ks-bar  { from{clip-path:inset(0 100% 0 0);opacity:1} to{clip-path:inset(0 0% 0 0);opacity:1} }
+        @keyframes ks-bar  { from{clip-path:inset(0 100% 0 0)} to{clip-path:inset(0 0% 0 0)} }
+        @keyframes ks-ltr  { 0%{transform:translateX(-600px);opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{transform:translateX(2400px);opacity:0} }
+        @keyframes ks-rtl  { 0%{transform:translateX(2400px);opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{transform:translateX(-600px);opacity:0} }
       `}</style>
       <div style={{
         position:"fixed", inset:0, zIndex:9999,
         background:"#0a0a0a",
         display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+        overflow:"hidden",
         pointerEvents:"none",
         transition:"opacity 0.65s cubic-bezier(0.4,0,1,1), transform 0.65s cubic-bezier(0.4,0,1,1)",
         opacity: fading ? 0 : 1,
         transform: fading ? "scale(1.05)" : "scale(1)",
       }}>
-        <svg width="140" height="140" viewBox="0 0 110 110" fill="none">
+        {/* Laser streaks */}
+        {SPLASH_LASERS.map((l,i) => (
+          <div key={i} style={{
+            position:"absolute", top:l.top, left:0,
+            width:l.w, height:l.h,
+            background:`linear-gradient(to right, transparent, ${l.color} 25%, ${l.color} 75%, transparent)`,
+            boxShadow:`0 0 10px 4px ${l.color}55`,
+            transform:`rotate(${l.angle}deg)`,
+            animation:`${l.rtl?"ks-rtl":"ks-ltr"} ${l.dur} linear ${l.delay} both`,
+          }} />
+        ))}
+
+        {/* K logo */}
+        <svg width="140" height="140" viewBox="0 0 110 110" fill="none" style={{ position:"relative", zIndex:1 }}>
           <path
             d="M16 10 L16 100 L34 100 L34 62 L68 100 L92 100 L54 55 L90 10 L66 10 L34 46 L34 10 Z"
             fill="none" stroke="#2255CC" strokeWidth="4"
             pathLength="1" strokeDasharray="1" strokeDashoffset="1"
-            style={{ animation:"ks-k 0.9s cubic-bezier(0.16,1,0.3,1) 0.1s forwards" }}
+            style={{ animation:"ks-k 1.4s cubic-bezier(0.16,1,0.3,1) 0.1s forwards" }}
           />
           <path d="M90 10 L54 55" fill="none" stroke="#CC3377" strokeWidth="4"
             pathLength="1" strokeDasharray="1" strokeDashoffset="1"
-            style={{ animation:"ks-line 0.35s ease 0.65s forwards", opacity:0 }}
+            style={{ animation:"ks-line 0.5s ease 0.9s forwards", opacity:0 }}
           />
           <path d="M34 62 L68 100 L92 100" fill="none" stroke="#FAC000" strokeWidth="4"
             pathLength="1" strokeDasharray="1" strokeDashoffset="1"
-            style={{ animation:"ks-line 0.4s ease 0.8s forwards", opacity:0 }}
+            style={{ animation:"ks-line 0.5s ease 1.1s forwards", opacity:0 }}
           />
           <path d="M54 55 L92 100" fill="none" stroke="#00A850" strokeWidth="4"
             pathLength="1" strokeDasharray="1" strokeDashoffset="1"
-            style={{ animation:"ks-line 0.35s ease 0.95s forwards", opacity:0 }}
+            style={{ animation:"ks-line 0.5s ease 1.25s forwards", opacity:0 }}
           />
         </svg>
+
         <div style={{
           fontSize:13, fontWeight:500, letterSpacing:"0.4em", color:"#888",
-          textTransform:"uppercase", marginTop:18,
+          textTransform:"uppercase", marginTop:18, position:"relative", zIndex:1,
           fontFamily:"'Poppins',system-ui,sans-serif",
-          animation:"ks-word 0.5s cubic-bezier(0.16,1,0.3,1) 0.75s both",
+          animation:"ks-word 0.55s cubic-bezier(0.16,1,0.3,1) 1.1s both",
         }}>Kortana</div>
+
         <div style={{
           display:"flex", height:2, width:72, marginTop:14,
-          borderRadius:1, overflow:"hidden",
-          animation:"ks-bar 0.5s cubic-bezier(0.16,1,0.3,1) 1.0s both",
+          borderRadius:1, overflow:"hidden", position:"relative", zIndex:1,
           clipPath:"inset(0 100% 0 0)",
+          animation:"ks-bar 0.55s cubic-bezier(0.16,1,0.3,1) 1.35s both",
         }}>
           {["#2255CC","#CC3377","#FAC000","#00A850"].map(c=>(
             <div key={c} style={{ flex:1, background:c }} />
@@ -3740,7 +3768,7 @@ export default function Kortana() {
   useEffect(() => {
     if (!authLoading && splashVisible) {
       const elapsed   = Date.now() - splashStart.current;
-      const remaining = Math.max(0, 1600 - elapsed);
+      const remaining = Math.max(0, 2200 - elapsed);
       let t2;
       const t1 = setTimeout(() => {
         setSplashFading(true);
